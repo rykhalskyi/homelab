@@ -1,0 +1,33 @@
+# Nextcloud All-in-One (AIO), running behind the Cloudflare tunnel.
+#
+# The mastercontainer orchestrates the rest of the stack (PostgreSQL, Redis,
+# Apache, ...). Only the admin UI (8080) is published on the host; Nextcloud
+# itself is reached through the tunnel via APACHE_PORT on 127.0.0.1.
+#
+# Tunnel ingress (see docs/wiki/pages/cloudflare-tunnel-nginx.md):
+#   cloud.otakeessen.com -> http://localhost:11000
+name: nextcloud-aio
+
+services:
+  nextcloud-aio-mastercontainer:
+    image: ghcr.io/nextcloud-releases/all-in-one:latest
+    init: true
+    restart: always
+    container_name: nextcloud-aio-mastercontainer   # do not change
+    volumes:
+      - nextcloud_aio_mastercontainer:/mnt/docker-aio-config   # do not change
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    network_mode: bridge
+    ports:
+      - "8080:8080"                 # AIO admin interface (self-signed) - open by IP
+    environment:
+      NEXTCLOUD_DATADIR: /home/jaro/ncdata   # set before first install
+      APACHE_PORT: 11000                     # the tunnel forwards here
+      APACHE_IP_BINDING: 127.0.0.1           # localhost only, not exposed
+      SKIP_DOMAIN_VALIDATION: true           # required behind Cloudflare
+      # NEXTCLOUD_UPLOAD_LIMIT: 10G
+      # NEXTCLOUD_MEMORY_LIMIT: 512M
+
+volumes:
+  nextcloud_aio_mastercontainer:
+    name: nextcloud_aio_mastercontainer   # do not change
