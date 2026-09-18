@@ -1,0 +1,20 @@
+# Secrets / credentials
+.env
+.env.*
+*.pem
+*.key
+*.crt
+credentials*
+*credentials*.json
+
+# Cloudflare tunnel credentials (keep these out of the repo)
+.cloudflared/
+**/.cloudflared/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/

@@ -1,0 +1,12 @@
+# nginx serving the homelab landing page (mirrors ~/Source/nginx on node-one).
+services:
+  nginx:
+    image: nginx:stable
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+      - ./conf.d:/etc/nginx/conf.d:ro
