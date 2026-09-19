@@ -1,10 +1,17 @@
-.PHONY: wiki serve help
+.PHONY: wiki serve nc-app-deploy nc-app-status help
 
 wiki: ## Build the wiki into infra/nginx/html/wiki
 	python3 tools/build_wiki.py
 
 serve: ## Preview the site locally at http://localhost:8080
 	cd infra/nginx/html && python3 -m http.server 8080
+
+nc-app-deploy: ## Install/update the pinned byebyemoneylist release in Nextcloud AIO
+	bash infra/nextcloud/deploy-app.sh
+
+nc-app-status: ## Show byebyemoneylist app + migration status in Nextcloud AIO
+	docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep -i byebyemoneylist || true
+	docker exec -u www-data nextcloud-aio-nextcloud php occ migrations:status byebyemoneylist
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

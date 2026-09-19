@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Byebyemoneylist app integration (Nextcloud AIO) · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-19</span><span class="tag-list"><span class="tag">nextcloud</span><span class="tag">aio</span><span class="tag">docker</span><span class="tag">ci</span><span class="tag">github-actions</span><span class="tag">deploy</span><span class="tag">byebyemoneylist</span></span></p>
+      <article class="panel wiki-article">
+<h1>Byebyemoneylist app integration (Nextcloud AIO)</h1>
+<p>Design of how the personal Nextcloud app <strong>Bye Bye Money List</strong> (<code>rykhalskyi/byebyemoneylist-ns</code>) is shipped onto the Nextcloud AIO instance on <code>node-one</code>, and why it is done this way.</p>
+<p>See <a href="cloudflare-tunnel-nginx.html">Cloudflare Tunnel → nginx (install + first tunnel)</a> for how Nextcloud is exposed; this page is only about delivering the app.</p>
+<h2>Context</h2>
+<ul><li>Server runs <strong>Nextcloud All-in-One</strong> (<code>infra/nextcloud/docker-compose.yml</code>), published through the Cloudflare tunnel on <code>cloud.otakeessen.com</code>.</li><li>The app is developed separately against <code>nextcloud-docker-dev</code>; the frontend is a Vite build and <strong>the built <code>js/</code> and <code>css/</code> are gitignored</strong> in the app repo (no Java/PHP toolchain needed at runtime, no composer runtime deps).</li><li>AIO has no supported way to use a custom Nextcloud image, so &quot;build a new Nextcloud image with the app baked in&quot; is <strong>not</strong> an option here.</li></ul>
+<h2>Design decision</h2>
+<p>Ship the app as a <strong>custom app</strong> and install it into the running AIO container:</p>
+<ul><li>AIO&#x27;s Nextcloud container mounts the persistent volume <code>nextcloud_aio_nextcloud</code> at <code>/var/www/html</code>.</li><li><code>/custom_apps/</code> is listed in AIO&#x27;s <code>upgrade.exclude</code>, so it survives container recreation and Nextcloud updates.</li><li><code>nextcloud_aio_nextcloud</code> is a declared AIO backup volume, so the app is included in AIO backups.</li></ul>
+<p>The artifact is built <strong>once on GitHub Actions</strong> from a tagged release; the server only downloads it. This avoids needing Node/npm on <code>node-one</code>, keeps deploys reproducible, and leaves the door open to reuse the same artifact on a future k3s cluster.</p>
+<h2>Release flow (app repo)</h2>
+<p><code>.github/workflows/release.yml</code>, triggered by a <code>v*</code> tag:</p>
+<ol><li><code>npm ci</code>, <code>npm run l10n</code>, <code>npm run build</code> on Node 24.</li><li>Validate the tag equals <code>appinfo/info.xml</code> <code>&lt;version&gt;</code>.</li><li>Package the runtime tree: `appinfo lib templates l10n js css img composer.json CHANGELOG.md LICENSE README.md<code> (no </code>src tests wiki vendor node_modules`).</li><li>Upload <code>byebyemoneylist-&lt;version&gt;.tar.gz</code> and <code>.sha256</code> to the GitHub Release.</li></ol>
+<h2>Deploy flow (homelab repo)</h2>
+<table><thead><tr><th>File</th><th>Role</th></tr></thead><tbody><tr><td><code>infra/nextcloud/versions.env</code></td><td>Pinned <code>BYML_VERSION</code> (+ optional <code>BYML_SHA256</code>). Committed, no secrets.</td></tr><tr><td><code>infra/nextcloud/deploy-app.sh</code></td><td>Download the pinned tarball and install it into the container.</td></tr><tr><td><code>infra/nextcloud/DEPLOY.md</code></td><td>Build/deploy/update/rollback runbook beside the script.</td></tr><tr><td><code>Makefile</code> (<code>nc-app-deploy</code>, <code>nc-app-status</code>)</td><td>Convenience wrappers.</td></tr></tbody></table>
+<p>On <code>node-one</code>:</p>
+<pre><code class="language-bash">cd ~/Source/homelab &amp;&amp; git pull &amp;&amp; make nc-app-deploy</code></pre>
+<p>The script downloads the release asset, verifies the checksum and the <code>info.xml</code> version, copies the app into <code>nextcloud-aio-nextcloud:/var/www/html/custom_apps/byebyemoneylist</code>, sets ownership to <code>33:0</code>, then disables, swaps, re-enables the app and runs <code>occ migrations:migrate</code>.</p>
+<h2>Update and rollback</h2>
+<ul><li><strong>Update:</strong> publish a new <code>v*</code> release, bump <code>BYML_VERSION</code>/<code>BYML_SHA256</code> in <code>versions.env</code>, commit, then <code>git pull &amp;&amp; make nc-app-deploy</code> on <code>node-one</code>.</li><li><strong>Rollback:</strong> set the pin back and re-run. Code reverts cleanly; DB migrations do <strong>not</strong> auto-revert.</li></ul>
+<h2>Verify</h2>
+<pre><code class="language-bash">make nc-app-status
+docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep byebyemoneylist</code></pre>
+<h2>Notes and limits</h2>
+<ul><li>The app supports Nextcloud <code>31–35</code>.</li><li>Custom-image overrides and the AIO mastercontainer&#x27;s <code>containers.json</code> are deliberately <strong>not</strong> modified; that path is unsupported and would be undone by AIO updates.</li><li><strong>Future (k3s):</strong> the same release artifact can be consumed by the official Nextcloud Helm chart, either baked into a custom image or dropped in via an initContainer; the AIO-specific copy step is then replaced, but the build stays a GitHub release.</li><li>Optional later: a Renovate <code>regex</code> rule on <code>versions.env</code> to open &quot;bump BYML_VERSION&quot; PRs automatically.</li></ul>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

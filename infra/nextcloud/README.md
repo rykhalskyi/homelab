@@ -25,6 +25,19 @@ docker compose up -d
 Then open `https://<server-ip>:8080` (accept the self-signed certificate),
 enter `cloud.otakeessen.com` as the domain, and click **Start containers**.
 
+## Custom apps
+
+The `byebyemoneylist` app is sideloaded into the running AIO container from a
+pinned GitHub release (AIO does not allow a custom Nextcloud image):
+
+```bash
+make nc-app-deploy    # install/update the pinned version
+make nc-app-status    # show app + migration status
+```
+
+Version pin: `versions.env`. Full notes: [`DEPLOY.md`](DEPLOY.md) and the
+[wiki design page](../../docs/wiki/pages/nextcloud-aio-custom-app.md).
+
 ## Notes
 
 - `NEXTCLOUD_DATADIR` must be set **before** the first install and not changed

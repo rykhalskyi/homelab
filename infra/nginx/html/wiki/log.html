@@ -37,6 +37,8 @@
         <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a></p>
       <article class="panel wiki-article">
 <h1>DevOps Wiki — Log</h1>
+<h2>[2026-09-19] ingest | Byebyemoneylist app integration (Nextcloud AIO)</h2>
+<p>Added <a href="nextcloud-aio-custom-app.html">Byebyemoneylist app integration (Nextcloud AIO)</a>, a design page for shipping the <code>byebyemoneylist</code> Nextcloud app to the AIO instance on <code>node-one</code>. Documents why a custom Nextcloud image is impossible with AIO (image hardcoded in <code>containers.json</code>) and the chosen approach: GitHub Actions builds a versioned release tarball on a <code>v*</code> tag, <code>infra/nextcloud/versions.env</code> pins the version, and <code>infra/nextcloud/deploy-app.sh</code> sideloads it into <code>nextcloud-aio-nextcloud:/var/www/html/custom_apps</code> before enabling and running migrations. Added <code>infra/nextcloud/DEPLOY.md</code>, Makefile targets <code>nc-app-deploy</code>/<code>nc-app-status</code>, and the app-repo release workflow plus version/<code>.nvmrc</code> drift fixes.</p>
 <h2>[2026-09-18] move | Wiki relocated into the homelab project</h2>
 <p>Moved the wiki from <code>~/Wiki/DevOps/</code> to <code>~/Source/homelab/docs/wiki/</code>. Updated the location section in <code>AGENTS.md</code>.</p>
 <h2>[2026-09-18] ingest | Reconfiguring a Cloudflare Tunnel</h2>
