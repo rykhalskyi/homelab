@@ -1,0 +1,105 @@
+name: Update byebyemoneylist pin
+
+# Keeps infra/nextcloud/versions.env in sync with the latest release of the
+# app repo. It does the same as `make nc-app-pin` (writes BYML_VERSION and
+# BYML_SHA256) and opens a pull request so the deploy pin is reviewed in Git.
+#
+# Triggers:
+#   - schedule          -> daily poll of the latest GitHub release
+#   - workflow_dispatch -> manual run, optionally pinning a specific version
+#   - repository_dispatch -> event_type "byebyemoneylist-release", optionally
+#     with client_payload.version; sent by the app repo's release workflow
+#     (requires a PAT secret there, see infra/nextcloud/DEPLOY.md).
+
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to pin (e.g. 1.0.3). Empty = latest release.'
+        required: false
+        type: string
+  repository_dispatch:
+    types: [byebyemoneylist-release]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-byebyemoneylist-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: Refresh versions.env
+    runs-on: ubuntu-latest
+    if: github.repository == 'rykhalskyi/homelab'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve target version
+        id: resolve
+        env:
+          APP_REPO: rykhalskyi/byebyemoneylist-ns
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-${DISPATCH_VERSION:-}}"
+          if [ -z "$version" ]; then
+            version="$(curl -fsSL -H 'Accept: application/vnd.github+json' \
+              "https://api.github.com/repos/${APP_REPO}/releases/latest" \
+              | grep -oP '"tag_name"\s*:\s*"v?\K[^"]+')"
+          fi
+          [ -n "$version" ] || { echo "::error::could not resolve a version"; exit 1; }
+
+          current="$(grep -oP '^BYML_VERSION=\K.*' infra/nextcloud/versions.env || true)"
+          {
+            echo "version=${version}"
+            echo "current=${current}"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$version" = "$current" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already pinned to ${version} - nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Update available: ${current:-none} -> ${version}"
+          fi
+
+      - name: Pin version + checksum
+        if: steps.resolve.outputs.changed == 'true'
+        run: |
+          bash infra/nextcloud/deploy-app.sh --pin --version "${{ steps.resolve.outputs.version }}"
+
+      - name: Show diff
+        if: steps.resolve.outputs.changed == 'true'
+        run: git --no-pager diff
+
+      - name: Open pull request
+        if: steps.resolve.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/byebyemoneylist-${{ steps.resolve.outputs.version }}
+          base: main
+          delete-branch: true
+          title: "Update byebyemoneylist to v${{ steps.resolve.outputs.version }}"
+          commit-message: "Update byebyemoneylist to v${{ steps.resolve.outputs.version }}"
+          labels: |
+            dependencies
+          body: |
+            Automated pin update from a `byebyemoneylist-ns` release.
+
+            - version: `${{ steps.resolve.outputs.current }}` → `${{ steps.resolve.outputs.version }}`
+            - `BYML_VERSION` and `BYML_SHA256` refreshed from the release `.sha256` asset.
+
+            Merge, then deploy on `node-one` with:
+
+            ```bash
+            cd ~/Source/homelab && git pull && make nc-app-deploy
+            ```

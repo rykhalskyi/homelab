@@ -15,13 +15,15 @@
 # Usage:
 #   infra/nextcloud/deploy-app.sh
 #   infra/nextcloud/deploy-app.sh --version 1.0.3
+#   infra/nextcloud/deploy-app.sh --pin [--version 1.0.3]   # pin version + sha256 into versions.env
 #
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+versions_file="${script_dir}/versions.env"
 
 # shellcheck source=versions.env
-source "${script_dir}/versions.env"
+source "$versions_file"
 
 app_id="byebyemoneylist"
 app_repo="${BYML_REPO:-rykhalskyi/byebyemoneylist-ns}"
@@ -31,35 +33,65 @@ app_dir="/var/www/html/custom_apps/${app_id}"
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
+set_env_var() {
+  local key="$1" value="$2"
+  if grep -q "^${key}=" "$versions_file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$versions_file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$versions_file"
+  fi
+}
+
+do_pin=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --version) BYML_VERSION="${2:?--version requires a value}"; shift 2 ;;
+    --pin) do_pin=1; shift ;;
     -h|--help) sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | grep -v '^set -euo' | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
 
 [ -n "${BYML_VERSION:-}" ] || die "BYML_VERSION is not set (see versions.env)"
-command -v docker >/dev/null 2>&1 || die "docker not found"
-docker inspect "$nc_container" >/dev/null 2>&1 \
-  || die "container '$nc_container' not found - is the Nextcloud AIO stack running?"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 tarball="${app_id}-${BYML_VERSION}.tar.gz"
-url="https://github.com/${app_repo}/releases/download/v${BYML_VERSION}/${tarball}"
+base_url="https://github.com/${app_repo}/releases/download/v${BYML_VERSION}"
+url="${base_url}/${tarball}"
+
+# --pin: fetch the checksum asset from the release and write both fields into
+# versions.env, so the pinned version and its checksum always stay in sync.
+if [ "$do_pin" = 1 ]; then
+  log "fetching checksum for v${BYML_VERSION}"
+  curl -fsSL --retry 3 --retry-delay 2 -o "${tmp}/${tarball}.sha256" "${url}.sha256" \
+    || die "could not fetch ${url}.sha256 - does release v${BYML_VERSION} exist?"
+  hash="$(awk 'NR==1 {print $1}' "${tmp}/${tarball}.sha256")"
+  [ -n "$hash" ] || die "empty checksum in release asset"
+  set_env_var BYML_VERSION "$BYML_VERSION"
+  set_env_var BYML_SHA256 "$hash"
+  log "pinned BYML_VERSION=${BYML_VERSION} and BYML_SHA256=${hash} in versions.env (commit it)"
+  exit 0
+fi
+
+command -v docker >/dev/null 2>&1 || die "docker not found"
+docker inspect "$nc_container" >/dev/null 2>&1 \
+  || die "container '$nc_container' not found - is the Nextcloud AIO stack running?"
 
 log "downloading ${url}"
 curl -fsSL --retry 3 --retry-delay 2 -o "${tmp}/${tarball}" "$url" \
   || die "download failed - does release v${BYML_VERSION} exist?"
 
-if [ -n "${BYML_SHA256:-}" ]; then
+# Accept either a bare hash or a full "<hash>  <file>" line.
+sha256="${BYML_SHA256:-}"
+sha256="${sha256%% *}"
+if [ -n "$sha256" ]; then
   log "verifying sha256"
-  printf '%s  %s\n' "$BYML_SHA256" "${tmp}/${tarball}" | sha256sum -c - >/dev/null \
+  printf '%s  %s\n' "$sha256" "${tmp}/${tarball}" | sha256sum -c - >/dev/null \
     || die "sha256 mismatch for ${tarball}"
 else
-  log "BYML_SHA256 is empty - skipping checksum verification"
+  log "BYML_SHA256 is empty - skipping checksum verification (run with --pin to fill it)"
 fi
 
 log "extracting and validating"

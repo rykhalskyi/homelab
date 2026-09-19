@@ -56,9 +56,9 @@ future k3s cluster.
 | File | Role |
 |------|------|
 | `infra/nextcloud/versions.env` | Pinned `BYML_VERSION` (+ optional `BYML_SHA256`). Committed, no secrets. |
-| `infra/nextcloud/deploy-app.sh` | Download the pinned tarball and install it into the container. |
+| `infra/nextcloud/deploy-app.sh` | Download the pinned tarball and install it into the container. `--pin` writes the release checksum into `versions.env`. |
 | `infra/nextcloud/DEPLOY.md` | Build/deploy/update/rollback runbook beside the script. |
-| `Makefile` (`nc-app-deploy`, `nc-app-status`) | Convenience wrappers. |
+| `Makefile` (`nc-app-deploy`, `nc-app-pin`, `nc-app-status`) | Convenience wrappers. |
 
 On `node-one`:
 
@@ -72,10 +72,22 @@ The script downloads the release asset, verifies the checksum and the
 ownership to `33:0`, then disables, swaps, re-enables the app and runs
 `occ migrations:migrate`.
 
+The **checksum is filled explicitly**, not automatically: CI publishes a
+`<tarball>.sha256` asset, `make nc-app-pin` copies its hash into
+`versions.env`, and that commit is the integrity anchor used by
+`make nc-app-deploy`. An empty `BYML_SHA256` skips verification with a warning.
+
+A **bot** can do the pin step for you: `.github/workflows/update-byebyemoneylist-pin.yml`
+polls (or is dispatched by) the app releases, runs the same pin logic, and opens
+a pull request updating `BYML_VERSION` + `BYML_SHA256` together. Merging the PR
+is what makes it deployable; deploying on `node-one` stays a pull (see
+`infra/nextcloud/DEPLOY.md`).
+
 ## Update and rollback
 
-- **Update:** publish a new `v*` release, bump `BYML_VERSION`/`BYML_SHA256` in
-  `versions.env`, commit, then `git pull && make nc-app-deploy` on `node-one`.
+- **Update:** publish a new `v*` release, run `make nc-app-pin`, set
+  `BYML_VERSION` in `versions.env`, commit, then `git pull && make
+  nc-app-deploy` on `node-one`.
 - **Rollback:** set the pin back and re-run. Code reverts cleanly; DB migrations
   do **not** auto-revert.
 
