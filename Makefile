@@ -9,8 +9,8 @@ serve: ## Preview the site locally at http://localhost:8080
 nc-app-deploy: ## Install/update the pinned byebyemoneylist release in Nextcloud AIO
 	bash infra/nextcloud/deploy-app.sh
 
-nc-app-pin: ## Fetch the release sha256 into infra/nextcloud/versions.env
-	bash infra/nextcloud/deploy-app.sh --pin
+nc-app-pin: ## Pin version + sha256 (VERSION=x.y.z to override) into versions.env
+	bash infra/nextcloud/deploy-app.sh --pin $(if $(VERSION),--version $(VERSION),)
 
 nc-app-status: ## Show byebyemoneylist app + migration status in Nextcloud AIO
 	docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep -i byebyemoneylist || true

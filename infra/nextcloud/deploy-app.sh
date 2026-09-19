@@ -15,7 +15,7 @@
 # Usage:
 #   infra/nextcloud/deploy-app.sh
 #   infra/nextcloud/deploy-app.sh --version 1.0.3
-#   infra/nextcloud/deploy-app.sh --pin          # write the release sha256 into versions.env
+#   infra/nextcloud/deploy-app.sh --pin [--version 1.0.3]   # pin version + sha256 into versions.env
 #
 set -euo pipefail
 
@@ -32,6 +32,15 @@ app_dir="/var/www/html/custom_apps/${app_id}"
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+
+set_env_var() {
+  local key="$1" value="$2"
+  if grep -q "^${key}=" "$versions_file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$versions_file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$versions_file"
+  fi
+}
 
 do_pin=0
 while [ $# -gt 0 ]; do
@@ -52,19 +61,17 @@ tarball="${app_id}-${BYML_VERSION}.tar.gz"
 base_url="https://github.com/${app_repo}/releases/download/v${BYML_VERSION}"
 url="${base_url}/${tarball}"
 
-# --pin: fetch the checksum asset from the release and write it into versions.env.
+# --pin: fetch the checksum asset from the release and write both fields into
+# versions.env, so the pinned version and its checksum always stay in sync.
 if [ "$do_pin" = 1 ]; then
   log "fetching checksum for v${BYML_VERSION}"
   curl -fsSL --retry 3 --retry-delay 2 -o "${tmp}/${tarball}.sha256" "${url}.sha256" \
     || die "could not fetch ${url}.sha256 - does release v${BYML_VERSION} exist?"
   hash="$(awk 'NR==1 {print $1}' "${tmp}/${tarball}.sha256")"
   [ -n "$hash" ] || die "empty checksum in release asset"
-  if grep -q '^BYML_SHA256=' "$versions_file"; then
-    sed -i "s|^BYML_SHA256=.*|BYML_SHA256=${hash}|" "$versions_file"
-  else
-    printf 'BYML_SHA256=%s\n' "$hash" >> "$versions_file"
-  fi
-  log "pinned BYML_SHA256=${hash} in versions.env (commit it)"
+  set_env_var BYML_VERSION "$BYML_VERSION"
+  set_env_var BYML_SHA256 "$hash"
+  log "pinned BYML_VERSION=${BYML_VERSION} and BYML_SHA256=${hash} in versions.env (commit it)"
   exit 0
 fi
 

@@ -31,7 +31,7 @@ The `byebyemoneylist` app is sideloaded into the running AIO container from a
 pinned GitHub release (AIO does not allow a custom Nextcloud image):
 
 ```bash
-make nc-app-pin       # record the release checksum into versions.env
+make nc-app-pin       # pin version + checksum into versions.env
 make nc-app-deploy    # install/update the pinned version
 make nc-app-status    # show app + migration status
 ```

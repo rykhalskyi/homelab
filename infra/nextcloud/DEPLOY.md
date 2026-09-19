@@ -64,17 +64,19 @@ make nc-app-status
 docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep byebyemoneylist
 ```
 
-## Pin the checksum
+## Pin version + checksum
 
-After a release exists, record its checksum so downloads are verified:
+The version and its checksum are recorded together so they can never drift:
 
 ```bash
-make nc-app-pin             # == deploy-app.sh --pin
+make nc-app-pin                    # re-pin the version already in versions.env
+make nc-app-pin VERSION=1.0.3      # pin a specific (new) version
 ```
 
-This fetches the release's `.sha256` asset and writes `BYML_SHA256=<hash>` into
-`versions.env`. Commit the change. `BYML_SHA256` may be a bare hash or the full
-`<hash>  <file>` line; an empty value skips verification with a warning.
+`--pin` fetches the release's `.sha256` asset and writes **both**
+`BYML_VERSION` and `BYML_SHA256` into `versions.env`. Commit the change.
+The checksum anchors the deploy: `make nc-app-deploy` re-verifies the download
+against it. An empty `BYML_SHA256` skips verification with a warning.
 
 ## Update / rollback
 
