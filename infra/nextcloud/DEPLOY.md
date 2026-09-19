@@ -78,6 +78,41 @@ make nc-app-pin VERSION=1.0.3      # pin a specific (new) version
 The checksum anchors the deploy: `make nc-app-deploy` re-verifies the download
 against it. An empty `BYML_SHA256` skips verification with a warning.
 
+## Automated pin updates (bot)
+
+`.github/workflows/update-byebyemoneylist-pin.yml` runs the same pin logic and
+opens a pull request, so the version/checksum pair is updated without manual
+edits. It triggers on:
+
+| Trigger | How |
+|---------|-----|
+| `schedule` | daily poll of the latest app release |
+| `workflow_dispatch` | Actions → *Update byebyemoneylist pin* → Run workflow (optional `version` input) |
+| `repository_dispatch` | event `byebyemoneylist-release`, optional `client_payload.version` |
+
+It only opens a PR when the resolved version differs from the pinned one, then
+updates `version + checksum` on a `bot/byebyemoneylist-<version>` branch.
+
+**Prerequisite:** enable *Settings → Actions → General → Workflow permissions →
+"Allow GitHub Actions to create and approve pull requests"* (or supply a PAT),
+otherwise PR creation fails.
+
+**Instant updates (optional):** instead of waiting for the daily poll, make the
+app repo's release workflow dispatch the event — this needs a PAT with `repo`
+access stored as `HOMELAB_DISPATCH_TOKEN` in the app repo:
+
+```bash
+curl -fsSL -X POST \
+  -H "Authorization: Bearer $HOMELAB_DISPATCH_TOKEN" \
+  -H 'Accept: application/vnd.github+json' \
+  https://api.github.com/repos/rykhalskyi/homelab/dispatches \
+  -d '{"event_type":"byebyemoneylist-release","client_payload":{"version":"'"$version"'"}}'
+```
+
+Automating the actual deploy on `node-one` is separate: the server has no
+inbound access, so it either pulls on a timer/systemd unit or you run
+`make nc-app-deploy` after merging.
+
 ## Update / rollback
 
 - **Update:** publish a new `v*` release (and optionally its `sha256` in the

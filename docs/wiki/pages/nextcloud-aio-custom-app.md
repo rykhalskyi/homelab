@@ -77,6 +77,12 @@ The **checksum is filled explicitly**, not automatically: CI publishes a
 `versions.env`, and that commit is the integrity anchor used by
 `make nc-app-deploy`. An empty `BYML_SHA256` skips verification with a warning.
 
+A **bot** can do the pin step for you: `.github/workflows/update-byebyemoneylist-pin.yml`
+polls (or is dispatched by) the app releases, runs the same pin logic, and opens
+a pull request updating `BYML_VERSION` + `BYML_SHA256` together. Merging the PR
+is what makes it deployable; deploying on `node-one` stays a pull (see
+`infra/nextcloud/DEPLOY.md`).
+
 ## Update and rollback
 
 - **Update:** publish a new `v*` release, run `make nc-app-pin`, set
