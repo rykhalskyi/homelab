@@ -13,33 +13,51 @@ Design of how the personal Nextcloud app **Bye Bye Money List**
 See [[Cloudflare Tunnel → nginx (install + first tunnel)]] for how Nextcloud is
 exposed; this page is only about delivering the app.
 
-## Context
+## Order (happy path)
 
-- Server runs **Nextcloud All-in-One** (`infra/nextcloud/docker-compose.yml`),
-  published through the Cloudflare tunnel on `cloud.otakeessen.com`.
-- The app is developed separately against `nextcloud-docker-dev`; the frontend
-  is a Vite build and **the built `js/` and `css/` are gitignored** in the app
-  repo (no Java/PHP toolchain needed at runtime, no composer runtime deps).
-- AIO has no supported way to use a custom Nextcloud image, so "build a new
-  Nextcloud image with the app baked in" is **not** an option here.
+1. **Release the app** (app repo). Bump the version to `X.Y.Z` in
+   `appinfo/info.xml` (and `package.json`/`package-lock.json`), commit, then tag
+   and push:
+   ```bash
+   git tag vX.Y.Z && git push origin vX.Y.Z
+   ```
+   CI builds the frontend and publishes `byebyemoneylist-X.Y.Z.tar.gz` plus its
+   `.sha256` to the GitHub Release.
 
-## Design decision
+2. **Pin it in the homelab repo** (on your workstation) - either:
+   - **manual:** `make nc-app-pin VERSION=X.Y.Z` writes both `BYML_VERSION` and
+     `BYML_SHA256` into `infra/nextcloud/versions.env`; or
+   - **bot:** `update-byebyemoneylist-pin.yml` does the same and opens a pull
+     request.
 
-Ship the app as a **custom app** and install it into the running AIO container:
+3. **Land it on `main`.** Commit/push the manual change, or review and merge the
+   bot's PR.
+
+4. **Deploy on `node-one`.**
+   ```bash
+   cd ~/Source/homelab && git pull && make nc-app-deploy
+   make nc-app-status
+   ```
+
+## How it works
+
+### Why sideload instead of a custom image
+
+AIO pins its Nextcloud image to `ghcr.io/nextcloud-releases/aio-nextcloud` and
+offers no supported override, so a custom Nextcloud image is not an option. The
+app is installed as a **custom app** instead, which is durable because:
 
 - AIO's Nextcloud container mounts the persistent volume
-  `nextcloud_aio_nextcloud` at `/var/www/html`.
+  `nextcloud_aio_nextcloud` at `/var/www/html`;
 - `/custom_apps/` is listed in AIO's `upgrade.exclude`, so it survives container
-  recreation and Nextcloud updates.
-- `nextcloud_aio_nextcloud` is a declared AIO backup volume, so the app is
-  included in AIO backups.
+  recreation and Nextcloud updates;
+- `nextcloud_aio_nextcloud` is a declared AIO backup volume.
 
 The artifact is built **once on GitHub Actions** from a tagged release; the
-server only downloads it. This avoids needing Node/npm on `node-one`, keeps
-deploys reproducible, and leaves the door open to reuse the same artifact on a
-future k3s cluster.
+server only downloads it. This avoids Node/npm on `node-one`, keeps deploys
+reproducible, and leaves the door open to reuse the same artifact on k3s later.
 
-## Release flow (app repo)
+### Release (app repo)
 
 `.github/workflows/release.yml`, triggered by a `v*` tag:
 
@@ -51,45 +69,44 @@ future k3s cluster.
 4. Upload `byebyemoneylist-<version>.tar.gz` and `.sha256` to the GitHub
    Release.
 
-## Deploy flow (homelab repo)
+### Pin (homelab repo)
 
 | File | Role |
 |------|------|
-| `infra/nextcloud/versions.env` | Pinned `BYML_VERSION` (+ optional `BYML_SHA256`). Committed, no secrets. |
-| `infra/nextcloud/deploy-app.sh` | Download the pinned tarball and install it into the container. `--pin` writes the release checksum into `versions.env`. |
+| `infra/nextcloud/versions.env` | Pinned `BYML_VERSION` + `BYML_SHA256`. Committed, no secrets. |
+| `infra/nextcloud/deploy-app.sh` | Download the pinned tarball and install it. `--pin` writes version + checksum. |
 | `infra/nextcloud/DEPLOY.md` | Build/deploy/update/rollback runbook beside the script. |
 | `Makefile` (`nc-app-deploy`, `nc-app-pin`, `nc-app-status`) | Convenience wrappers. |
 
-On `node-one`:
-
-```bash
-cd ~/Source/homelab && git pull && make nc-app-deploy
-```
-
-The script downloads the release asset, verifies the checksum and the
-`info.xml` version, copies the app into
-`nextcloud-aio-nextcloud:/var/www/html/custom_apps/byebyemoneylist`, sets
-ownership to `33:0`, then disables, swaps and re-enables the app (which applies
-pending migrations). It does not call `occ migrations:migrate` — Nextcloud
-registers `migrations:*` only when `debug=true`, which production AIO leaves
-off; enabling the app already runs its migrations.
-
 The **checksum is filled explicitly**, not automatically: CI publishes a
-`<tarball>.sha256` asset, `make nc-app-pin` copies its hash into
-`versions.env`, and that commit is the integrity anchor used by
-`make nc-app-deploy`. An empty `BYML_SHA256` skips verification with a warning.
+`<tarball>.sha256` asset, `make nc-app-pin` copies its hash into `versions.env`,
+and that commit is the integrity anchor used by `make nc-app-deploy`. An empty
+`BYML_SHA256` skips verification with a warning.
 
-A **bot** can do the pin step for you: `.github/workflows/update-byebyemoneylist-pin.yml`
-polls (or is dispatched by) the app releases, runs the same pin logic, and opens
-a pull request updating `BYML_VERSION` + `BYML_SHA256` together. Merging the PR
-is what makes it deployable; deploying on `node-one` stays a pull (see
-`infra/nextcloud/DEPLOY.md`).
+`make nc-app-pin` needs no Docker; run it where you author the homelab repo and
+commit the result - the server only pulls.
+
+**Bot:** `.github/workflows/update-byebyemoneylist-pin.yml` runs the same pin
+logic on a schedule (or a `repository_dispatch` event) and opens a PR updating
+`BYML_VERSION` + `BYML_SHA256` together. Merging the PR is what makes it
+deployable. (Needs *Settings → Actions → General → Workflow permissions →
+"Allow GitHub Actions to create and approve pull requests".*)
+
+### Deploy script (`node-one`)
+
+`deploy-app.sh` downloads the pinned release asset, verifies the checksum and
+the `info.xml` version, copies the app into
+`nextcloud-aio-nextcloud:/var/www/html/custom_apps/byebyemoneylist`, sets
+ownership to `33:0`, then disables, swaps and re-enables the app. It does not
+call `occ migrations:migrate` - Nextcloud registers `migrations:*` only when
+`debug=true`, which production AIO leaves off; enabling the app already applies
+pending migrations.
 
 ## Update and rollback
 
-- **Update:** publish a new `v*` release, run `make nc-app-pin`, set
-  `BYML_VERSION` in `versions.env`, commit, then `git pull && make
-  nc-app-deploy` on `node-one`.
+- **Update:** bump the app version and tag `vX.Y.Z` → `make nc-app-pin
+  VERSION=X.Y.Z` (or merge the bot PR) → push/merge to `main` → on `node-one`
+  `git pull && make nc-app-deploy`.
 - **Rollback:** set the pin back and re-run. Code reverts cleanly; DB migrations
   do **not** auto-revert.
 
@@ -98,6 +115,7 @@ is what makes it deployable; deploying on `node-one` stays a pull (see
 ```bash
 make nc-app-status
 docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep byebyemoneylist
+docker exec -u www-data nextcloud-aio-nextcloud php occ config:app:get byebyemoneylist installed_version
 ```
 
 ## Notes and limits

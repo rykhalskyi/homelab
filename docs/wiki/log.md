@@ -1,5 +1,15 @@
 # DevOps Wiki — Log
 
+## [2026-09-19] update | Byebyemoneylist app integration (Nextcloud AIO)
+
+Restructured [[Byebyemoneylist app integration (Nextcloud AIO)]] to present the
+deploy order explicitly (release → pin manually or via bot → land on `main` →
+`node-one` deploy). Moved the mechanics into a "How it works" section, corrected
+the `--pin` description (writes version + checksum), refreshed the update/rollback
+steps, and added the `installed_version` check. Also documented that the deploy
+script does not call `occ migrations:migrate` because `migrations:*` only exists
+when `debug=true`.
+
 ## [2026-09-19] ingest | Byebyemoneylist app integration (Nextcloud AIO)
 
 Added [[Byebyemoneylist app integration (Nextcloud AIO)]], a design page for
