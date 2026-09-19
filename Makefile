@@ -12,9 +12,9 @@ nc-app-deploy: ## Install/update the pinned byebyemoneylist release in Nextcloud
 nc-app-pin: ## Pin version + sha256 (VERSION=x.y.z to override) into versions.env
 	bash infra/nextcloud/deploy-app.sh --pin $(if $(VERSION),--version $(VERSION),)
 
-nc-app-status: ## Show byebyemoneylist app + migration status in Nextcloud AIO
+nc-app-status: ## Show byebyemoneylist app + installed version in Nextcloud AIO
 	docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep -i byebyemoneylist || true
-	docker exec -u www-data nextcloud-aio-nextcloud php occ migrations:status byebyemoneylist
+	docker exec -u www-data nextcloud-aio-nextcloud php occ config:app:get byebyemoneylist installed_version
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

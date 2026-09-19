@@ -69,8 +69,10 @@ cd ~/Source/homelab && git pull && make nc-app-deploy
 The script downloads the release asset, verifies the checksum and the
 `info.xml` version, copies the app into
 `nextcloud-aio-nextcloud:/var/www/html/custom_apps/byebyemoneylist`, sets
-ownership to `33:0`, then disables, swaps, re-enables the app and runs
-`occ migrations:migrate`.
+ownership to `33:0`, then disables, swaps and re-enables the app (which applies
+pending migrations). It does not call `occ migrations:migrate` — Nextcloud
+registers `migrations:*` only when `debug=true`, which production AIO leaves
+off; enabling the app already runs its migrations.
 
 The **checksum is filled explicitly**, not automatically: CI publishes a
 `<tarball>.sha256` asset, `make nc-app-pin` copies its hash into

@@ -107,7 +107,11 @@ docker exec "$nc_container" rm -rf "/var/www/html/custom_apps/${app_id}.new"
 docker cp "${tmp}/${app_id}" "${nc_container}:/var/www/html/custom_apps/${app_id}.new"
 docker exec "$nc_container" chown -R 33:0 "/var/www/html/custom_apps/${app_id}.new"
 
-log "activating (disable -> swap -> enable, migrations)"
+# Enabling the app runs its pending DB migrations (Installer::installApp ->
+# installAppLastSteps -> MigrationService::migrate), so no explicit
+# migrations:migrate is needed. That command only exists when Nextcloud's
+# `debug` system value is true, which production AIO does not set.
+log "activating (disable -> swap -> enable)"
 docker exec -u www-data "$nc_container" php occ app:disable "$app_id" >/dev/null 2>&1 || true
 docker exec "$nc_container" sh -c "
   set -e
@@ -116,11 +120,9 @@ docker exec "$nc_container" sh -c "
   chown -R 33:0 '${app_dir}'
 "
 docker exec -u www-data "$nc_container" php occ app:enable "$app_id"
-docker exec -u www-data "$nc_container" php occ app:update "$app_id" || true
-docker exec -u www-data "$nc_container" php occ migrations:migrate "$app_id"
 
 log "status"
 docker exec -u www-data "$nc_container" php occ app:list | grep -i "$app_id" || true
-docker exec -u www-data "$nc_container" php occ migrations:status "$app_id" || true
+docker exec -u www-data "$nc_container" php occ config:app:get "$app_id" installed_version
 
 log "done: ${app_id} v${BYML_VERSION} deployed to ${nc_container}"

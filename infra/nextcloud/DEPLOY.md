@@ -54,7 +54,8 @@ make nc-app-deploy          # or: bash infra/nextcloud/deploy-app.sh
 3. verifies `BYML_SHA256` (when set) and the `info.xml` version;
 4. `docker cp`s the app into `nextcloud-aio-nextcloud:/var/www/html/custom_apps/byebyemoneylist`;
 5. sets ownership to `33:0` (www-data);
-6. disables → swaps → enables the app and runs `occ migrations:migrate`.
+6. disables → swaps → re-enables the app. Re-enabling applies any pending DB
+   migrations (Nextcloud's installer runs them), and sets `installed_version`.
 
 Verify:
 
@@ -124,6 +125,10 @@ inbound access, so it either pulls on a timer/systemd unit or you run
 
 ## Troubleshooting
 
+- `Command "migrations:migrate" is not defined` — expected, and not used by the
+  script. Nextcloud only registers `migrations:*` when the `debug` system value
+  is `true`; production AIO has it off. Migrations run automatically when the
+  app is enabled (`occ app:enable`), so the script relies on that.
 - `container 'nextcloud-aio-nextcloud' not found` — start the AIO stack first.
 - `download failed` — the release tag does not exist yet, or the repo is
   private (a read token would then be required).
