@@ -17,3 +17,24 @@ It covers a range of topics:
 
 Everything here is developed in the form of my home lab: servers that manage
 my internal network and expose a small number of resources publicly.
+
+## Repository layout
+
+- `infra/` — deployable service stacks (Docker Compose): `nginx/`, `nextcloud/`.
+- `docs/wiki/` — the DevOps wiki, written in Markdown.
+- `infra/nginx/html/` — the static homelab site (landing page + generated wiki).
+
+## Site & wiki
+
+The site is plain HTML/CSS/JS served by nginx (`infra/nginx/`). The wiki
+Markdown in `docs/wiki/` is converted to static pages under
+`infra/nginx/html/wiki/`:
+
+```bash
+make wiki     # build the wiki into the site
+make serve    # preview at http://localhost:8080
+```
+
+Generated wiki HTML is committed, so `git pull` on `node-one` is enough to
+publish. See `infra/nginx/README.md` for details.
+

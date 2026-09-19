@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevOps Wiki — Index · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+      <article class="panel wiki-article">
+<h1>DevOps Wiki — Index</h1>
+<p>Home-server DevOps notes and runnable how-tos (server <code>node-one</code>).</p>
+<h2>Guides</h2>
+<ul><li><a href="cloudflare-tunnel-nginx.html">Cloudflare Tunnel → nginx (install + first tunnel)</a> — <a href="cloudflare-tunnel-nginx.html">open</a> — (2026-09-18, 0 sources) — install <code>cloudflared</code> on Ubuntu, log in, create a tunnel, route a DNS hostname, configure <code>~/.cloudflared/config.yml</code>, run it (foreground + systemd), and troubleshoot 502 Bad Gateway. Working setup: <code>otakeessen.com</code> → nginx on port 80.</li><li><a href="cloudflared-reconfigure-hostname.html">Reconfiguring a Cloudflare Tunnel (change hostname / port)</a> — <a href="cloudflared-reconfigure-hostname.html">open</a> — (2026-09-18, 0 sources) — change a tunnel&#x27;s public hostname or local port: add the new DNS route, edit the ingress rule in the <strong>active</strong> config (<code>/etc/cloudflared/config.yml</code> for the service, <code>~/.cloudflared/config.yml</code> in foreground), restart, drop the old DNS record, verify.</li></ul>
+<h2>TODO pages</h2>
+<ul><li>Cloudflare Tunnel → multiple services (one tunnel, many subdomains).</li><li>Nextcloud AIO behind a Cloudflare Tunnel (<code>APACHE_PORT</code>, skip validation).</li></ul>
+<p class="wiki-history"><a href="log.html">Wiki history &rarr;</a></p>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

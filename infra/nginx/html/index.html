@@ -16,6 +16,11 @@
         <img class="brand-mark" src="assets/img/logo.svg" alt="" width="32" height="32" />
         <span class="brand-name">Homelab Otakeessen</span>
       </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#services">Services</a>
+        <a href="#architecture">Architecture</a>
+        <a href="wiki/">Wiki</a>
+      </nav>
       <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
         <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <circle cx="12" cy="12" r="4" />
@@ -34,7 +39,9 @@
       <p class="lead">A small self-hosted corner of the internet: files, notes and services running on a home server.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="#services">Browse services</a>
-        <a class="btn" href="https://github.com/" rel="noopener">Source</a>
+        <a class="btn" href="#architecture">Architecture</a>
+        <a class="btn" href="wiki/">Read the wiki</a>
+        <a class="btn" href="https://github.com/rykhalskyi/homelab" rel="noopener">Source</a>
       </div>
     </section>
 
@@ -48,19 +55,70 @@
       <div class="grid cards">
         <a class="card" href="https://cloud.otakeessen.com" rel="noopener">
           <div class="card-top">
+            <span class="card-name">Homelab site</span>
+            <span class="dot dot-on" title="online"></span>
+          </div>
+          <p class="card-desc">This landing page and wiki, served by nginx.</p>
+          <span class="card-link">cloud.otakeessen.com</span>
+        </a>
+
+        <a class="card" href="https://cloud2.otakeessen.com" rel="noopener">
+          <div class="card-top">
             <span class="card-name">Nextcloud</span>
             <span class="dot dot-off" title="planned"></span>
           </div>
           <p class="card-desc">Files, calendars and contacts. (planned)</p>
-          <span class="card-link">cloud.otakeessen.com</span>
+          <span class="card-link">cloud2.otakeessen.com</span>
         </a>
+      </div>
+    </section>
 
-        <div class="card card-placeholder">
-          <div class="card-top">
-            <span class="card-name">Coming soon</span>
-            <span class="dot dot-off" title="planned"></span>
+    <section id="architecture" class="container section">
+      <div class="section-head">
+        <h2>Architecture</h2>
+        <span class="status-legend"><span class="dot dot-on"></span> running</span>
+      </div>
+
+      <div class="grid arch-grid">
+        <div class="panel arch-host">
+          <div class="arch-host-head">
+            <div>
+              <h3 class="arch-name">node-one</h3>
+              <p class="card-desc">HP ProDesk 400 G3 DM</p>
+            </div>
+            <span class="dot dot-on" title="online"></span>
           </div>
-          <p class="card-desc">More services will appear here.</p>
+          <ul class="facts">
+            <li><span>OS</span> Ubuntu 26.04.1 LTS x86_64</li>
+            <li><span>Kernel</span> Linux 7.0.0-31-generic</li>
+            <li><span>CPU</span> Intel Core i5-7500T (4) @ 3.30 GHz</li>
+            <li><span>GPU</span> Intel HD Graphics 630</li>
+            <li><span>Memory</span> 7.14 GiB</li>
+            <li><span>Disk</span> 231 GiB ext4</li>
+            <li><span>Network</span> 192.168.2.233/24</li>
+          </ul>
+        </div>
+
+        <div class="panel arch-diagram">
+          <h3>Traffic flow</h3>
+          <ol class="arch-flow">
+            <li class="arch-step">
+              <span class="arch-label">Internet</span>
+              <span class="arch-sub">browser / client</span>
+            </li>
+            <li class="arch-step">
+              <span class="arch-label">Cloudflare edge</span>
+              <span class="arch-sub">DNS &amp; TLS termination</span>
+            </li>
+            <li class="arch-step">
+              <span class="arch-label">Cloudflare Tunnel</span>
+              <span class="arch-sub">outbound-only, no open ports</span>
+            </li>
+            <li class="arch-step arch-step-host">
+              <span class="arch-label">node-one &middot; Docker</span>
+              <span class="arch-sub">nginx &middot; Nextcloud AIO</span>
+            </li>
+          </ol>
         </div>
       </div>
     </section>

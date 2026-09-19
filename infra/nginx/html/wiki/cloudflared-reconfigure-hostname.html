@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reconfiguring a Cloudflare Tunnel (change hostname / port) · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-18</span><span class="tag-list"><span class="tag">cloudflare</span><span class="tag">cloudflared</span><span class="tag">tunnel</span><span class="tag">dns</span><span class="tag">systemd</span><span class="tag">reconfigure</span></span></p>
+      <article class="panel wiki-article">
+<h1>Reconfiguring a Cloudflare Tunnel (change hostname / port)</h1>
+<p>How to change which public hostname (or local port) a running tunnel points at. See <a href="cloudflare-tunnel-nginx.html">Cloudflare Tunnel → nginx (install + first tunnel)</a> for the initial setup.</p>
+<p>Worked example: switch <code>cloud.otakeessen.com</code> → <code>homelab.otakeessen.com</code> for the existing <code>nginxtest</code> tunnel.</p>
+<p>The tunnel itself does not care about the name; only two things change:</p>
+<ol><li><strong>DNS</strong> - which hostname resolves to the tunnel.</li><li><strong>Ingress rule</strong> - which local port that hostname forwards to.</li></ol>
+<h2>Step 0 - know which mode is running</h2>
+<p>The config file you must edit depends on how cloudflared runs:</p>
+<table><thead><tr><th>Mode</th><th>Command</th><th>Config file it reads</th></tr></thead><tbody><tr><td>Foreground</td><td><code>cloudflared tunnel run nginxtest</code></td><td><code>~/.cloudflared/config.yml</code></td></tr><tr><td>systemd service</td><td><code>systemctl status cloudflared</code></td><td><code>/etc/cloudflared/config.yml</code></td></tr></tbody></table>
+<pre><code class="language-bash">pgrep -a cloudflared          # shows foreground process + args
+systemctl status cloudflared  # active(running) =&gt; service mode</code></pre>
+<blockquote><p>Editing the wrong file has no effect. In service mode, always edit <code>/etc/cloudflared/config.yml</code>.</p></blockquote>
+<h2>Step 1 - add the new DNS route</h2>
+<pre><code class="language-bash">cloudflared tunnel route dns nginxtest homelab.otakeessen.com</code></pre>
+<p>Creates <code>homelab.otakeessen.com → &lt;UUID&gt;.cfargotunnel.com</code> (proxied). The tunnel name (<code>nginxtest</code>) is unchanged.</p>
+<h2>Step 2 - update the ingress rule</h2>
+<p>Edit the config file for the running mode:</p>
+<ul><li><strong>Service:</strong> <code>/etc/cloudflared/config.yml</code></li><li><strong>Foreground:</strong> <code>~/.cloudflared/config.yml</code></li></ul>
+<pre><code class="language-yaml">tunnel: nginxtest
+credentials-file: /etc/cloudflared/&lt;UUID&gt;.json   # ~/.cloudflared/&lt;UUID&gt;.json in foreground
+ingress:
+  - hostname: homelab.otakeessen.com             # &lt;-- the new name
+    service: http://localhost:80                 # &lt;-- the port the app is published on
+  - service: http_status:404                     # catch-all, must stay last</code></pre>
+<p>If you also changed the app&#x27;s port (e.g. nginx moved to <code>8081</code>), update <code>service:</code> to match and recreate the container: <code>cd ~/Source/nginx &amp;&amp; docker compose up -d</code>.</p>
+<h2>Step 3 - apply / restart</h2>
+<pre><code class="language-bash"># systemd service
+sudo systemctl restart cloudflared
+systemctl status cloudflared
+journalctl -u cloudflared -n 30 --no-pager
+
+# foreground: Ctrl+C, then
+cloudflared tunnel run nginxtest</code></pre>
+<p>If you edited <code>~/.cloudflared/config.yml</code> but run as a service, copy it over first:</p>
+<pre><code class="language-bash">sudo cp ~/.cloudflared/config.yml /etc/cloudflared/config.yml
+sudo systemctl restart cloudflared</code></pre>
+<h2>Step 4 - (optional) remove the old hostname</h2>
+<p><code>cloudflared</code> cannot delete DNS records. Remove the old CNAME in the Cloudflare dashboard: <strong>DNS → Records → delete the old record</strong>.</p>
+<p>If you leave it, the old hostname still resolves to the tunnel but is not in the ingress list, so it hits the <code>http_status:404</code> catch-all.</p>
+<h2>Step 5 - verify</h2>
+<pre><code class="language-bash">curl -I https://homelab.otakeessen.com   # expect 200</code></pre>
+<p>Cloudflare&#x27;s universal SSL covers any <code>*.otakeessen.com</code> subdomain, so no certificate work is needed when changing the name.</p>
+<h2>General reconfiguration checklist</h2>
+<ul><li><input type="checkbox" disabled> <code>cloudflared tunnel route dns &lt;tunnel&gt; &lt;new-hostname&gt;</code> (if the name changed)</li><li><input type="checkbox" disabled> Edit the ingress <code>hostname:</code> / <code>service:</code> in the <strong>active</strong> config file</li><li><input type="checkbox" disabled> Restart the running mode (<code>systemctl restart</code> or re-run foreground)</li><li><input type="checkbox" disabled> Delete the old DNS record in the dashboard</li><li><input type="checkbox" disabled> <code>curl -I https://&lt;new-hostname&gt;</code></li><li><input type="checkbox" disabled> Renaming the tunnel itself is optional - it is only a label</li></ul>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

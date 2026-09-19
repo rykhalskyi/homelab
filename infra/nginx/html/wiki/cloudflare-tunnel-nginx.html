@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloudflare Tunnel → nginx (install + first tunnel) · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-18</span><span class="tag-list"><span class="tag">cloudflare</span><span class="tag">cloudflared</span><span class="tag">tunnel</span><span class="tag">nginx</span><span class="tag">docker</span><span class="tag">ubuntu</span><span class="tag">reverse-proxy</span></span></p>
+      <article class="panel wiki-article">
+<h1>Cloudflare Tunnel → nginx (install + first tunnel)</h1>
+<p>Expose a local nginx (in Docker) to the internet through a <strong>Cloudflare Tunnel</strong> - no open router ports, valid HTTPS at Cloudflare&#x27;s edge.</p>
+<p>Working setup used here:</p>
+<table><thead><tr><th>Thing</th><th>Value</th></tr></thead><tbody><tr><td>Server</td><td><code>node-one</code> (Ubuntu), user <code>jaro</code></td></tr><tr><td>Domain</td><td><code>otakeessen.com</code> (added to Cloudflare)</td></tr><tr><td>Public hostname</td><td><code>cloud.otakeessen.com</code></td></tr><tr><td>Local service</td><td>nginx container, published on host port <code>80</code></td></tr><tr><td>Tunnel name</td><td><code>nginxtest</code></td></tr></tbody></table>
+<h2>How it works (mental model)</h2>
+<pre><code>browser → https://cloud.otakeessen.com
+        → Cloudflare edge (TLS)
+        → Tunnel (outbound-only from the server)
+        → cloudflared reads ~/.cloudflared/config.yml
+        → http://localhost:80  → nginx container</code></pre>
+<p>Cloudflare does <strong>not</strong> know what &quot;nginx&quot; is. The routing is only:</p>
+<ol><li><strong>DNS</strong> decides which hostname enters the tunnel (<code>cloud.otakeessen.com → &lt;tunnel-id&gt;.cfargotunnel.com</code>).</li><li><strong><code>config.yml</code></strong> decides which local port it exits to (<code>hostname: cloud.otakeessen.com → http://localhost:80</code>).</li></ol>
+<h2>Prerequisites</h2>
+<ul><li>Domain added in Cloudflare and the zone is <strong>Active</strong> (nameservers at the registrar point to Cloudflare). This is the only dashboard step.</li><li>nginx running and reachable locally.</li></ul>
+<h2>1. Install cloudflared</h2>
+<pre><code class="language-bash">curl -L -o cloudflared.deb \
+  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared.deb
+cloudflared --version</code></pre>
+<h2>2. Log in (headless)</h2>
+<pre><code class="language-bash">cloudflared tunnel login</code></pre>
+<p>It prints a URL. Open it <strong>in a browser on any machine</strong>, log in to Cloudflare, and pick <code>otakeessen.com</code>. This writes <code>~/.cloudflared/cert.pem</code>.</p>
+<h2>3. Create the tunnel</h2>
+<pre><code class="language-bash">cloudflared tunnel create nginxtest</code></pre>
+<p><code>nginxtest</code> is just a <strong>label</strong>; Cloudflare also assigns a UUID and creates <code>~/.cloudflared/&lt;UUID&gt;.json</code> (the tunnel credentials). Note the UUID.</p>
+<h2>4. Create the DNS route</h2>
+<pre><code class="language-bash">cloudflared tunnel route dns nginxtest cloud.otakeessen.com</code></pre>
+<p>This calls the Cloudflare API and creates the CNAME <code>cloud.otakeessen.com → &lt;UUID&gt;.cfargotunnel.com</code> (proxied). No manual DNS entry needed. If a record for that host already exists, delete it or append <code>--overwrite-dns</code>.</p>
+<h2>5. Configure <code>~/.cloudflared/config.yml</code></h2>
+<pre><code class="language-yaml">tunnel: nginxtest
+credentials-file: /home/jaro/.cloudflared/&lt;UUID&gt;.json
+ingress:
+  - hostname: cloud.otakeessen.com
+    service: http://localhost:80        # the port nginx is published on
+  - service: http_status:404            # required catch-all, must be last</code></pre>
+<p><strong><code>service</code> must match the port nginx is published on.</strong> Check with <code>docker ps</code> - this setup used <code>0.0.0.0:80-&gt;80/tcp</code>, so the target is <code>:80</code>.</p>
+<h2>6. Run and test (foreground)</h2>
+<pre><code class="language-bash"># nginx reachable locally?
+curl -I http://localhost:80        # expect HTTP/1.1 200 OK
+
+cloudflared tunnel run nginxtest   # Ctrl+C to stop</code></pre>
+<p>Then open <code>https://cloud.otakeessen.com</code> - the nginx page with a valid Cloudflare certificate.</p>
+<h2>7. Run as a systemd service (always on)</h2>
+<pre><code class="language-bash">sudo mkdir -p /etc/cloudflared
+sudo cp ~/.cloudflared/config.yml /etc/cloudflared/config.yml
+sudo cp ~/.cloudflared/&lt;UUID&gt;.json /etc/cloudflared/
+sudo chmod 600 /etc/cloudflared/&lt;UUID&gt;.json</code></pre>
+<p>Edit <code>/etc/cloudflared/config.yml</code> so the credentials path is absolute:</p>
+<pre><code class="language-yaml">credentials-file: /etc/cloudflared/&lt;UUID&gt;.json</code></pre>
+<p>Then install and start:</p>
+<pre><code class="language-bash">sudo cloudflared service install
+sudo systemctl enable --now cloudflared
+systemctl status cloudflared
+journalctl -u cloudflared -f        # live logs</code></pre>
+<blockquote><p>Note: the service reads <strong><code>/etc/cloudflared/config.yml</code></strong>, not <code>~/.cloudflared/config.yml</code>. After editing the home copy, re-copy it and <code>sudo systemctl restart cloudflared</code>.</p></blockquote>
+<h2>Reference: nginx compose file</h2>
+<p><code>~/Source/nginx/docker-compose.yml</code>:</p>
+<pre><code class="language-yaml">services:
+  nginx:
+    image: nginx:stable
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - &quot;80:80&quot;
+      - &quot;443:443&quot;
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+      - ./conf.d:/etc/nginx/conf.d:ro</code></pre>
+<p>Remember: bind-mounting an <strong>empty</strong> <code>conf.d/</code> hides the image&#x27;s default config, and nginx then listens on nothing (the page won&#x27;t load). Keep a <code>default.conf</code> with a <code>server { listen 80; ... }</code> block in there.</p>
+<h2>Troubleshooting</h2>
+<h3>502 Bad Gateway from Cloudflare</h3>
+<p>The tunnel connected but <code>cloudflared</code> could not reach the local service - almost always a <strong>port mismatch</strong>.</p>
+<pre><code class="language-bash">docker ps                                  # what port is nginx published on?
+curl -I http://localhost:&lt;port&gt;            # does it answer locally?
+cat /etc/cloudflared/config.yml            # (service) target port
+cat ~/.cloudflared/config.yml              # (foreground) target port
+journalctl -u cloudflared -n 50 --no-pager # &quot;Unable to reach the origin service&quot;</code></pre>
+<p>Fix: make <code>service:</code> match the published port, then restart cloudflared.</p>
+<h3>Other gotchas</h3>
+<ul><li>Foreground <code>cloudflared</code> and the systemd service read **different config files** - editing one does not affect the other.</li><li>Changing the port in <code>docker-compose.yml</code> requires <code>docker compose up -d</code> to recreate the container; otherwise nothing listens on the new port.</li><li>Chain errors (<code>1033</code>, <code>530</code>) usually mean the tunnel/service is not running.</li></ul>
+<h2>Security notes</h2>
+<ul><li>The tunnel is <strong>publicly reachable</strong> once live (traffic passes through and is decrypted by Cloudflare&#x27;s edge). Add <strong>Cloudflare Access</strong> on the hostname to restrict it to specific emails if needed.</li><li>Keep <code>~/.cloudflared/&lt;UUID&gt;.json</code> secret - it is the tunnel credential.</li><li>Disable Cloudflare <strong>Rocket Loader</strong> for Nextcloud later, or its login page may not render.</li></ul>
+<h2>Next steps (planned)</h2>
+<ul><li>Run <strong>Nextcloud (AIO)</strong> behind the same tunnel: set <code>APACHE_PORT: 11000</code>, <code>APACHE_IP_BINDING: 127.0.0.1</code>, <code>SKIP_DOMAIN_VALIDATION: true</code>, then add an ingress rule <code>cloud2.otakeessen.com → http://localhost:11000</code>.</li><li>One tunnel can route <strong>many hostnames</strong> (one subdomain per service) - see <span class="wl-missing" title="page not written yet">Cloudflare Tunnel → multiple services (planned)</span>.</li></ul>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

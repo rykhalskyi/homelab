@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevOps Wiki — Log · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a></p>
+      <article class="panel wiki-article">
+<h1>DevOps Wiki — Log</h1>
+<h2>[2026-09-18] move | Wiki relocated into the homelab project</h2>
+<p>Moved the wiki from <code>~/Wiki/DevOps/</code> to <code>~/Source/homelab/docs/wiki/</code>. Updated the location section in <code>AGENTS.md</code>.</p>
+<h2>[2026-09-18] ingest | Reconfiguring a Cloudflare Tunnel</h2>
+<p>Added <a href="cloudflared-reconfigure-hostname.html">Reconfiguring a Cloudflare Tunnel (change hostname / port)</a>. Covers the two things that actually change (DNS route + ingress rule), how to tell foreground from systemd mode, which config file is authoritative (<code>/etc/cloudflared/config.yml</code> for the service vs <code>~/.cloudflared/config.yml</code> in foreground), the restart/apply steps, deleting the old DNS record in the dashboard, verification, and a general reconfiguration checklist.</p>
+<h2>[2026-09-18] ingest | Cloudflare Tunnel → nginx quick guide</h2>
+<p>Created the DevOps wiki and its first page <a href="cloudflare-tunnel-nginx.html">Cloudflare Tunnel → nginx (install + first tunnel)</a>.</p>
+<p>Documented the end-to-end working setup validated on <code>node-one</code> (domain <code>otakeessen.com</code>, hostname <code>cloud.otakeessen.com</code>, nginx container on port 80): installing <code>cloudflared</code> via the <code>.deb</code>, <code>cloudflared tunnel login</code> (headless), <code>tunnel create nginxtest</code>, <code>tunnel route dns</code>, the <code>~/.cloudflared/config.yml</code> ingress format, running in foreground vs as a systemd service (<code>/etc/cloudflared/config.yml</code>), and the 502 troubleshooting steps (port mismatch between the tunnel <code>service:</code> target and the container&#x27;s published port). Added <span class="wl-missing" title="page not written yet">Cloudflare Tunnel → multiple services (planned)</span> and Nextcloud-AIO-behind-a-tunnel as TODO pages. Created <code>AGENTS.md</code> schema, <code>index.md</code>, and <code>log.md</code>.</p>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>
