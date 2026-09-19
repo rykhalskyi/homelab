@@ -1,5 +1,18 @@
 # DevOps Wiki — Log
 
+## [2026-09-19] ingest | Byebyemoneylist app integration (Nextcloud AIO)
+
+Added [[Byebyemoneylist app integration (Nextcloud AIO)]], a design page for
+shipping the `byebyemoneylist` Nextcloud app to the AIO instance on `node-one`.
+Documents why a custom Nextcloud image is impossible with AIO (image hardcoded
+in `containers.json`) and the chosen approach: GitHub Actions builds a versioned
+release tarball on a `v*` tag, `infra/nextcloud/versions.env` pins the version,
+and `infra/nextcloud/deploy-app.sh` sideloads it into
+`nextcloud-aio-nextcloud:/var/www/html/custom_apps` before enabling and running
+migrations. Added `infra/nextcloud/DEPLOY.md`, Makefile targets
+`nc-app-deploy`/`nc-app-status`, and the app-repo release workflow plus
+version/`.nvmrc` drift fixes.
+
 ## [2026-09-18] move | Wiki relocated into the homelab project
 
 Moved the wiki from `~/Wiki/DevOps/` to `~/Source/homelab/docs/wiki/`.
