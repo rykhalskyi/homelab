@@ -1,0 +1,64 @@
+# Forgejo - self-hosted Git forge (community fork of Gitea).
+#
+# Local-first: reachable on the LAN at http://192.168.2.233:3000, git over SSH
+# on port 222. To publish it, add a Cloudflare tunnel ingress rule pointing at
+# http://localhost:3000 (see docs/wiki/pages/cloudflare-tunnel-nginx.md) and
+# set FORGEJO_DOMAIN / FORGEJO_ROOT_URL / FORGEJO_SSH_DOMAIN in .env to the
+# public hostname (git.otakeessen.com) before recreating the stack.
+#
+# Secrets live in .env (gitignored). Forgejo generates and persists its own
+# SECRET_KEY in app.ini on first start, so it does not need to be set here.
+name: forgejo
+
+networks:
+  forgejo:
+    external: false
+
+volumes:
+  forgejo-data:
+    name: forgejo_data
+  postgres-data:
+    name: forgejo_postgres
+
+services:
+  server:
+    image: codeberg.org/forgejo/forgejo:16
+    container_name: forgejo
+    restart: always
+    networks: [forgejo]
+    volumes:
+      - forgejo-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "3000:3000"   # web UI (LAN; the tunnel reaches it via localhost:3000)
+      - "222:22"      # git over SSH
+    depends_on:
+      - db
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      # Local defaults; override in .env when going public.
+      - FORGEJO__server__DOMAIN=${FORGEJO_DOMAIN:-192.168.2.233}
+      - FORGEJO__server__ROOT_URL=${FORGEJO_ROOT_URL:-http://192.168.2.233:3000/}
+      - FORGEJO__server__SSH_DOMAIN=${FORGEJO_SSH_DOMAIN:-192.168.2.233}
+      - FORGEJO__server__SSH_PORT=222
+      # Trust forwarded headers from the Cloudflare tunnel (host cloudflared).
+      - FORGEJO__security__REVERSE_PROXY_TRUSTED_PROXIES=127.0.0.1,172.16.0.0/12
+      # PostgreSQL backend. Drop the db service and these to fall back to SQLite.
+      - FORGEJO__database__DB_TYPE=postgres
+      - FORGEJO__database__HOST=db:5432
+      - FORGEJO__database__NAME=forgejo
+      - FORGEJO__database__USER=forgejo
+      - FORGEJO__database__PASSWD=${DB_PASSWORD:?set DB_PASSWORD in infra/forgejo/.env}
+
+  db:
+    image: postgres:14
+    container_name: forgejo-db
+    restart: always
+    networks: [forgejo]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=forgejo
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?set DB_PASSWORD in infra/forgejo/.env}
+      - POSTGRES_DB=forgejo
