@@ -119,6 +119,21 @@ docker exec "$nc_container" sh -c "
   mv '/var/www/html/custom_apps/${app_id}.new' '${app_dir}'
   chown -R 33:0 '${app_dir}'
 "
+
+# Optional app-local secrets. The swap above wipes everything that is not part
+# of the release, so the git-ignored .env next to this script (holding e.g.
+# SILICONFLOW_API_KEY) is copied into the app dir as .env on every deploy. The
+# app reads it via OCA\ByeByeMoneyList\Config\EnvLoader.
+env_file="${script_dir}/.env"
+if [ -f "$env_file" ]; then
+  log "installing ${env_file} as ${app_dir}/.env"
+  docker cp "$env_file" "${nc_container}:${app_dir}/.env"
+  docker exec "$nc_container" chown 33:0 "${app_dir}/.env"
+  docker exec "$nc_container" chmod 640 "${app_dir}/.env"
+else
+  log "no ${env_file} - skipping app secret install"
+fi
+
 docker exec -u www-data "$nc_container" php occ app:enable "$app_id"
 
 log "status"

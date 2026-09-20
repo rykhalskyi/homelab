@@ -22,6 +22,7 @@ custom Nextcloud image cannot be used. The supported path is a **custom app**:
 |------|---------|
 | `versions.env` | Pinned `BYML_VERSION` (+ optional `BYML_SHA256`). Committed, no secrets. |
 | `deploy-app.sh` | Downloads the pinned release tarball and installs it into the container. |
+| `.env` | Optional, git-ignored app secrets (e.g. `SILICONFLOW_API_KEY`). Copied to `<app>/` on deploy. |
 | `../Makefile` | `make nc-app-deploy`, `make nc-app-status` wrappers. |
 
 ## Release side (app repo `rykhalskyi/byebyemoneylist-ns`)
@@ -54,8 +55,27 @@ make nc-app-deploy          # or: bash infra/nextcloud/deploy-app.sh
 3. verifies `BYML_SHA256` (when set) and the `info.xml` version;
 4. `docker cp`s the app into `nextcloud-aio-nextcloud:/var/www/html/custom_apps/byebyemoneylist`;
 5. sets ownership to `33:0` (www-data);
-6. disables → swaps → re-enables the app. Re-enabling applies any pending DB
-   migrations (Nextcloud's installer runs them), and sets `installed_version`.
+6. disables the app and swaps the new release into place;
+7. if a git-ignored `.env` sits next to the script, copies it into the app dir
+   as `<app>/.env` (owned `33:0`, mode `640`). The swap wipes it otherwise, so
+   this runs on every deploy;
+8. re-enables the app. Re-enabling applies any pending DB migrations
+   (Nextcloud's installer runs them), and sets `installed_version`.
+
+## App secrets (`.env`)
+
+The app reads an app-local, git-ignored `.env` at
+`custom_apps/byebyemoneylist/.env` (see the app's
+`OCA\ByeByeMoneyList\Config\EnvLoader`). Because `deploy-app.sh` replaces the
+whole app directory, keep the persistent copy on the host next to the script:
+
+```bash
+# infra/nextcloud/.env  (git-ignored by the repo root .gitignore)
+SILICONFLOW_API_KEY=sk-...
+```
+
+`make nc-app-deploy` re-installs it automatically. Missing file is not an error
+(a warning is logged and the step is skipped).
 
 Verify:
 

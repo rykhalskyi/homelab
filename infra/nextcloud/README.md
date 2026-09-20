@@ -36,6 +36,9 @@ make nc-app-deploy    # install/update the pinned version
 make nc-app-status    # show app + migration status
 ```
 
+App secrets (`SILICONFLOW_API_KEY`, ...) go in a git-ignored `.env` next to the
+scripts; `make nc-app-deploy` copies it into the app dir on every deploy.
+
 Version pin: `versions.env`. Full notes: [`DEPLOY.md`](DEPLOY.md) and the
 [wiki design page](../../docs/wiki/pages/nextcloud-aio-custom-app.md).
 
