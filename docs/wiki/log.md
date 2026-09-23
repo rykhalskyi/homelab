@@ -1,5 +1,21 @@
 # DevOps Wiki — Log
 
+## [2026-09-23] ingest | laya-api container deploy (pinned GHCR image)
+
+Added [[laya-api container deploy (pinned GHCR image)]], a design page for
+building and running `laya-api` on `node-one` from a pinned GHCR image. It
+mirrors the [[Byebyemoneylist app integration (Nextcloud AIO)]] release/pin
+pattern: the app repo's release workflow (`.github/workflows/release.yml`) builds
+the `Dockerfile` on a `v*` tag, pushes `ghcr.io/rykhalskyi/laya-api` and publishes
+a `laya-api-<version>.digest` release asset; `infra/laya-api/versions.env` pins
+`LAYA_API_VERSION` + `LAYA_API_SHA256`; and `infra/laya-api/deploy.sh` (wrapped by
+`make laya-api-deploy` / `laya-api-pin` / `laya-api-status`) pulls and recreates
+the Compose stack on port 8001. Also documented the CPU-only torch pin
+(`tool.uv.index` + `tool.uv.sources`, plus `torch` as a direct dep) that drops
+the NVIDIA/CUDA wheels and shrinks the image from ~5.4 GB to ~1.5 GB, the required
+git-ignored `.env` with `LAYA_ADMIN_KEY`, GHCR visibility/`GHCR_TOKEN`, the
+optional pin-bot, and update/rollback/verify steps.
+
 ## [2026-09-19] update | Byebyemoneylist app integration (Nextcloud AIO)
 
 Restructured [[Byebyemoneylist app integration (Nextcloud AIO)]] to present the

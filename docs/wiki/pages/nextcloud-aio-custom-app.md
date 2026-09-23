@@ -23,16 +23,13 @@ exposed; this page is only about delivering the app.
    ```
    CI builds the frontend and publishes `byebyemoneylist-X.Y.Z.tar.gz` plus its
    `.sha256` to the GitHub Release.
-
 2. **Pin it in the homelab repo** (on your workstation) - either:
    - **manual:** `make nc-app-pin VERSION=X.Y.Z` writes both `BYML_VERSION` and
      `BYML_SHA256` into `infra/nextcloud/versions.env`; or
    - **bot:** `update-byebyemoneylist-pin.yml` does the same and opens a pull
      request.
-
 3. **Land it on `main`.** Commit/push the manual change, or review and merge the
    bot's PR.
-
 4. **Deploy on `node-one`.**
    ```bash
    cd ~/Source/homelab && git pull && make nc-app-deploy

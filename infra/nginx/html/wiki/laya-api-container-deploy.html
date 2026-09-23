@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>laya-api container deploy (pinned GHCR image) · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-23</span><span class="tag-list"><span class="tag">laya-api</span><span class="tag">docker</span><span class="tag">ghcr</span><span class="tag">ci</span><span class="tag">github-actions</span><span class="tag">python</span><span class="tag">deploy</span></span></p>
+      <article class="panel wiki-article">
+<h1>laya-api container deploy (pinned GHCR image)</h1>
+<p>Design of how the <strong>laya-api</strong> prediction API (<code>rykhalskyi/laya-api</code>) is built and run on <code>node-one</code> from a pinned container image. It follows the same release-and-pin pattern as <a href="nextcloud-aio-custom-app.html">Byebyemoneylist app integration (Nextcloud AIO)</a>, with the <strong>image digest</strong> playing the role of <code>BYML_SHA256</code>.</p>
+<ul><li>App repo: <code>rykhalskyi/laya-api</code> (public)</li><li>Image: <code>ghcr.io/rykhalskyi/laya-api</code></li><li>Homelab stack: <code>infra/laya-api/</code> (Compose, <code>versions.env</code>, <code>deploy.sh</code>)</li><li>Host port: <code>8001</code> (container listens on <code>8000</code>)</li></ul>
+<h2>Order (happy path)</h2>
+<ol><li><strong>Release the app</strong> (app repo). Bump <code>version</code> in <code>pyproject.toml</code>, re-lock, commit, then tag and push: ```bash uv lock                                  # syncs the project version in uv.lock git add pyproject.toml uv.lock &amp;&amp; git commit -m &quot;Release vX.Y.Z&quot; &amp;&amp; git push git tag -a vX.Y.Z -m &quot;laya-api vX.Y.Z&quot; &amp;&amp; git push origin vX.Y.Z ``` CI builds the <code>Dockerfile</code>, pushes the image to GHCR, and publishes the release asset <code>laya-api-X.Y.Z.digest</code>.</li></ol>
+<ol><li><strong>Pin it in the homelab repo</strong> (on the workstation), either:<ul><li><strong>manual:</strong> <code>make laya-api-pin VERSION=X.Y.Z</code> writes <code>LAYA_API_VERSION</code> + <code>LAYA_API_SHA256</code> into <code>infra/laya-api/versions.env</code>; or</li><li><strong>bot:</strong> <code>update-laya-api-pin.yml</code> does the same and opens a pull request.</li></ul></li></ol>
+<ol><li><strong>Land it on <code>main</code>.</strong> Commit/push the manual change, or review and merge the bot&#x27;s PR.</li></ol>
+<ol><li><strong>Deploy on <code>node-one</code>.</strong> ```bash cd ~/Source/homelab &amp;&amp; git pull &amp;&amp; make laya-api-deploy make laya-api-status ```</li></ol>
+<h2>How it works</h2>
+<h3>Why a pinned image instead of <code>build:</code></h3>
+<p>The app is built <strong>once in CI</strong> and published to GHCR as an immutable tag + digest. <code>node-one</code> only pulls it - no source checkout and no Python toolchain on the server - so deploys are fast and reproducible, and a rollback is a two-line change. The homelab repo never contains the application source.</p>
+<h3>Release (app repo)</h3>
+<p><code>.github/workflows/release.yml</code>, triggered by a <code>v*</code> tag:</p>
+<ol><li>Build the <code>Dockerfile</code> and push to GHCR with tags <code>X.Y.Z</code>, <code>X.Y</code>, <code>sha-*</code>.</li><li>Publish a GitHub release whose only asset is the image digest: ``` laya-api-&lt;version&gt;.digest     # sha256:&lt;manifest digest&gt; ```</li></ol>
+<p>The <strong>git tag is the source of truth</strong> for the version - it names both the image tag and the asset. Keep <code>pyproject.toml</code> <code>version</code> equal to it. The tag must be valid semver (<code>vX.Y.Z</code>), otherwise <code>docker/metadata-action</code> skips the version tags.</p>
+<h3>CPU-only torch (image size)</h3>
+<p><code>laya</code> pulls in <code>torch</code> + <code>transformers</code>, which by default resolve to the CUDA wheels: <code>torch</code> (~550 MB), the <code>nvidia-*</code> CUDA packages (~3.2 GB) and <code>triton</code> (~900 MB) - a ~5.4 GB image, and enough to exhaust a GitHub runner&#x27;s disk.</p>
+<p><code>node-one</code> has no NVIDIA GPU, so the build pins CPU-only torch in <code>pyproject.toml</code>:</p>
+<pre><code class="language-toml">[[tool.uv.index]]
+name = &quot;pytorch-cpu&quot;
+url = &quot;https://download.pytorch.org/whl/cpu&quot;
+explicit = true
+
+[tool.uv.sources]
+torch = { index = &quot;pytorch-cpu&quot; }</code></pre>
+<p><code>tool.uv.sources</code> only applies to <strong>direct</strong> dependencies, so <code>torch</code> is also listed in <code>[project] dependencies</code> to force the override through <code>laya</code>. This drops <code>nvidia-*</code> and <code>triton</code> entirely (<code>uv.lock</code> loses ~250 lines) and shrinks the image to roughly 1.5 GB.</p>
+<h3>Pin (homelab repo)</h3>
+<table><thead><tr><th>File</th><th>Role</th></tr></thead><tbody><tr><td><code>infra/laya-api/versions.env</code></td><td>Pinned <code>LAYA_API_VERSION</code> + <code>LAYA_API_SHA256</code> (image digest). Committed, no secrets.</td></tr><tr><td><code>infra/laya-api/docker-compose.yml</code></td><td>Compose stack; image is <code>&lt;repo&gt;:&lt;version&gt;@&lt;digest&gt;</code>.</td></tr><tr><td><code>infra/laya-api/deploy.sh</code></td><td>Pin from a release, then pull + (re)create the stack. <code>--pin</code> writes version + digest.</td></tr><tr><td><code>infra/laya-api/README.md</code></td><td>Build/deploy/update/rollback runbook beside the stack.</td></tr><tr><td><code>Makefile</code> (<code>laya-api-deploy</code>, <code>laya-api-pin</code>, <code>laya-api-status</code>)</td><td>Convenience wrappers.</td></tr></tbody></table>
+<p>Mapping to the Nextcloud app flow:</p>
+<table><thead><tr><th>Nextcloud</th><th>laya-api</th></tr></thead><tbody><tr><td><code>make nc-app-pin</code></td><td><code>make laya-api-pin</code></td></tr><tr><td>writes <code>BYML_VERSION</code> + <code>BYML_SHA256</code></td><td>writes <code>LAYA_API_VERSION</code> + <code>LAYA_API_SHA256</code></td></tr><tr><td><code>make nc-app-deploy</code></td><td><code>make laya-api-deploy</code></td></tr><tr><td><code>make nc-app-status</code></td><td><code>make laya-api-status</code></td></tr></tbody></table>
+<p>The digest is filled explicitly, not automatically: CI publishes <code>laya-api-&lt;version&gt;.digest</code>, <code>make laya-api-pin</code> copies its hash into <code>versions.env</code>, and that commit is the integrity anchor. An empty <code>LAYA_API_SHA256</code> <strong>blocks</strong> <code>make laya-api-deploy</code>.</p>
+<p><strong>Bot:</strong> <code>.github/workflows/update-laya-api-pin.yml</code> runs the same <code>--pin</code> logic on a schedule (daily), on <code>workflow_dispatch</code>, or on a <code>repository_dispatch</code> event <code>laya-api-release</code>, and opens a PR updating both values together. Merging the PR is what makes the release deployable. Needs *Settings → Actions → General → Workflow permissions → &quot;Allow GitHub Actions to create and approve pull requests&quot;*. The doorbell (<code>repository_dispatch</code> from the app repo) is optional and requires a PAT there; the daily poll works without it.</p>
+<h3>Deploy (node-one)</h3>
+<p><code>infra/laya-api/deploy.sh</code>:</p>
+<ol><li>reads <code>LAYA_API_VERSION</code> from <code>versions.env</code>;</li><li><code>--pin</code> downloads <code>laya-api-&lt;version&gt;.digest</code> and writes <strong>both</strong> <code>LAYA_API_VERSION</code> and <code>LAYA_API_SHA256</code> into <code>versions.env</code>;</li><li>requires <code>.env</code> to exist, exports the pinned tag/digest and the <code>.env</code> secrets, then runs <code>docker compose pull &amp;&amp; up -d</code>.</li></ol>
+<p>The stack (<code>docker-compose.yml</code>):</p>
+<pre><code class="language-yaml">image: &quot;ghcr.io/rykhalskyi/laya-api:${LAYA_API_VERSION}@${LAYA_API_SHA256}&quot;
+container_name: laya-api
+environment:
+  LAYA_ADMIN_KEY: ${LAYA_ADMIN_KEY}
+  LAYA_API_KEY_DATABASE: /app/data/api_keys.db
+ports:
+  - &quot;${LAYA_HOST_PORT:-8001}:8000&quot;
+volumes:
+  - laya_api_data:/app/data</code></pre>
+<h3>Secrets (<code>.env</code>)</h3>
+<p><code>infra/laya-api/.env</code> is <strong>git-ignored</strong> and required. Create it from the example and set the admin key:</p>
+<pre><code class="language-bash">cp infra/laya-api/.env.example infra/laya-api/.env
+python3 -c &#x27;import secrets; print(secrets.token_urlsafe(32))&#x27;   # paste as LAYA_ADMIN_KEY
+chmod 600 infra/laya-api/.env</code></pre>
+<p>The API-key store is SQLite in the persistent <code>laya_api_data</code> volume (no DB server). Keys are shown only at creation; only SHA-256 hashes are stored.</p>
+<p>If the GHCR package is <strong>private</strong>, set <code>GHCR_TOKEN</code> (+ <code>GHCR_USER</code>) in <code>.env</code> so <code>deploy.sh</code> logs in before pulling; a public package needs neither. Make it public once at *Packages → laya-api → Package settings → Change visibility*.</p>
+<h2>Update and rollback</h2>
+<ul><li><strong>Update:</strong> release <code>vX.Y.Z</code> in the app repo → `make laya-api-pin VERSION=X.Y.Z<code> (or merge the bot PR) → push/merge to </code>main<code> → on </code>node-one` <code>git pull &amp;&amp; make laya-api-deploy</code>.</li><li><strong>Rollback:</strong> set <code>LAYA_API_VERSION</code>/<code>LAYA_API_SHA256</code> back (or <code>git revert</code> the pin commit) and re-run <code>make laya-api-deploy</code>. The SQLite DB in the <code>laya_api_data</code> volume is untouched.</li></ul>
+<h2>Verify</h2>
+<pre><code class="language-bash">make laya-api-status
+curl -s http://127.0.0.1:8001/health          # {&quot;status&quot;:&quot;ok&quot;}
+source infra/laya-api/.env
+curl -s -X POST http://127.0.0.1:8001/admin/keys \
+  -H &quot;X-API-Key: $LAYA_ADMIN_KEY&quot; -H &#x27;Content-Type: application/json&#x27; \
+  -d &#x27;{&quot;name&quot;:&quot;my-client&quot;}&#x27;                    # returns a client key once</code></pre>
+<h2>Notes and limits</h2>
+<ul><li>Host port <code>8001</code> avoids the ports already taken on <code>node-one</code> (80, 443, 222, 3000, 8080, 11000, 3478). Override with <code>LAYA_HOST_PORT</code>.</li><li>The image is CPU-only by design; if a GPU is ever added, the <code>pytorch-cpu</code> index pin must be reconsidered.</li><li><code>deploy.sh</code> requires <code>.env</code>; a missing file aborts with a pointer to the example rather than starting a container that cannot mint keys.</li><li>See <a href="cloudflare-tunnel-nginx.html">Cloudflare Tunnel → nginx (install + first tunnel)</a> if the API should later be exposed publicly.</li></ul>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>
