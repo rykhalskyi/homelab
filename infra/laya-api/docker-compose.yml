@@ -1,0 +1,25 @@
+# laya-api - Laya prediction HTTP API, served from a pinned GHCR image.
+#
+# The image is built and pushed by the release workflow in rykhalskyi/laya-api;
+# versions.env pins the exact tag + digest. Do not run this file directly - use
+# `make laya-api-deploy`, which exports the pinned image and loads .env.
+#
+# Secrets live in the git-ignored .env next to this file.
+name: laya-api
+
+services:
+  laya-api:
+    image: "ghcr.io/rykhalskyi/laya-api:${LAYA_API_VERSION:?set LAYA_API_VERSION in versions.env}@${LAYA_API_SHA256:?set LAYA_API_SHA256 in versions.env}"
+    container_name: laya-api
+    restart: unless-stopped
+    environment:
+      LAYA_ADMIN_KEY: ${LAYA_ADMIN_KEY:?set LAYA_ADMIN_KEY in infra/laya-api/.env}
+      LAYA_API_KEY_DATABASE: /app/data/api_keys.db
+    ports:
+      - "${LAYA_HOST_PORT:-8001}:8000"
+    volumes:
+      - laya_api_data:/app/data
+
+volumes:
+  laya_api_data:
+    name: laya_api_data

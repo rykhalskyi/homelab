@@ -20,7 +20,8 @@ my internal network and expose a small number of resources publicly.
 
 ## Repository layout
 
-- `infra/` — deployable service stacks (Docker Compose): `nginx/`, `nextcloud/`.
+- `infra/` — deployable service stacks (Docker Compose): `nginx/`, `nextcloud/`,
+  `forgejo/`, `pihole/`, `laya-api/`.
 - `docs/wiki/` — the DevOps wiki, written in Markdown.
 - `infra/nginx/html/` — the static homelab site (landing page + generated wiki).
 

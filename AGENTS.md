@@ -5,7 +5,8 @@ Guidance for agents working in this repository (the `homelab` project).
 ## What this repo is
 
 - `infra/` — deployable Docker Compose stacks: `nginx/` (the static homelab
-  site) and `nextcloud/`.
+  site), `nextcloud/`, `forgejo/`, `pihole/`, and `laya-api/` (a pinned prebuilt
+  image deployed via `infra/laya-api/deploy.sh`).
 - `docs/wiki/` — the DevOps wiki, authored in Markdown. See
   `docs/wiki/AGENTS.md` for the wiki schema and ingest workflow.
 - `infra/nginx/html/` — the served site. `wiki/` inside it is **generated**.
@@ -39,6 +40,8 @@ Then commit both the Markdown sources and the regenerated
 make serve                     # preview the site at http://localhost:8080
 cd infra/nginx && docker compose up -d   # run nginx (serves ./html)
 cd infra/nextcloud && docker compose up -d
+make laya-api-deploy            # deploy/update the pinned laya-api image
+make laya-api-pin VERSION=x.y.z  # pin a new laya-api release
 ```
 
 ## Conventions

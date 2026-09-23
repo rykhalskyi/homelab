@@ -1,0 +1,105 @@
+name: Update laya-api pin
+
+# Keeps infra/laya-api/versions.env in sync with the latest release of the
+# laya-api repo. It does the same as `make laya-api-pin` (writes
+# LAYA_API_VERSION and LAYA_API_SHA256) and opens a pull request so the deploy
+# pin is reviewed in Git.
+#
+# Triggers:
+#   - schedule          -> daily poll of the latest GitHub release
+#   - workflow_dispatch -> manual run, optionally pinning a specific version
+#   - repository_dispatch -> event_type "laya-api-release", optionally with
+#     client_payload.version; sent by the laya-api release workflow (requires a
+#     PAT secret there, see infra/laya-api/README.md).
+
+on:
+  schedule:
+    - cron: '37 5 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to pin (e.g. 0.1.0). Empty = latest release.'
+        required: false
+        type: string
+  repository_dispatch:
+    types: [laya-api-release]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-laya-api-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: Refresh versions.env
+    runs-on: ubuntu-latest
+    if: github.repository == 'rykhalskyi/homelab'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve target version
+        id: resolve
+        env:
+          APP_REPO: rykhalskyi/laya-api
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-${DISPATCH_VERSION:-}}"
+          if [ -z "$version" ]; then
+            version="$(curl -fsSL -H 'Accept: application/vnd.github+json' \
+              "https://api.github.com/repos/${APP_REPO}/releases/latest" \
+              | grep -oP '"tag_name"\s*:\s*"v?\K[^"]+')"
+          fi
+          [ -n "$version" ] || { echo "::error::could not resolve a version"; exit 1; }
+
+          current="$(grep -oP '^LAYA_API_VERSION=\K.*' infra/laya-api/versions.env || true)"
+          {
+            echo "version=${version}"
+            echo "current=${current}"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$version" = "$current" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already pinned to ${version} - nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Update available: ${current:-none} -> ${version}"
+          fi
+
+      - name: Pin version + digest
+        if: steps.resolve.outputs.changed == 'true'
+        run: bash infra/laya-api/deploy.sh --pin --version "${{ steps.resolve.outputs.version }}"
+
+      - name: Show diff
+        if: steps.resolve.outputs.changed == 'true'
+        run: git --no-pager diff
+
+      - name: Open pull request
+        if: steps.resolve.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/laya-api-${{ steps.resolve.outputs.version }}
+          base: main
+          delete-branch: true
+          title: "Update laya-api to v${{ steps.resolve.outputs.version }}"
+          commit-message: "Update laya-api to v${{ steps.resolve.outputs.version }}"
+          labels: |
+            dependencies
+          body: |
+            Automated pin update from a `laya-api` release.
+
+            - version: `${{ steps.resolve.outputs.current }}` → `${{ steps.resolve.outputs.version }}`
+            - `LAYA_API_VERSION` and `LAYA_API_SHA256` refreshed from the release `.digest` asset.
+
+            Merge, then deploy on `node-one` with:
+
+            ```bash
+            cd ~/Source/homelab && git pull && make laya-api-deploy
+            ```
