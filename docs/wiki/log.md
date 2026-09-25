@@ -1,5 +1,33 @@
 # DevOps Wiki — Log
 
+## [2026-09-25] update | k3s + GitOps: nginx and cloudflared (phase 2.1)
+
+Corrected the site's public hostname from `cloud.otakeessen.com` to
+`homelab.otakeessen.com` (the live tunnel maps `cloud.` to Nextcloud on `:11000`,
+`laya.` to laya-api on `:8001`). Rewrote Part G into a real cutover order for the
+already-running server: do the non-disruptive parts first (image, k3s, Flux),
+then the single disruptive swap of host port 80 from the nginx container to
+Traefik, plus LAN access via Traefik's `LoadBalancer` and local DNS. Documented
+two ways to move cloudflared into the cluster - Option A, a `hostNetwork` bridge
+that preserves the current `localhost` config while Nextcloud/laya stay on the
+host; and Option B, the end-state where all traffic goes through Traefik (needs
+Nextcloud's `APACHE_IP_BINDING` changed off loopback).
+
+## [2026-09-25] ingest | k3s + GitOps: nginx and cloudflared (phase 2.1)
+
+Added [[k3s + GitOps: nginx and cloudflared (phase 2.1)]], a novice-friendly
+runbook for phase 2.1: moving the homelab site and the Cloudflare tunnel from
+Docker Compose + host systemd onto k3s with Flux. Covers the rationale (no bind
+mounts in k8s, Pods are ephemeral, Git as the single source of truth), a
+glossary, and nine parts: build the site into a GHCR image in CI (with a
+wiki-freshness check), install k3s without bundled Traefik, `flux bootstrap`,
+manage Traefik via a Flux HelmRelease, run nginx as a Deployment + Service +
+Ingress, run cloudflared as a Deployment with its ingress config in a ConfigMap
+and credentials in an out-of-band Secret, wildcard `*.otakeessen.com` routing
+through Traefik, zero-downtime cutover from the host tunnel, and the new update
+flow. Also documents rollback, a troubleshooting table, the phase 3 (Talos)
+reuse story, and a go-live checklist.
+
 ## [2026-09-23] ingest | laya-api container deploy (pinned GHCR image)
 
 Added [[laya-api container deploy (pinned GHCR image)]], a design page for

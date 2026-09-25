@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>k3s + GitOps: nginx and cloudflared (phase 2.1) · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-25</span><span class="tag-list"><span class="tag">k3s</span><span class="tag">kubernetes</span><span class="tag">gitops</span><span class="tag">flux</span><span class="tag">nginx</span><span class="tag">cloudflared</span><span class="tag">traefik</span><span class="tag">ghcr</span><span class="tag">ci</span></span></p>
+      <article class="panel wiki-article">
+<h1>k3s + GitOps: nginx and cloudflared (phase 2.1)</h1>
+<p>A plain-language, step-by-step guide for moving the homelab website (<code>infra/nginx</code>) and the Cloudflare tunnel off Docker Compose + a host systemd service, and onto a <strong>k3s</strong> cluster where <strong>Flux</strong> keeps everything in sync with this Git repository.</p>
+<p>No prior Kubernetes knowledge is assumed. Every hard word is explained.</p>
+<h2>The idea in one picture</h2>
+<pre><code>  You edit Git  ──push──►  GitHub (rykhalskyi/homelab)
+                                    │
+                                    │  Flux watches the repo
+                                    ▼
+  ┌─────────────────────────── k3s cluster (node-one) ───────────────────────────┐
+  │                                                                              │
+  │   Flux  ──►  Traefik  (the traffic director / Ingress)                        │
+  │                ▲                                                             │
+  │                │ http://traefik.traefik.svc.cluster.local:80                 │
+  │                │                                                             │
+  │   cloudflared Pod  ◄───  the Cloudflare tunnel (public side)                 │
+  │                                                                              │
+  │   nginx Pod  (the website HTML, baked into an image)                          │
+  └──────────────────────────────────────────────────────────────────────────────┘
+                                    ▲
+  Internet  ──►  https://homelab.otakeessen.com  ──►  Cloudflare edge  ──►  tunnel</code></pre>
+<p>The important change: <strong>you stop running commands on the server to deploy</strong>. You change files in Git; Flux notices and makes the cluster match.</p>
+<h2>Tiny glossary</h2>
+<table><thead><tr><th>Word</th><th>What it means here</th></tr></thead><tbody><tr><td><strong>Pod</strong></td><td>One running copy of a container (like one <code>docker run</code>) inside the cluster.</td></tr><tr><td><strong>Deployment</strong></td><td>A manager that keeps N Pods running and rolls out updates. &quot;I want 1 nginx always running.&quot;</td></tr><tr><td><strong>Service</strong></td><td>A stable internal name/address for a set of Pods. Other Pods reach nginx at the name <code>nginx</code>.</td></tr><tr><td><strong>Namespace</strong></td><td>A folder for cluster objects. We put ours in <code>homelab</code> to keep them tidy.</td></tr><tr><td><strong>Ingress</strong></td><td>A routing rule: &quot;requests for this hostname go to this Service.&quot;</td></tr><tr><td><strong>Traefik</strong></td><td>The software that reads Ingress rules and routes traffic.</td></tr><tr><td><strong>Flux</strong></td><td>The GitOps robot inside the cluster: it watches Git and applies changes.</td></tr><tr><td><strong>HelmRelease</strong></td><td>A Flux object that installs a packaged app (here: Traefik) from a Helm chart.</td></tr><tr><td><strong>kustomization.yaml</strong></td><td>A plain list saying &quot;these YAML files belong together.&quot;</td></tr><tr><td><strong>GHCR</strong></td><td>GitHub Container Registry — where we store the website&#x27;s container image.</td></tr></tbody></table>
+<h2>What stays the same</h2>
+<ul><li>The website HTML/CSS/JS and the generated wiki. Nothing about the site changes.</li><li>The domain <code>otakeessen.com</code>, the Cloudflare tunnel, and the public hostname <code>homelab.otakeessen.com</code>.</li><li>The wiki workflow (<code>docs/wiki/</code> → <code>make wiki</code>).</li></ul>
+<h2>What you need before starting</h2>
+<ul><li>SSH access to <code>node-one</code> with <code>sudo</code>.</li><li><code>otakeessen.com</code> already active in Cloudflare (it is).</li><li>The existing tunnel credentials at <code>~/.cloudflared/&lt;UUID&gt;.json</code> on <code>node-one</code> (created in <a href="cloudflare-tunnel-nginx.html">Cloudflare Tunnel → nginx (install + first tunnel)</a>).</li><li>A workstation with <code>kubectl</code> and the <code>flux</code> CLI installed.</li><li>This repo cloned on the workstation, with push access to <code>main</code>.</li><li>The GHCR package made <strong>public</strong> at the end of Part A (or the cluster needs a pull secret).</li></ul>
+<h3>Install <code>kubectl</code> on the workstation (Fedora)</h3>
+<pre><code class="language-bash">KVER=$(curl -Ls https://dl.k8s.io/release/stable.txt)
+curl -LO &quot;https://dl.k8s.io/release/${KVER}/bin/linux/amd64/kubectl&quot;
+sudo install -m 0755 kubectl /usr/local/bin/kubectl
+kubectl version --client</code></pre>
+<p><code>sudo dnf install kubernetes-client</code> also works but usually ships an older version. Keep <code>kubectl</code> within one minor version of the server. Configuring it means giving it a kubeconfig (Part B3); there is no separate setup command. The <code>flux</code> CLI is installed in Part C0.</p>
+<blockquote><p>Do the parts in order. Parts A and B are independent; C must come after B, and E/F after D.</p></blockquote>
+<h2>Where to run commands (workstation vs server)</h2>
+<p>Rule of thumb: <strong>use the cluster from your workstation; SSH to node-one only for the host itself.</strong></p>
+<table><thead><tr><th>Task</th><th>Run it on</th></tr></thead><tbody><tr><td><code>git push</code>, <code>flux bootstrap</code>, <code>flux reconcile</code></td><td>workstation</td></tr><tr><td><code>kubectl get/describe/logs/port-forward</code>, k9s</td><td>workstation</td></tr><tr><td>install/upgrade k3s, edit <code>/etc/rancher/k3s/config.yaml</code>, <code>systemctl</code></td><td>server (SSH)</td></tr><tr><td>disk/network checks, rescue when the API is down, the first kubeconfig copy</td><td>server (SSH)</td></tr></tbody></table>
+<p>Why: <code>kubectl</code> and <code>flux</code> are just clients, so they work over the LAN. GitOps means changes flow from Git, not from an interactive shell on the server, so editing objects with <code>kubectl edit</code> is avoided. SSH is kept for what Kubernetes cannot do: install, host configuration, and recovery.</p>
+<p>Two safety notes:</p>
+<ul><li>Keep the API server (port <code>6443</code>) on the LAN, not the public internet. To avoid exposing it at all, tunnel it: <code>ssh -L 6443:127.0.0.1:6443 jaro@192.168.2.233</code> and set the kubeconfig <code>server:</code> to <code>https://127.0.0.1:6443</code>.</li><li>The k3s kubeconfig is <code>cluster-admin</code> (full power). Treat it like a password: never commit it and never paste it anywhere public.</li></ul>
+<hr>
+<h2>Part A — Build the website into a container image</h2>
+<p><strong>Why:</strong> Kubernetes has no bind mounts, so we cannot mount <code>./html</code> from the repo like Compose did. Instead we bake the site into an image and the Pod runs that image.</p>
+<h3>A1. Create <code>infra/nginx/Dockerfile</code></h3>
+<pre><code class="language-dockerfile">FROM nginx:stable
+COPY conf.d/ /etc/nginx/conf.d/
+COPY html/ /usr/share/nginx/html/</code></pre>
+<h3>A2. Create <code>infra/nginx/.dockerignore</code></h3>
+<pre><code>README.md
+docker-compose.yml</code></pre>
+<h3>A3. Create <code>.github/workflows/build-nginx-image.yml</code></h3>
+<p>This builds and uploads the image every time the site or the wiki changes.</p>
+<pre><code class="language-yaml">name: Build nginx site image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - &#x27;infra/nginx/**&#x27;
+      - &#x27;docs/wiki/**&#x27;
+      - &#x27;tools/build_wiki.py&#x27;
+      - &#x27;.github/workflows/build-nginx-image.yml&#x27;
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the generated wiki is up to date
+        run: |
+          make wiki
+          git diff --exit-code
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: infra/nginx
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/homelab-nginx:sha-${{ github.sha }}
+
+      - name: Show the digest to pin
+        run: echo &quot;Pin this digest: ${{ steps.build.outputs.digest }}&quot;</code></pre>
+<blockquote><p><strong><code>secrets.GITHUB_TOKEN</code> is automatic - do not create it.</strong> GitHub injects it into every Actions run. The workflow&#x27;s <code>permissions: packages: write</code> is what lets it push to GHCR. If the push is denied, set <strong>Settings -&gt; Actions -&gt; General -&gt; Workflow permissions</strong> to &quot;Read and write permissions&quot; and re-run.</p></blockquote>
+<h3>A4. Build it</h3>
+<pre><code class="language-bash">cd ~/Source/homelab
+git add infra/nginx/Dockerfile infra/nginx/.dockerignore \
+        .github/workflows/build-nginx-image.yml
+git commit -m &quot;Build nginx site image in CI&quot;
+git push</code></pre>
+<p>Open the <strong>Actions</strong> tab, wait for the run to finish, and copy the <code>sha256:...</code> digest printed in the last step.</p>
+<h3>A5. Make the package public</h3>
+<p>GitHub → your profile → <strong>Packages</strong> → <code>homelab-nginx</code> → <strong>Package settings</strong> → <strong>Change visibility</strong> → <strong>Public</strong>. (If you skip this, the cluster needs an image pull secret — simpler to make it public.)</p>
+<blockquote><p><strong>Verify:</strong> the Actions run is green and the package exists.</p></blockquote>
+<hr>
+<h2>Part B — Install k3s</h2>
+<p><strong>Why:</strong> k3s is a small, single-binary Kubernetes. We install it *without* its bundled Traefik, because we install and manage Traefik ourselves in Part D (so k3s and the future Talos cluster look the same).</p>
+<h3>B1. Tell k3s to skip Traefik</h3>
+<p>On <code>node-one</code>, create <code>/etc/rancher/k3s/config.yaml</code>:</p>
+<pre><code class="language-yaml">disable:
+  - traefik
+write-kubeconfig-mode: &quot;0644&quot;</code></pre>
+<h3>B2. Install k3s</h3>
+<pre><code class="language-bash">curl -sfL https://get.k3s.io | sh -
+sudo systemctl status k3s --no-pager
+kubectl get nodes</code></pre>
+<h3>B3. Let your workstation talk to the cluster (kubeconfig)</h3>
+<p><code>kubectl</code> and <code>flux</code> both find the cluster through a <strong>kubeconfig</strong> file. It holds two things: the API server&#x27;s address (for k3s, port <code>6443</code>) and the credentials to log in. Nothing in Flux needs node-one&#x27;s IP directly — only this file does.</p>
+<p>On the server the file is <code>/etc/rancher/k3s/k3s.yaml</code> and its address is <code>https://127.0.0.1:6443</code>. Copy it to your workstation and swap the loopback address for node-one&#x27;s LAN IP:</p>
+<pre><code class="language-bash">mkdir -p ~/.kube
+ssh jaro@192.168.2.233 &#x27;sudo cat /etc/rancher/k3s/k3s.yaml&#x27; &gt; ~/.kube/config
+chmod 600 ~/.kube/config
+sed -i &#x27;s/127.0.0.1/192.168.2.233/&#x27; ~/.kube/config
+kubectl config get-contexts
+kubectl get nodes</code></pre>
+<p>The part that answers &quot;where is node-one&quot; is the <code>server:</code> line:</p>
+<pre><code class="language-yaml">clusters:
+  - cluster:
+      server: https://192.168.2.233:6443</code></pre>
+<p>That is the whole configuration. <code>flux</code> and <code>kubectl</code> read this file from the <code>KUBECONFIG</code> environment variable (default <code>~/.kube/config</code>). Once <code>kubectl get nodes</code> works, <code>flux bootstrap</code> can reach the cluster too. For a second cluster (Talos) you get a second kubeconfig and pick between them with contexts (<code>kubectl config use-context</code>, or <code>KUBECONFIG=... flux bootstrap ...</code>).</p>
+<p>On the server itself, the <code>kubectl</code> bundled with k3s already knows this path, so <code>k3s kubectl get pods -A</code> (or plain <code>kubectl</code>) just works. Upstream tools like <code>helm</code> may need <code>KUBECONFIG=/etc/rancher/k3s/k3s.yaml</code> or <code>--kubeconfig /etc/rancher/k3s/k3s.yaml</code>.</p>
+<blockquote><p><strong>Two kubeconfig files - do not mix them up.</strong> k3s writes one on the server at <code>/etc/rancher/k3s/k3s.yaml</code> (address <code>https://127.0.0.1:6443</code>). You create a second copy on your workstation at <code>~/.kube/config</code>, and edit its address to node-one&#x27;s LAN IP. The <code>flux</code> CLI runs on the workstation, so it reads the <strong>workstation</strong> copy - that is exactly where it gets the address. Once Flux is installed, its Pods do not use either file: they authenticate from inside the cluster with their own service account. The kubeconfig contains credentials, so it is never committed to Git; Git holds desired state, not connection info.</p></blockquote>
+<blockquote><p><strong>This file grants unrestricted access.</strong> It authenticates as <code>system:admin</code> (group <code>system:masters</code>), which Kubernetes hardcodes to full power over the cluster. Treat it like a password.</p></blockquote>
+<blockquote><p><strong>A copied kubeconfig goes stale.</strong> k3s refreshes the certificates inside <code>/etc/rancher/k3s/k3s.yaml</code> every time it starts, but it does <strong>not</strong> update your copy. If <code>kubectl</code> later fails with a certificate error, re-copy the file and re-apply the <code>sed</code> above. See the official <a href="https://docs.k3s.io/cluster-access">k3s cluster access docs</a>.</p></blockquote>
+<blockquote><p><strong>Verify:</strong> <code>kubectl get nodes</code> shows <code>node-one</code> in <code>Ready</code>.</p></blockquote>
+<hr>
+<h2>Part C — Install Flux (the GitOps robot)</h2>
+<p><strong>This is the one manual step in the whole guide.</strong> Everything else is applied by Flux from Git; this part is the seed that starts Flux running.</p>
+<blockquote><p><strong>Who installs the installer?</strong> Something has to put the first Git-watcher into the cluster. That is you, once, by running <code>flux bootstrap</code>. After this, Flux reads Git and does the rest, including keeping itself updated. You never run bootstrap again for this cluster.</p></blockquote>
+<p>There are two separate things both called &quot;Flux&quot; — keep them apart:</p>
+<table><thead><tr><th>Thing</th><th>Where it lives</th><th>How often</th></tr></thead><tbody><tr><td>the <code>flux</code> <strong>CLI</strong> (a binary, like <code>kubectl</code>)</td><td>your workstation</td><td>once per workstation</td></tr><tr><td>the Flux <strong>controllers</strong> (Pods)</td><td>inside the cluster, in <code>flux-system</code></td><td>once per cluster, by <code>flux bootstrap</code></td></tr></tbody></table>
+<h3>C0. Install the <code>flux</code> CLI on your workstation</h3>
+<pre><code class="language-bash">curl -s https://fluxcd.io/install.sh | sudo bash
+flux --version</code></pre>
+<p>(This is the only thing installed on your laptop. It is a thin client: it does not need Docker and it does not stay running.)</p>
+<h3>C1. Bootstrap Flux against this repo</h3>
+<p>Run this <strong>on your workstation</strong>, with your kubeconfig pointing at the cluster you want to install into. The command talks to the cluster with that kubeconfig and to GitHub with <code>GITHUB_TOKEN</code>, then exits.</p>
+<pre><code class="language-bash">export GITHUB_TOKEN=ghp_your_token_with_repo_scope
+
+flux bootstrap github \
+  --owner=rykhalskyi \
+  --repository=homelab \
+  --branch=main \
+  --path=infra/k8s/clusters/node-one \
+  --personal</code></pre>
+<blockquote><p><strong>This <code>GITHUB_TOKEN</code> is different from the workflow&#x27;s.</strong> It is a Personal Access Token you create yourself: GitHub -&gt; <strong>Settings -&gt; Developer settings -&gt; Personal access tokens</strong>. A classic token with the <strong><code>repo</code></strong> scope is enough (a fine-grained token needs <code>Contents: Read/Write</code> and <code>Administration: Read/Write</code> on <code>homelab</code>). The <code>flux</code> CLI uses it once for bootstrap; keep it out of Git and delete/rotate it afterwards. The <code>secrets.GITHUB_TOKEN</code> in Part A is separate and automatic.</p></blockquote>
+<p>This installs the Flux controllers into the cluster and commits a <code>flux-system/</code> folder under <code>infra/k8s/clusters/node-one/</code> that tells those controllers where to sync from. You can confirm the Pods exist with <code>kubectl -n flux-system get deploy,rs,pods</code>.</p>
+<blockquote><p><strong>Where you run it from does not matter.</strong> Bootstrap talks to the remote repo (via <code>GITHUB_TOKEN</code>) and to the cluster (via kubeconfig); it does not use your local checkout. Run it from anywhere. Afterwards, <code>git pull</code> in your clone to get the new <code>flux-system/</code> files.</p></blockquote>
+<blockquote><p><strong>k3s or Talos — same command.</strong> <code>flux bootstrap github</code> does not care which distribution runs the cluster. Only two things change: your kubeconfig must point at the target cluster, and <code>--path</code> names the folder for that cluster (for example <code>--path=infra/k8s/clusters/talos</code>). Everything under <code>infra/k8s/apps/</code> and <code>infra/k8s/infrastructure/</code> is reused unchanged.</p></blockquote>
+<h3>C2. Verify</h3>
+<pre><code class="language-bash">flux check
+flux get kustomizations -A</code></pre>
+<blockquote><p><strong>Verify:</strong> <code>flux-system</code> Kustomization is <code>Ready: True</code>.</p></blockquote>
+<hr>
+<h2>Part D — Traefik (the traffic director)</h2>
+<p><strong>Why:</strong> one place decides which hostname reaches which service. Adding Nextcloud or Forgejo later is just one more Ingress — the tunnel config never changes.</p>
+<h3>D1. Create <code>infra/k8s/infrastructure/sources/traefik.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: traefik
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://traefik.github.io/charts</code></pre>
+<h3>D2. Create <code>infra/k8s/infrastructure/traefik/namespace.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Namespace
+metadata:
+  name: traefik</code></pre>
+<h3>D3. Create <code>infra/k8s/infrastructure/traefik/helmrelease.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: traefik
+      version: &quot;&gt;=30.0.0&quot;
+      sourceRef:
+        kind: HelmRepository
+        name: traefik
+        namespace: flux-system
+  values:
+    service:
+      type: LoadBalancer</code></pre>
+<h3>D4. Create <code>infra/k8s/infrastructure/kustomization.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - sources/traefik.yaml
+  - traefik/namespace.yaml
+  - traefik/helmrelease.yaml</code></pre>
+<h3>D5. Create the Flux sync for infrastructure</h3>
+<p><code>infra/k8s/clusters/node-one/infrastructure.yaml</code>:</p>
+<pre><code class="language-yaml">apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/k8s/infrastructure
+  prune: true
+  wait: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system</code></pre>
+<h3>D6. Push and verify</h3>
+<pre><code class="language-bash">git add infra/k8s
+git commit -m &quot;Add Traefik via Flux&quot;
+git push
+flux get kustomizations -A
+kubectl -n traefik get pods,svc</code></pre>
+<blockquote><p><strong>Verify:</strong> Traefik Pod is <code>Running</code> and its Service has an external IP (k3s ServiceLB assigns one).</p></blockquote>
+<hr>
+<h2>Part E — nginx (the website)</h2>
+<h3>E1. Create <code>infra/k8s/apps/namespace.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Namespace
+metadata:
+  name: homelab</code></pre>
+<h3>E2. Create <code>infra/k8s/apps/nginx/deployment.yaml</code></h3>
+<p>Replace <code>sha-XXXX</code> and <code>sha256:YYYY</code> with the tag and digest from Part A.</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: homelab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: ghcr.io/rykhalskyi/homelab-nginx:sha-XXXX@sha256:YYYY
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi</code></pre>
+<h3>E3. Create <code>infra/k8s/apps/nginx/service.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: homelab
+spec:
+  selector:
+    app: nginx
+  ports:
+    - port: 80
+      targetPort: 80</code></pre>
+<h3>E4. Create <code>infra/k8s/apps/nginx/ingress.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx
+  namespace: homelab
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: homelab.otakeessen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80</code></pre>
+<h3>E5. Create <code>infra/k8s/apps/nginx/kustomization.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml</code></pre>
+<h3>E6. Create <code>infra/k8s/apps/kustomization.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - nginx
+  - cloudflared</code></pre>
+<p>(The <code>cloudflared</code> entry will exist after Part F. If you push before Part F, leave it out for now.)</p>
+<h3>E7. Create the Flux sync for apps</h3>
+<p><code>infra/k8s/clusters/node-one/apps.yaml</code>:</p>
+<pre><code class="language-yaml">apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/k8s/apps
+  prune: true
+  dependsOn:
+    - name: infrastructure
+  sourceRef:
+    kind: GitRepository
+    name: flux-system</code></pre>
+<h3>E8. Push and verify (internal only)</h3>
+<pre><code class="language-bash">git add infra/k8s
+git commit -m &quot;Run nginx on k3s via Flux&quot;
+git push
+kubectl -n homelab get pods,svc,ingress
+kubectl -n homelab port-forward svc/nginx 8080:80
+# in another terminal:
+curl -I http://localhost:8080</code></pre>
+<blockquote><p><strong>Verify:</strong> the nginx Pod is <code>Running</code>, and <code>curl</code> returns <code>HTTP/1.1 200 OK</code>. Nothing is public yet — that happens in Part F and the cutover.</p></blockquote>
+<hr>
+<h2>Part F — cloudflared (the tunnel) inside the cluster</h2>
+<p><strong>Why:</strong> the tunnel connector becomes a Pod in the cluster instead of a systemd service on the host.</p>
+<p>There are two ways to wire it, and which one you use depends on whether the cluster can reach every backend:</p>
+<ul><li><strong>Option B (clean, shown here):</strong> the connector sends all traffic to Traefik, which routes by hostname. This is the end state - a new service is just an Ingress. It requires every backend to be reachable through the cluster.</li><li><strong>Option A (bridge, <code>hostNetwork</code>):</strong> keep the current config pointing at <code>localhost</code> ports. Use this first while services like Nextcloud still run on the host.</li></ul>
+<p>The steps below are Option B. See <strong>Part G - Migrating the live server</strong> for when to use Option A and how to switch.</p>
+<h3>F1. Route a wildcard DNS record (one time, on the workstation)</h3>
+<pre><code class="language-bash">cloudflared tunnel route dns nginxtest &#x27;*.otakeessen.com&#x27;</code></pre>
+<p>This makes every <code>*.otakeessen.com</code> hostname enter the tunnel. Keep the existing <code>homelab.otakeessen.com</code> record; it still points at the same tunnel.</p>
+<h3>F2. Create <code>infra/k8s/apps/cloudflared/configmap.yaml</code></h3>
+<p>Replace <code>&lt;TUNNEL-UUID&gt;</code> with your tunnel&#x27;s UUID (the file name in <code>~/.cloudflared/</code>).</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: homelab
+data:
+  config.yml: |
+    tunnel: &lt;TUNNEL-UUID&gt;
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    no-autoupdate: true
+    ingress:
+      - hostname: &quot;*.otakeessen.com&quot;
+        service: http://traefik.traefik.svc.cluster.local:80
+      - service: http_status:404</code></pre>
+<blockquote><p>This wildcard form assumes the cluster can reach every backend (Option B). If you are bridging with <code>hostNetwork</code> (Option A), use explicit rules pointing at <code>localhost</code> ports instead - see Part G.</p></blockquote>
+<h3>F3. Create <code>infra/k8s/apps/cloudflared/deployment.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: homelab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args:
+            - tunnel
+            - --no-autoupdate
+            - --config
+            - /etc/cloudflared/config.yml
+            - run
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared
+              readOnly: true
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: cloudflared-config
+        - name: creds
+          secret:
+            secretName: cloudflared-credentials</code></pre>
+<h3>F4. Create <code>infra/k8s/apps/cloudflared/kustomization.yaml</code></h3>
+<pre><code class="language-yaml">apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - configmap.yaml
+  - deployment.yaml</code></pre>
+<h3>F5. Create the credentials Secret (never committed)</h3>
+<p>The tunnel credential is a secret. It must exist in the cluster, but must <strong>not</strong> go into Git. Create it once, out of band:</p>
+<pre><code class="language-bash">kubectl create namespace homelab   # harmless if it already exists
+kubectl -n homelab create secret generic cloudflared-credentials \
+  --from-file=credentials.json=$HOME/.cloudflared/&lt;UUID&gt;.json</code></pre>
+<h3>F6. Push and verify</h3>
+<pre><code class="language-bash">git add infra/k8s
+git commit -m &quot;Run cloudflared on k3s via Flux&quot;
+git push
+kubectl -n homelab get pods
+kubectl -n homelab logs deploy/cloudflared --tail=50</code></pre>
+<blockquote><p><strong>Verify:</strong> logs say <code>Registered tunnel connection</code> and the Pods are <code>Running</code>. The website is now reachable at <code>https://homelab.otakeessen.com</code> <strong>while the old host tunnel is still running</strong> — two connectors on one tunnel is allowed, so there is no downtime.</p></blockquote>
+<hr>
+<h2>Part G — Migrating the live server (cutover order)</h2>
+<p><code>node-one</code> is already serving several hostnames through one tunnel. Map what is live before changing anything:</p>
+<table><thead><tr><th>Public hostname</th><th>Goes to</th><th>Host port</th></tr></thead><tbody><tr><td><code>homelab.otakeessen.com</code></td><td>nginx (Compose)</td><td>80</td></tr><tr><td><code>cloud.otakeessen.com</code></td><td>Nextcloud AIO</td><td>11000 (loopback only)</td></tr><tr><td><code>laya.otakeessen.com</code></td><td>laya-api (Compose)</td><td>8001</td></tr><tr><td>(Forgejo, if exposed)</td><td>Forgejo</td><td>3000</td></tr></tbody></table>
+<h3>Do these first (no downtime)</h3>
+<p>Do <strong>not</strong> stop the nginx container yet - the live tunnel still points at it. Start with the parts that touch nothing:</p>
+<ol><li><strong>Part A</strong> - build and publish the nginx image.</li><li><strong>Part B</strong> - install k3s with Traefik disabled; it binds no host ports, so the running site is untouched.</li><li><strong>Part C</strong> - <code>flux bootstrap</code>.</li><li>Write and commit the <code>infra/k8s/**</code> manifests (Parts D and E).</li></ol>
+<h3>The one disruptive moment: swapping the web server on port 80</h3>
+<p>Traefik becomes a <code>LoadBalancer</code>, so k3s binds it to host ports <strong>80/443</strong> - which the current nginx container is using. The swap:</p>
+<pre><code class="language-bash"># 1. Traefik + nginx manifests are committed and Flux is ready to reconcile.
+# 2. Free ports 80/443 by stopping the old stack.
+cd ~/Source/homelab/infra/nginx &amp;&amp; docker compose down
+# 3. Let Flux install Traefik and start the nginx Pod.
+flux reconcile kustomization infrastructure --with-source
+flux reconcile kustomization apps --with-source</code></pre>
+<p>Expect a brief 502 window (seconds to a couple of minutes) until Traefik and the nginx Pod are Ready. Then verify:</p>
+<pre><code class="language-bash">kubectl -n traefik get svc traefik        # external IP assigned by k3s
+kubectl -n homelab get pods,ingress
+curl -I http://192.168.2.233              # Traefik on the LAN
+curl -I https://homelab.otakeessen.com    # Cloudflare (host tunnel still up)</code></pre>
+<p>The public site is now served by the <strong>in-cluster</strong> nginx, reached through the existing <strong>host</strong> cloudflared (whose <code>localhost:80</code> now lands on Traefik).</p>
+<h3>Local network access</h3>
+<p>Because Traefik is a <code>LoadBalancer</code>, it answers on <code>node-one</code>&#x27;s <code>80</code>/<code>443</code>, so <code>http://192.168.2.233</code> already serves the site on the LAN. To use names, add a local DNS record (Pi-hole: <strong>Local DNS -&gt; DNS Records</strong>):</p>
+<table><thead><tr><th>Name</th><th>Address</th></tr></thead><tbody><tr><td><code>homelab.otakeessen.com</code></td><td><code>192.168.2.233</code></td></tr></tbody></table>
+<p>Only the nginx hostname has an Ingress behind Traefik for now. Nextcloud and laya keep using their own ports on the LAN (<code>http://192.168.2.233:11000</code>, <code>:8001</code>) until they move into the cluster.</p>
+<h3>Moving cloudflared into the cluster</h3>
+<p>The catch: an in-cluster connector reaches services over the cluster network, where <code>localhost</code> is the <strong>Pod</strong>, not the host. Nextcloud listens on <code>127.0.0.1:11000</code> (loopback), which no Pod can reach. Two options:</p>
+<p><strong>Option A - bridge with <code>hostNetwork</code> (recommended for 2.1).</strong> Give the cloudflared Pod the host&#x27;s network namespace so <code>localhost</code> is the node&#x27;s again and the current config keeps working. In the ConfigMap use the <strong>explicit</strong> rules, not the wildcard:</p>
+<pre><code class="language-yaml">ingress:
+  - hostname: homelab.otakeessen.com
+    service: http://localhost:80          # -&gt; Traefik -&gt; nginx Ingress
+  - hostname: cloud.otakeessen.com
+    service: http://localhost:11000       # -&gt; Nextcloud on the host
+  - hostname: laya.otakeessen.com
+    service: http://localhost:8001        # -&gt; laya-api on the host
+  - service: http_status:404</code></pre>
+<p>Add to the Deployment pod spec (Part F3):</p>
+<pre><code class="language-yaml">spec:
+  template:
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet</code></pre>
+<p>Deploy it, confirm <code>https://homelab.otakeessen.com</code> still works, then stop the host service:</p>
+<pre><code class="language-bash">sudo systemctl disable --now cloudflared</code></pre>
+<p><strong>Option B - route everything through Traefik (the end state).</strong> Point the tunnel ingress at <code>http://traefik.traefik.svc.cluster.local:80</code> (the wildcard in Part F2), add Ingresses for Nextcloud and laya, and reach them while they are still on the host with a <code>Service</code> plus manual <code>Endpoints</code> to <code>192.168.2.233</code>. This needs Nextcloud&#x27;s <code>APACHE_IP_BINDING</code> changed from <code>127.0.0.1</code> to <code>0.0.0.0</code> and the AIO container recreated, because a loopback listener is unreachable from a Pod.</p>
+<p>Use Option A now to get cloudflared into a Pod with no service changes, then convert to Option B as each service is migrated into the cluster.</p>
+<h3>Retire the old Compose stack</h3>
+<pre><code class="language-bash">cd ~/Source/homelab
+git rm infra/nginx/docker-compose.yml
+git commit -m &quot;Retire nginx Compose stack&quot;
+git push
+docker rm -f nginx    # only after the cutover is confirmed</code></pre>
+<h3>Rollback</h3>
+<p>Both the host and in-cluster connectors point at the same tunnel and may run at once, so you can always fall back:</p>
+<pre><code class="language-bash">sudo systemctl enable --now cloudflared     # old tunnel back
+flux suspend kustomization apps             # stop Flux changing the apps</code></pre>
+<hr>
+<h2>Part H — Updating the site from now on</h2>
+<p>A normal content change now flows like this:</p>
+<ol><li>Edit Markdown in <code>docs/wiki/</code>, or edit <code>infra/nginx/html/</code>.</li><li>Run <code>make wiki</code> (for wiki changes) and commit/push.</li><li>The GitHub Action in Part A builds a new image and prints a new digest.</li><li>Paste the new digest into <code>infra/k8s/apps/nginx/deployment.yaml</code> and push.</li><li>Flux rolls out a new nginx Pod automatically (watch it with <code>flux get kustomizations -A</code> and <code>kubectl -n homelab get pods -w</code>).</li></ol>
+<blockquote><p>Later we can add Flux <strong>image automation</strong> so step 4 happens by itself. Until then, pinning the digest by hand keeps deploys deliberate and reproducible, exactly like the <a href="laya-api-container-deploy.html">laya-api container deploy (pinned GHCR image)</a> pattern.</p></blockquote>
+<hr>
+<h2>Troubleshooting</h2>
+<table><thead><tr><th>Symptom</th><th>Likely cause and fix</th></tr></thead><tbody><tr><td><code>flux get kustomizations</code> shows <code>False</code></td><td>Read the message: <code>flux logs --all-namespaces</code>. Usually a typo in a path or YAML.</td></tr><tr><td>nginx Pod <code>ImagePullBackOff</code></td><td>The GHCR package is private. Make it public (Part A5) or add a pull secret.</td></tr><tr><td><code>curl</code> from port-forward works but public URL gives 404</td><td>The Host header is not reaching Traefik, or the Ingress host does not match. Check <code>kubectl -n homelab get ingress</code> and the hostname spelling.</td></tr><tr><td>Public URL gives 502</td><td>cloudflared cannot reach Traefik. Check <code>kubectl -n homelab logs deploy/cloudflared</code> and that Traefik&#x27;s Service is <code>traefik</code> in namespace <code>traefik</code> on port 80.</td></tr><tr><td>cloudflared Pod <code>CreateContainerConfigError</code></td><td>The <code>cloudflared-credentials</code> Secret is missing. Re-run Part F5.</td></tr><tr><td>Changes in Git do nothing</td><td>Flux polls every 10 minutes. Force it: <code>flux reconcile kustomization apps --with-source</code>.</td></tr><tr><td>Old site still shown after an update</td><td>The image digest in the Deployment was not changed. Pin the new digest (Part H).</td></tr></tbody></table>
+<h2>Why this prepares phase 3 (Talos + k8s)</h2>
+<p>Everything under <code>infra/k8s/infrastructure/</code> and <code>infra/k8s/apps/</code> is plain Kubernetes + Kustomize + Helm — it does not care which distribution runs it. When the Talos cluster arrives you will:</p>
+<ol><li><code>flux bootstrap</code> against the new cluster with a new <code>--path</code> (for example <code>infra/k8s/clusters/talos</code>).</li><li>Reuse the same <code>infrastructure/</code> and <code>apps/</code> folders.</li></ol>
+<p>Only the cluster-level bits differ (storage, node addresses, seeding the tunnel secret). Adding the next service — Nextcloud, Forgejo — is now just another folder under <code>infra/k8s/apps/</code> with a Deployment, a Service, and an Ingress.</p>
+<h2>Go-live checklist</h2>
+<ul><li><input type="checkbox" disabled> Part A: image builds, digest noted, package public</li><li><input type="checkbox" disabled> Part B: <code>kubectl get nodes</code> shows <code>Ready</code></li><li><input type="checkbox" disabled> Part C: <code>flux check</code> passes</li><li><input type="checkbox" disabled> Part D: Traefik Pod running</li><li><input type="checkbox" disabled> Part E: nginx Pod running, internal <code>curl</code> returns 200</li><li><input type="checkbox" disabled> Part F: cloudflared logs <code>Registered tunnel connection</code></li><li><input type="checkbox" disabled> Part F: <code>https://homelab.otakeessen.com</code> works</li><li><input type="checkbox" disabled> Part G: host <code>cloudflared</code> service disabled</li><li><input type="checkbox" disabled> Part G: <code>infra/nginx/docker-compose.yml</code> removed</li><li><input type="checkbox" disabled> Wiki updated: <code>make wiki</code> run and committed</li></ul>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

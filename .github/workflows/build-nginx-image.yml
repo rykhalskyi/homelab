@@ -1,0 +1,52 @@
+name: Build nginx site image
+
+# Builds the homelab site (infra/nginx: conf.d + generated html) into a
+# container image and pushes it to GHCR. The k3s Deployment consumes the image
+# by tag + digest, pinned by hand in infra/k8s/apps/nginx/deployment.yaml.
+#
+# The "Check the generated wiki is up to date" step fails the build if
+# infra/nginx/html/wiki/*.html does not match docs/wiki/ - run `make wiki` and
+# commit before pushing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/nginx/**'
+      - 'docs/wiki/**'
+      - 'tools/build_wiki.py'
+      - '.github/workflows/build-nginx-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the generated wiki is up to date
+        run: |
+          make wiki
+          git diff --exit-code
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: infra/nginx
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/homelab-nginx:sha-${{ github.sha }}
+
+      - name: Show the digest to pin
+        run: echo "Pin this digest: ${{ steps.build.outputs.digest }}"
