@@ -131,7 +131,8 @@ jobs:
           tags: ghcr.io/${{ github.repository_owner }}/homelab-nginx:sha-${{ github.sha }}
 
       - name: Show the digest to pin
-        run: echo &quot;Pin this digest: ${{ steps.build.outputs.digest }}&quot;</code></pre>
+        run: |
+          echo &quot;Pin this digest: ${{ steps.build.outputs.digest }}&quot;</code></pre>
 <blockquote><p><strong><code>secrets.GITHUB_TOKEN</code> is automatic - do not create it.</strong> GitHub injects it into every Actions run. The workflow&#x27;s <code>permissions: packages: write</code> is what lets it push to GHCR. If the push is denied, set <strong>Settings -&gt; Actions -&gt; General -&gt; Workflow permissions</strong> to &quot;Read and write permissions&quot; and re-run.</p></blockquote>
 <h3>A4. Build it</h3>
 <pre><code class="language-bash">cd ~/Source/homelab

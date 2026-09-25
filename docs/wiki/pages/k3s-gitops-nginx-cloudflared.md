@@ -183,7 +183,8 @@ jobs:
           tags: ghcr.io/${{ github.repository_owner }}/homelab-nginx:sha-${{ github.sha }}
 
       - name: Show the digest to pin
-        run: echo "Pin this digest: ${{ steps.build.outputs.digest }}"
+        run: |
+          echo "Pin this digest: ${{ steps.build.outputs.digest }}"
 ```
 
 > **`secrets.GITHUB_TOKEN` is automatic - do not create it.** GitHub injects it
