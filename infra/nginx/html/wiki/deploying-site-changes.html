@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deploying site changes (GitOps) · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-27</span><span class="tag-list"><span class="tag">nginx</span><span class="tag">k3s</span><span class="tag">flux</span><span class="tag">gitops</span><span class="tag">ghcr</span><span class="tag">ci</span><span class="tag">deploy</span></span></p>
+      <article class="panel wiki-article">
+<h1>Deploying site changes (GitOps)</h1>
+<p>How to publish a change to the homelab landing page or wiki now that the site runs as an image on k3s and Flux reconciles this repo. This is the day-to-day flow; see <a href="k3s-gitops-nginx-cloudflared.html">k3s + GitOps: nginx and cloudflared (phase 2.1)</a> for the one-time setup.</p>
+<p>The chain: <strong>edit → <code>make wiki</code> → push to <code>main</code> → CI builds an image → a bot opens a pin PR → merge → Flux rolls out the new Pod.</strong></p>
+<h2>What triggers a rebuild</h2>
+<p>The <code>Build nginx site image</code> workflow runs on a push to <code>main</code> that changes any of these paths:</p>
+<table><thead><tr><th>Path</th><th>What it is</th></tr></thead><tbody><tr><td><code>infra/nginx/**</code></td><td>the site itself (<code>html/</code>, <code>conf.d/</code>, <code>Dockerfile</code>)</td></tr><tr><td><code>docs/wiki/**</code></td><td>wiki Markdown sources</td></tr><tr><td><code>tools/build_wiki.py</code></td><td>the wiki generator</td></tr><tr><td><code>.github/workflows/build-nginx-image.yml</code></td><td>the workflow itself</td></tr></tbody></table>
+<h2>Publish a change</h2>
+<ol><li><strong>Edit the content</strong><ul><li>Wiki page: <code>docs/wiki/pages/&lt;page&gt;.md</code></li><li>Landing page / assets: <code>infra/nginx/html/**</code></li></ul></li></ol>
+<ol><li><strong>Regenerate the wiki</strong> (only if you touched <code>docs/wiki/</code>) ```bash make wiki ``` CI runs <code>make wiki</code> and <code>git diff --exit-code</code>, so a stale <code>infra/nginx/html/wiki/</code> fails the build.</li></ol>
+<ol><li><strong>Commit and push to <code>main</code></strong> ```bash git add docs/wiki infra/nginx/html/wiki git commit -m &quot;Update site: &lt;what changed&gt;&quot; git push origin main ```</li></ol>
+<ol><li><strong>Let CI build the image.</strong> Watch the <code>Build nginx site image</code> run under <strong>Actions</strong>. It pushes <code>ghcr.io/rykhalskyi/homelab-nginx:sha-&lt;commit&gt;</code>.</li></ol>
+<ol><li><strong>Merge the pin PR.</strong> On build success, <code>Update nginx image pin</code> opens a PR (<code>bot/nginx-image-&lt;short&gt;</code>) that rewrites the <code>image:</code> line in <code>infra/k8s/apps/nginx/deployment.yaml</code> to the new tag + digest. Review and merge it — this is the step that actually makes the change live.</li></ol>
+<ol><li><strong>Flux rolls it out</strong> (within its 10m interval), or force it: ```bash flux reconcile kustomization apps -n flux-system kubectl -n homelab rollout status deploy/nginx ```</li></ol>
+<h2>Verify</h2>
+<pre><code class="language-bash">kubectl -n homelab get deploy nginx \
+  -o jsonpath=&#x27;{.spec.template.spec.containers[0].image}&#x27;; echo
+kubectl -n homelab logs deploy/nginx --tail=10
+curl -sI https://homelab.otakeessen.com</code></pre>
+<h2>Notes</h2>
+<ul><li>The image is built from the <strong>CI commit</strong>, so the pin PR is what moves the cluster; pushing content alone does nothing until the pin lands.</li><li>Non-site changes (for example <code>infra/k8s/**</code>) do not rebuild the image.</li><li><strong>Manual fallback</strong> (no bot): read the digest from the build log (&quot;Show the digest to pin&quot;), then edit <code>deployment.yaml</code> yourself: <code>image: ghcr.io/rykhalskyi/homelab-nginx:sha-&lt;commit&gt;@sha256:&lt;digest&gt;</code>.</li><li>The pin workflow needs **Settings → Actions → General → Workflow permissions → &quot;Allow GitHub Actions to create and approve pull requests&quot;**. Without it the run fails at &quot;create pull request&quot; (the branch is still pushed).</li></ul>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

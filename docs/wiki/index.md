@@ -10,6 +10,7 @@ Home-server DevOps notes and runnable how-tos (server `node-one`).
 ## Orchestration
 
 - [[k3s + GitOps: nginx and cloudflared (phase 2.1)]] — [open](pages/k3s-gitops-nginx-cloudflared.md) — (2026-09-25, 0 sources) — plain-language runbook for moving `infra/nginx` and the Cloudflare tunnel onto k3s, with Flux reconciling GitHub: build the site image in CI, install k3s without bundled Traefik, manage Traefik via Flux, run nginx and cloudflared as Deployments, route `*.otakeessen.com` through Traefik, and cut over from Compose + systemd. Also covers rollback, troubleshooting, and how the same manifests move to Talos (phase 3).
+- [[Deploying site changes (GitOps)]] — [open](pages/deploying-site-changes.md) — (2026-09-27, 0 sources) — the day-to-day flow for shipping a change to the landing page or wiki: edit, run `make wiki`, push to `main`, let CI build the image, merge the auto-opened pin PR, and let Flux reconcile `infra/k8s/apps/nginx`. Lists the paths that trigger a rebuild, the verify commands, the manual-pin fallback, and the repo setting the pin bot needs.
 
 ## Design
 

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Homelab Otakeessen</title>
-  <meta name="description" content="Self-hosted services running on my homelab." />
+  <title>Homelab Otakeessen — Wiki</title>
+  <meta name="description" content="DevOps notes and runnable how-tos from my homelab." />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <meta name="color-scheme" content="light dark" />
@@ -19,7 +19,7 @@
       <nav class="site-nav" aria-label="Main">
         <a href="#services">Services</a>
         <a href="#architecture">Architecture</a>
-        <a href="wiki/">Wiki</a>
+        <a href="#wiki">Wiki</a>
       </nav>
       <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
         <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
@@ -35,55 +35,33 @@
 
   <main>
     <section class="hero container">
-      <h1>Welcome to my homelab</h1>
-      <p class="lead">A small self-hosted corner of the internet: files, notes and services running on a home server.</p>
+      <h1>Homelab Otakeessen</h1>
+      <p class="lead">DevOps notes and runnable how-tos from my home server — installs, GitOps, and the things I break along the way.</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="#services">Browse services</a>
-        <a class="btn" href="#architecture">Architecture</a>
-        <a class="btn" href="wiki/">Read the wiki</a>
+        <a class="btn btn-primary" href="#wiki">Browse the wiki</a>
+        <a class="btn" href="#services">Services</a>
         <a class="btn" href="https://github.com/rykhalskyi/homelab" rel="noopener">Source</a>
       </div>
     </section>
 
-    <section id="services" class="container section">
-      <div class="section-head">
-        <h2>Services</h2>
-        <span class="status-legend"><span class="dot dot-on"></span> online</span>
-      </div>
+    <section class="container section">
+      <div class="grid overview-grid">
+        <div id="services" class="panel">
+          <h2>Services</h2>
+          <ul class="svc-list">
+            <li>
+              <span class="dot dot-on" title="online"></span>
+              <span class="svc-name">Homelab site</span>
+              <span class="svc-meta">nginx &middot; <a href="https://homelab.otakeessen.com" rel="noopener">homelab.otakeessen.com</a></span>
+            </li>
+          </ul>
+          <p class="card-desc">Only the homelab site is running for now.</p>
+        </div>
 
-      <!-- Edit these cards: name, description, href, and status class. -->
-      <div class="grid cards">
-        <a class="card" href="https://cloud.otakeessen.com" rel="noopener">
-          <div class="card-top">
-            <span class="card-name">Homelab site</span>
-            <span class="dot dot-on" title="online"></span>
-          </div>
-          <p class="card-desc">This landing page and wiki, served by nginx.</p>
-          <span class="card-link">cloud.otakeessen.com</span>
-        </a>
-
-        <a class="card" href="https://cloud2.otakeessen.com" rel="noopener">
-          <div class="card-top">
-            <span class="card-name">Nextcloud</span>
-            <span class="dot dot-off" title="planned"></span>
-          </div>
-          <p class="card-desc">Files, calendars and contacts. (planned)</p>
-          <span class="card-link">cloud2.otakeessen.com</span>
-        </a>
-      </div>
-    </section>
-
-    <section id="architecture" class="container section">
-      <div class="section-head">
-        <h2>Architecture</h2>
-        <span class="status-legend"><span class="dot dot-on"></span> running</span>
-      </div>
-
-      <div class="grid arch-grid">
-        <div class="panel arch-host">
+        <div id="architecture" class="panel arch-host">
           <div class="arch-host-head">
             <div>
-              <h3 class="arch-name">node-one</h3>
+              <h2 class="arch-name">node-one</h2>
               <p class="card-desc">HP ProDesk 400 G3 DM</p>
             </div>
             <span class="dot dot-on" title="online"></span>
@@ -95,46 +73,49 @@
             <li><span>GPU</span> Intel HD Graphics 630</li>
             <li><span>Memory</span> 11.07 GiB</li>
             <li><span>Disk</span> 231 GiB ext4</li>
-            <li><span>Network</span> 192.168.2.233/24</li>
           </ul>
-        </div>
-
-        <div class="panel arch-diagram">
-          <h3>Traffic flow</h3>
-          <ol class="arch-flow">
-            <li class="arch-step">
-              <span class="arch-label">Internet</span>
-              <span class="arch-sub">browser / client</span>
-            </li>
-            <li class="arch-step">
-              <span class="arch-label">Cloudflare edge</span>
-              <span class="arch-sub">DNS &amp; TLS termination</span>
-            </li>
-            <li class="arch-step">
-              <span class="arch-label">Cloudflare Tunnel</span>
-              <span class="arch-sub">outbound-only, no open ports</span>
-            </li>
-            <li class="arch-step arch-step-host">
-              <span class="arch-label">node-one &middot; Docker</span>
-              <span class="arch-sub">nginx &middot; Nextcloud AIO</span>
-            </li>
-          </ol>
         </div>
       </div>
     </section>
 
-    <section class="container section">
-      <div class="panel">
-        <h2>About</h2>
-        <p>
-          This page is a static site served by nginx in Docker and exposed through a
-          Cloudflare tunnel. No ports are opened on the router.
-        </p>
-        <ul class="facts">
-          <li><span>Host</span> node-one</li>
-          <li><span>Stack</span> Docker &middot; nginx &middot; Cloudflare Tunnel</li>
-          <li><span>Access</span> HTTPS via Cloudflare edge</li>
-        </ul>
+    <section id="wiki" class="container section">
+      <div class="section-head">
+        <h2>From the wiki</h2>
+        <a class="wiki-all" href="wiki/">All pages &rarr;</a>
+      </div>
+
+      <div class="grid wiki-groups">
+        <div class="panel wiki-group">
+          <h3>Guides</h3>
+          <ul class="wiki-links">
+            <li><a href="wiki/cloudflare-tunnel-nginx.html">Cloudflare Tunnel &rarr; nginx (install + first tunnel)</a></li>
+            <li><a href="wiki/cloudflared-reconfigure-hostname.html">Reconfiguring a Cloudflare Tunnel</a></li>
+          </ul>
+        </div>
+
+        <div class="panel wiki-group">
+          <h3>Orchestration</h3>
+          <ul class="wiki-links">
+            <li><a href="wiki/k3s-gitops-nginx-cloudflared.html">k3s + GitOps: nginx and cloudflared</a></li>
+            <li><a href="wiki/deploying-site-changes.html">Deploying site changes (GitOps)</a></li>
+          </ul>
+        </div>
+
+        <div class="panel wiki-group">
+          <h3>Design</h3>
+          <ul class="wiki-links">
+            <li><a href="wiki/nextcloud-aio-custom-app.html">Byebyemoneylist app integration (Nextcloud AIO)</a></li>
+            <li><a href="wiki/laya-api-container-deploy.html">laya-api container deploy (pinned GHCR image)</a></li>
+          </ul>
+        </div>
+
+        <div class="panel wiki-group">
+          <h3>Reference</h3>
+          <ul class="wiki-links">
+            <li><a href="wiki/">Index</a></li>
+            <li><a href="wiki/log.html">Change log</a></li>
+          </ul>
+        </div>
       </div>
     </section>
   </main>
