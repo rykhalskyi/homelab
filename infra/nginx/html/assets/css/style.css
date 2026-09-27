@@ -257,8 +257,8 @@ a { color: inherit; }
 /* Architecture */
 [id] { scroll-margin-top: 76px; }
 
-.arch-grid {
-  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1.1fr);
+.overview-grid {
+  grid-template-columns: minmax(260px, 1fr) minmax(280px, 1.1fr);
   align-items: start;
 }
 
@@ -269,46 +269,65 @@ a { color: inherit; }
   gap: .75rem;
 }
 
-.arch-name { margin: 0; font-size: 1.15rem; }
+.arch-name { margin: 0; font-size: 1.25rem; }
 .arch-host .card-desc { margin: 0; }
 .arch-host .facts { margin-top: 1rem; }
-.arch-diagram h3 { margin: 0 0 1rem; font-size: 1.15rem; }
 
-.arch-flow {
+/* Services list */
+.svc-list {
+  list-style: none;
+  margin: .75rem 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: .6rem;
+}
+
+.svc-list li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .6rem;
+  font-size: .95rem;
+}
+
+.svc-name { font-weight: 650; }
+.svc-meta { color: var(--muted); font-size: .88rem; }
+.svc-meta a { color: var(--accent); text-decoration: none; }
+.svc-meta a:hover { text-decoration: underline; }
+
+/* Wiki links */
+.wiki-groups { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+
+.wiki-group h3 {
+  margin: 0 0 .5rem;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+
+.wiki-links {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: .5rem;
+  gap: .4rem;
 }
 
-.arch-step {
-  position: relative;
-  display: grid;
-  gap: .1rem;
-  padding: .7rem .9rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+.wiki-links a {
+  color: var(--accent);
+  text-decoration: none;
 }
 
-.arch-step + .arch-step::before {
-  content: "";
-  position: absolute;
-  top: -.5rem;
-  left: 1.25rem;
-  width: 1px;
-  height: .5rem;
-  background: var(--border);
+.wiki-links a:hover { text-decoration: underline; }
+
+.wiki-all {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: .9rem;
 }
 
-.arch-step-host {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
-}
-
-.arch-label { font-weight: 650; }
-.arch-sub { color: var(--muted); font-size: .82rem; }
+.wiki-all:hover { text-decoration: underline; }
 
 /* Wiki */
 .wiki-article { padding: 2rem 2.2rem; }
@@ -416,7 +435,7 @@ a { color: inherit; }
 .wiki-history a { color: var(--accent); text-decoration: none; }
 
 @media (max-width: 760px) {
-  .arch-grid { grid-template-columns: 1fr; }
+  .overview-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {

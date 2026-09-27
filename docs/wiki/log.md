@@ -1,5 +1,16 @@
 # DevOps Wiki — Log
 
+## [2026-09-27] ingest | Deploying site changes (GitOps)
+
+Added [[Deploying site changes (GitOps)]], a short runbook for the now-automated
+update flow: edit content (wiki Markdown or `infra/nginx/html/**`), run `make
+wiki`, push to `main`, let the `Build nginx site image` workflow produce a new
+`sha-<commit>` image, merge the `Update nginx image pin` PR that bumps the digest
+in `infra/k8s/apps/nginx/deployment.yaml`, then let Flux roll out the new Pod.
+Documents the trigger paths, verify commands, the manual-pin fallback, and the
+"Allow GitHub Actions to create and approve pull requests" repo setting the pin
+bot requires.
+
 ## [2026-09-25] update | k3s + GitOps: nginx and cloudflared (phase 2.1)
 
 Corrected the site's public hostname from `cloud.otakeessen.com` to
