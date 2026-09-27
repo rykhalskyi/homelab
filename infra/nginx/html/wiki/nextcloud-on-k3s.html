@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nextcloud on k3s (custom image + Helm chart) · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-27</span><span class="tag-list"><span class="tag">nextcloud</span><span class="tag">k3s</span><span class="tag">kubernetes</span><span class="tag">helm</span><span class="tag">flux</span><span class="tag">gitops</span><span class="tag">migration</span><span class="tag">byebyemoneylist</span><span class="tag">aio</span><span class="tag">ghcr</span></span></p>
+      <article class="panel wiki-article">
+<h1>Nextcloud on k3s (custom image + Helm chart)</h1>
+<p>How to move Nextcloud from the All-in-One (AIO) Compose stack on <code>node-one</code> onto the k3s cluster, while keeping the <code>byebyemoneylist</code> app <strong>inside the Pod</strong>. This page is the plan and the migration runbook: it explains the target design and then lists the concrete steps, in the order you should run them.</p>
+<p>See <a href="nextcloud-aio-custom-app.html">Byebyemoneylist app integration (Nextcloud AIO)</a> for how the app is delivered today, and <a href="k3s-gitops-nginx-cloudflared.html">k3s + GitOps: nginx and cloudflared (phase 2.1)</a> for the cluster that this builds on.</p>
+<h2>Goal in one sentence</h2>
+<p>Nextcloud runs as a normal Kubernetes workload whose image <strong>already contains <code>byebyemoneylist</code></strong>, is deployed by Flux from Git, and is reached at <code>https://cloud.otakeessen.com</code> through the same Cloudflare tunnel and Traefik as the rest of the homelab.</p>
+<h2>Why not keep AIO in Kubernetes</h2>
+<p>AIO is a Compose orchestrator, not a Kubernetes app:</p>
+<ul><li>it pins its Nextcloud image to <code>ghcr.io/nextcloud-releases/aio-nextcloud</code> and has <strong>no supported override</strong>, so the app can never be baked into the image;</li><li>it drives its sibling containers through the host&#x27;s <code>docker.sock</code>;</li><li>the only supported custom-app path is sideloading into <code>custom_apps</code>, which is the workaround we want to retire.</li></ul>
+<p>So on k3s we use the <strong>official <code>nextcloud</code> image</strong> (where a custom image is supported) plus the <strong>official Nextcloud Helm chart</strong>, which Flux manages as a <code>HelmRelease</code> just like Traefik.</p>
+<h2>Target picture</h2>
+<pre><code>Cloudflare edge (TLS)
+  └── cloud.otakeessen.com → tunnel → Traefik (k3s) → Ingress → nextcloud:8080
+                                                                  │
+  ┌─────────────────────────────── k3s, ns: homelab ──────────────┴──────────┐
+  │                                                                          │
+  │  Deployment nextcloud        image: ghcr.io/rykhalskyi/                  │
+  │    ├── /var/www/html         PVC nextcloud-html  (code, config, apps)     │
+  │    ├── /var/www/html/data    PV  nextcloud-data  → /home/jaro/ncdata      │
+  │    ├── initContainer seeds code + config.php on first boot               │
+  │    └── before-starting hook copies the app from /opt/byebyemoneylist     │
+  │                                                                          │
+  │  StatefulSet nextcloud-postgresql   (Bitnami Postgres, chart subchart)   │
+  │  Deployment  nextcloud-redis        (Bitnami Redis, chart subchart)      │
+  └──────────────────────────────────────────────────────────────────────────┘</code></pre>
+<h2>What changes, what stays</h2>
+<table><thead><tr><th>Thing</th><th>Before (AIO)</th><th>After (k3s)</th></tr></thead><tbody><tr><td>Orchestration</td><td>Docker Compose + mastercontainer</td><td>k3s + Flux (<code>HelmRelease</code>)</td></tr><tr><td>Nextcloud image</td><td>pinned by AIO, no override</td><td>our image on GHCR, digest-pinned</td></tr><tr><td>The app</td><td>sideloaded into <code>custom_apps</code> by a script</td><td><strong>baked into the image</strong>, overlaid on boot</td></tr><tr><td>Database</td><td>Postgres inside AIO</td><td>Bitnami Postgres subchart</td></tr><tr><td>Cache/locking</td><td>Redis inside AIO</td><td>Bitnami Redis subchart</td></tr><tr><td>Data</td><td>host <code>/home/jaro/ncdata</code></td><td>same path, mounted as a <code>local</code> PV</td></tr><tr><td>Public URL</td><td><code>cloud.otakeessen.com</code></td><td>unchanged</td></tr><tr><td>Deploys</td><td><code>make nc-app-deploy</code> on the host</td><td><code>git push</code> → Flux reconciles</td></tr></tbody></table>
+<h2>The pieces</h2>
+<table><thead><tr><th>File</th><th>Role</th></tr></thead><tbody><tr><td>app repo <code>Dockerfile</code></td><td><code>FROM nextcloud:&lt;ver&gt;-apache</code> + app at <code>/opt/byebyemoneylist</code></td></tr><tr><td>app repo <code>.github/workflows/image.yml</code></td><td>build &amp; push the image to GHCR on a <code>v*</code> tag</td></tr><tr><td><code>infra/k8s/infrastructure/sources/nextcloud.yaml</code></td><td><code>HelmRepository</code> for <code>https://nextcloud.github.io/helm/</code></td></tr><tr><td><code>infra/k8s/apps/nextcloud/helmrelease.yaml</code></td><td>the Nextcloud <code>HelmRelease</code> + values</td></tr><tr><td><code>infra/k8s/apps/nextcloud/storage.yaml</code></td><td>static <code>local</code> PV + PVC for <code>/home/jaro/ncdata</code>, and <code>nextcloud-html</code> PVC</td></tr><tr><td><code>infra/k8s/apps/kustomization.yaml</code></td><td>adds <code>- nextcloud</code></td></tr><tr><td><code>.github/workflows/update-nextcloud-image-pin.yml</code></td><td>bumps the image digest in Git (opens a PR)</td></tr><tr><td><code>infra/nextcloud/versions.env</code></td><td>pinned image tag/digest metadata (no secrets)</td></tr></tbody></table>
+<blockquote><p>The manifest files above are the target state for this migration. Until they are committed, the steps below describe what to create.</p></blockquote>
+<h2>Part A — Build the Nextcloud image (app repo)</h2>
+<p>In <code>~/Source/byebyemoneylist-ns</code>, add a <code>Dockerfile</code> that starts from the official image and carries the app <strong>outside</strong> <code>/var/www/html</code> (so the PVC never shadows it):</p>
+<pre><code class="language-dockerfile"># byebyemoneylist-ns/Dockerfile
+ARG NEXTCLOUD_VERSION=31-apache
+FROM nextcloud:${NEXTCLOUD_VERSION}
+
+# Runtime tree only (same set the release tarball ships).
+COPY appinfo lib templates l10n js css img \
+     composer.json CHANGELOG.md LICENSE README.md /opt/byebyemoneylist/
+RUN chown -R www-data:www-data /opt/byebyemoneylist</code></pre>
+<p>A matching <code>.github/workflows/image.yml</code> builds and pushes it on a <code>v*</code> tag:</p>
+<pre><code class="language-bash">ghcr.io/rykhalskyi/byebyemoneylist-nextcloud:v&lt;version&gt;</code></pre>
+<p>Then make the GHCR package <strong>public</strong> (profile → Packages → the image → Package settings → Change visibility → Public), or the cluster needs an image pull secret.</p>
+<blockquote><p>Keep <code>NEXTCLOUD_VERSION</code> equal to the <strong>major version AIO is running</strong>. Check it with <code>docker exec -u www-data nextcloud-aio-nextcloud php occ status</code>. The app supports Nextcloud 31–35, and a downgrade is impossible, so the k8s base must be the same major or newer.</p></blockquote>
+<h2>Part B — Cluster manifests</h2>
+<h3>B1. Helm repository</h3>
+<p><code>infra/k8s/infrastructure/sources/nextcloud.yaml</code>:</p>
+<pre><code class="language-yaml">apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: nextcloud
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://nextcloud.github.io/helm/</code></pre>
+<p>Add it to <code>infra/k8s/infrastructure/kustomization.yaml</code> under <code>resources:</code>.</p>
+<h3>B2. Storage</h3>
+<p><code>infra/k8s/apps/nextcloud/storage.yaml</code> defines the data volume (the existing <code>/home/jaro/ncdata</code>) plus a small volume for the rest of <code>/var/www/html</code>:</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nextcloud-data
+spec:
+  capacity: { storage: 100Gi }
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local: { path: /home/jaro/ncdata }
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - { key: kubernetes.io/hostname, operator: In, values: [node-one] }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-data
+  namespace: homelab
+spec:
+  storageClassName: local-storage
+  volumeName: nextcloud-data
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 100Gi } }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-html
+  namespace: homelab
+spec:
+  storageClassName: local-path
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 20Gi } }</code></pre>
+<h3>B3. The HelmRelease</h3>
+<p><code>infra/k8s/apps/nextcloud/helmrelease.yaml</code> — the important parts:</p>
+<pre><code class="language-yaml">apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nextcloud
+  namespace: homelab
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: nextcloud
+      version: &quot;&gt;=5.0.0&quot;            # pin the current stable chart version
+      sourceRef: { kind: HelmRepository, name: nextcloud, namespace: flux-system }
+  values:
+    image:
+      registry: ghcr.io
+      repository: rykhalskyi/byebyemoneylist-nextcloud
+      tag: &quot;v1.0.5@sha256:&lt;digest&gt;&quot;  # tag + digest = immutable pin
+    replicaCount: 1
+    nextcloud:
+      host: cloud.otakeessen.com
+      trustedDomains: [cloud.otakeessen.com]
+      datadir: /var/www/html/data
+      existingSecret:
+        enabled: true
+        secretName: nextcloud-admin
+        usernameKey: nextcloud-username
+        passwordKey: nextcloud-password
+      extraEnv:
+        - { name: TRUSTED_PROXIES, value: &quot;10.42.0.0/16&quot; }
+        - { name: APACHE_DISABLE_REWRITE_IP, value: &quot;1&quot; }
+        - { name: FORWARDED_FOR_HEADERS, value: &quot;HTTP_X_FORWARDED_FOR HTTP_CF_CONNECTING_IP&quot; }
+        - name: SILICONFLOW_API_KEY
+          valueFrom:
+            secretKeyRef: { name: byebyemoneylist, key: SILICONFLOW_API_KEY }
+      # First boot: copy the image&#x27;s code and our config.php onto the PVC so the
+      # entrypoint skips maintenance:install (the DB is already populated).
+      extraInitContainers:
+        - name: seed-nextcloud
+          image: ghcr.io/rykhalskyi/byebyemoneylist-nextcloud:v1.0.5
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              if [ ! -f /var/www/html/version.php ]; then
+                rsync -rlDog --chown www-data:www-data /usr/src/nextcloud/ /var/www/html/
+                install -o www-data -g www-data -m 640 /seed/config.php /var/www/html/config/config.php
+              fi
+          volumeMounts:
+            - { name: nextcloud-main, mountPath: /var/www/html, subPath: html }
+            - { name: nextcloud-main, mountPath: /var/www/html/config, subPath: config }
+            - { name: seed-config, mountPath: /seed, readOnly: true }
+      extraVolumes:
+        - name: seed-config
+          secret: { secretName: nextcloud-config }
+      hooks:
+        before-starting: |
+          #!/bin/sh
+          set -e
+          SRC=/opt/byebyemoneylist
+          APP=/var/www/html/custom_apps/byebyemoneylist
+          mkdir -p /var/www/html/custom_apps
+          [ -d &quot;$SRC&quot; ] &amp;&amp; { rm -rf &quot;$APP&quot;; cp -a &quot;$SRC&quot; &quot;$APP&quot;; }
+          [ -n &quot;${SILICONFLOW_API_KEY:-}&quot; ] &amp;&amp; {
+            printf &#x27;SILICONFLOW_API_KEY=%s\n&#x27; &quot;$SILICONFLOW_API_KEY&quot; &gt; &quot;$APP/.env&quot;
+            chmod 640 &quot;$APP/.env&quot;
+          }
+          code=&quot;$(sed -n &#x27;s:.*&lt;version&gt;\(.*\)&lt;/version&gt;.*:\1:p&#x27; &quot;$APP/appinfo/info.xml&quot;)&quot;
+          inst=&quot;$(php /var/www/html/occ config:app:get byebyemoneylist installed_version 2&gt;/dev/null || true)&quot;
+          if [ &quot;$inst&quot; != &quot;$code&quot; ]; then
+            php /var/www/html/occ app:disable byebyemoneylist &gt;/dev/null 2&gt;&amp;1 || true
+            php /var/www/html/occ app:enable byebyemoneylist
+          fi
+    phpClientHttpsFix: { enabled: true, protocol: https }
+    persistence:
+      enabled: true
+      existingClaim: nextcloud-html
+      nextcloudData:
+        enabled: true
+        existingClaim: nextcloud-data
+    internalDatabase: { enabled: false }
+    externalDatabase:
+      enabled: true                 # drives user/password env + Secret ref
+      existingSecret: { enabled: true, secretName: nextcloud-db, usernameKey: username, passwordKey: password }
+    postgresql:
+      enabled: true                 # Bitnami subchart
+      global:
+        postgresql:
+          auth:
+            database: nextcloud
+            username: nextcloud
+            existingSecret: nextcloud-db
+            secretKeys: { adminPasswordKey: postgres-password, userPasswordKey: password }
+      primary:
+        persistence: { enabled: true, storageClass: local-path, size: 8Gi }
+    redis:
+      enabled: true                 # Bitnami subchart
+      auth:
+        existingSecret: nextcloud-redis
+        existingSecretPasswordKey: redis-password
+    ingress: { enabled: true, className: traefik }
+    cronjob: { enabled: true, type: cronjob }
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { memory: 1Gi }</code></pre>
+<p>Notes:</p>
+<ul><li>The <code>before-starting</code> hook is the k8s equivalent of <code>deploy-app.sh</code>: it copies the baked app onto the PVC, writes <code>.env</code> from the Secret, and runs <code>occ app:enable</code> when the code version differs (which applies migrations).</li><li>With <code>postgresql.enabled: true</code> the chart derives the DB host from the subchart, but still reads the <strong>user and password</strong> from <code>externalDatabase.existingSecret</code>, hence the shared <code>nextcloud-db</code> Secret.</li><li><code>externalDatabase.type</code> is ignored in this branch, but keep it consistent (<code>postgresql</code>) if you ever switch to an external DB.</li></ul>
+<h3>B4. Wire it into Flux</h3>
+<p>Add <code>- nextcloud</code> to <code>infra/k8s/apps/kustomization.yaml</code>. Commit and push; Flux applies the manifests.</p>
+<h2>Part C — Secrets (out of band, never in Git)</h2>
+<p>Replace the placeholders with real values and keep them somewhere safe:</p>
+<pre><code class="language-bash">DBPASS=&quot;$(openssl rand -base64 24)&quot;
+ADMPASS=&quot;$(openssl rand -base64 18)&quot;     # Nextcloud admin password
+REDISPASS=&quot;$(openssl rand -base64 24)&quot;
+
+kubectl -n homelab create secret generic nextcloud-db \
+  --from-literal=username=nextcloud \
+  --from-literal=password=&quot;$DBPASS&quot; \
+  --from-literal=postgres-password=&quot;$DBPASS&quot;
+
+kubectl -n homelab create secret generic nextcloud-admin \
+  --from-literal=nextcloud-username=admin \
+  --from-literal=nextcloud-password=&quot;$ADMPASS&quot;
+
+kubectl -n homelab create secret generic nextcloud-redis \
+  --from-literal=redis-password=&quot;$REDISPASS&quot;
+
+kubectl -n homelab create secret generic byebyemoneylist \
+  --from-literal=SILICONFLOW_API_KEY=sk-...</code></pre>
+<p><code>nextcloud-config</code> (the seeded <code>config.php</code>) is created in the migration step below, because it is adapted from the AIO config.</p>
+<h2>Part D — Migration runbook</h2>
+<p>This is an <strong>in-place</strong> migration: it reuses <code>/home/jaro/ncdata</code>, so only one Nextcloud may touch that directory at a time. Expect a short maintenance window (minutes) between stopping AIO and verifying the new Pod.</p>
+<h3>D0. Before you start</h3>
+<ul><li>The image is published and the GHCR package is public.</li><li><code>NEXTCLOUD_VERSION</code> matches the AIO Nextcloud major.</li><li>Secrets and storage from Parts B/C are applied, but the Nextcloud <code>HelmRelease</code> is <strong>not</strong> running yet (or <code>replicaCount: 0</code>).</li><li>Note the AIO paths: data <code>/home/jaro/ncdata</code>, containers <code>nextcloud-aio-nextcloud</code>, <code>nextcloud-aio-database</code>, <code>nextcloud-aio-mastercontainer</code>.</li></ul>
+<h3>D1. Stop writes and dump the AIO database</h3>
+<pre><code class="language-bash"># Freeze AIO so the dump is consistent.
+docker exec -u www-data nextcloud-aio-nextcloud php occ maintenance:mode --on
+
+docker exec -u postgres nextcloud-aio-database pg_dump -d nextcloud -f /tmp/nextcloud.sql
+docker cp nextcloud-aio-database:/tmp/nextcloud.sql ./nextcloud.sql
+ls -lh nextcloud.sql</code></pre>
+<h3>D2. Adapt the AIO <code>config.php</code> for Kubernetes</h3>
+<pre><code class="language-bash">docker exec nextcloud-aio-nextcloud cat /var/www/html/config/config.php &gt; aio-config.php</code></pre>
+<p>Edit <code>aio-config.php</code> and change <strong>only</strong> these keys:</p>
+<table><thead><tr><th>Key</th><th>New value</th></tr></thead><tbody><tr><td><code>datadirectory</code></td><td><code>/var/www/html/data</code></td></tr><tr><td><code>dbhost</code></td><td><code>nextcloud-postgresql:5432</code></td></tr><tr><td><code>dbpassword</code></td><td>the <code>$DBPASS</code> you created above</td></tr><tr><td><code>dbname</code> / <code>dbuser</code></td><td><code>nextcloud</code> (already)</td></tr></tbody></table>
+<p>Leave <code>instanceid</code>, <code>secret</code>, and <code>passwordsalt</code> <strong>unchanged</strong> — copying them keeps existing desktop and mobile logins working. Then store it as a Secret and delete the local copy:</p>
+<pre><code class="language-bash">kubectl -n homelab create secret generic nextcloud-config \
+  --from-file=config.php=aio-config.php
+rm -f aio-config.php</code></pre>
+<h3>D3. Start only the database and restore the dump</h3>
+<p>Temporarily keep Nextcloud at zero replicas so only Postgres and Redis come up:</p>
+<pre><code class="language-bash">kubectl -n homelab get pods -w      # wait for nextcloud-postgresql-0 to be Ready (Ctrl-C)</code></pre>
+<p>Reset the schema and import the AIO dump:</p>
+<pre><code class="language-bash">kubectl -n homelab exec -i nextcloud-postgresql-0 -- bash -c \
+  &#x27;PGPASSWORD=$POSTGRES_PASSWORD psql -v ON_ERROR_STOP=1 -U nextcloud -d nextcloud \
+     -c &quot;DROP SCHEMA public CASCADE; CREATE SCHEMA public;&quot;&#x27;
+
+kubectl -n homelab exec -i nextcloud-postgresql-0 -- bash -c \
+  &#x27;PGPASSWORD=$POSTGRES_PASSWORD psql -v ON_ERROR_STOP=1 -U nextcloud -d nextcloud&#x27; \
+  &lt; nextcloud.sql</code></pre>
+<h3>D4. Stop AIO and release the data directory</h3>
+<pre><code class="language-bash">docker stop nextcloud-aio-nextcloud nextcloud-aio-mastercontainer</code></pre>
+<p>Stopping the mastercontainer prevents AIO from restarting the Nextcloud container. The database container is no longer needed; leave it stopped or running, it does not touch <code>/home/jaro/ncdata</code>.</p>
+<h3>D5. Start the cluster Nextcloud</h3>
+<p>Set <code>replicaCount: 1</code> in the <code>HelmRelease</code> (or remove the temporary override), commit/push, and let Flux apply it — or force it:</p>
+<pre><code class="language-bash">flux reconcile kustomization apps -n flux-system --with-source
+kubectl -n homelab get pods -w</code></pre>
+<p>On first boot the <code>seed-nextcloud</code> init container copies the image&#x27;s code and <code>config.php</code> onto the PVC. Because <code>/var/www/html/version.php</code> now exists and the restored database is already at the image&#x27;s version, the entrypoint <strong>skips <code>maintenance:install</code></strong> and starts directly against the existing data.</p>
+<h3>D6. Verify and repair</h3>
+<pre><code class="language-bash">kubectl -n homelab exec -u www-data deploy/nextcloud -- \
+  php /var/www/html/occ status
+kubectl -n homelab exec -u www-data deploy/nextcloud -- \
+  php /var/www/html/occ app:list | grep byebyemoneylist
+kubectl -n homelab exec -u www-data deploy/nextcloud -- \
+  php /var/www/html/occ maintenance:repair</code></pre>
+<p>Then check the instance locally before touching DNS:</p>
+<pre><code class="language-bash">kubectl -n homelab port-forward svc/nextcloud 8080:8080
+# in another terminal:
+curl -sI http://localhost:8080/status.php</code></pre>
+<h2>Part E — Cutover</h2>
+<p>The in-cluster <code>cloudflared</code> already routes the wildcard <code>*.otakeessen.com</code> to Traefik, and the chart created the Ingress for <code>cloud.otakeessen.com</code>. The only thing left is to stop the <strong>host</strong> tunnel so traffic lands in the cluster:</p>
+<pre><code class="language-bash">sudo systemctl disable --now cloudflared</code></pre>
+<p>Now load <code>https://cloud.otakeessen.com</code> and log in. If it works, retire AIO:</p>
+<pre><code class="language-bash">cd ~/Source/homelab
+git rm infra/nextcloud/docker-compose.yml infra/nextcloud/deploy-app.sh
+git commit -m &quot;Retire the Nextcloud AIO Compose stack&quot;
+git push</code></pre>
+<p>Keep the AIO Docker volumes and <code>/home/jaro/ncdata</code> for a while — they are your rollback.</p>
+<h2>Rollback</h2>
+<p>Both tunnels can run at the same time, and the data directory is untouched by the migration, so rolling back is cheap:</p>
+<pre><code class="language-bash"># Public traffic back to AIO:
+sudo systemctl enable --now cloudflared
+docker start nextcloud-aio-mastercontainer nextcloud-aio-nextcloud
+docker exec -u www-data nextcloud-aio-nextcloud php occ maintenance:mode --off
+
+# Stop Flux from fighting you:
+flux suspend helmrelease nextcloud -n homelab</code></pre>
+<p>The AIO database still holds the pre-migration data; the dump in <code>nextcloud.sql</code> is a second copy.</p>
+<h2>Troubleshooting</h2>
+<table><thead><tr><th>Symptom</th><th>Likely cause and fix</th></tr></thead><tbody><tr><td>Pod stuck in <code>Init:0/1</code> / seed errors</td><td><code>nextcloud-config</code> Secret missing, or the <code>nextcloud-html</code> PVC not bound. Check <code>kubectl -n homelab describe pod</code>.</td></tr><tr><td><code>ImagePullBackOff</code></td><td>The GHCR package is private. Make it public or add an image pull secret.</td></tr><tr><td>Login page loads, &quot;internal server error&quot;</td><td><code>config.php</code> still points at the AIO database. Re-check <code>dbhost</code>/<code>dbpassword</code> and recreate <code>nextcloud-config</code>, then recreate the Pod.</td></tr><tr><td><code>maintenance:install</code> runs and fails</td><td><code>/var/www/html/version.php</code> was not seeded — the init container did not run or the PVC already held a partial tree. Delete the PVC contents and retry.</td></tr><tr><td>App not listed</td><td>The <code>before-starting</code> hook found an equal <code>installed_version</code> but the code is missing; check the hook logs and <code>/var/www/html/custom_apps</code>.</td></tr><tr><td>502 from Cloudflare</td><td>The host <code>cloudflared</code> still runs and points at the stopped AIO port. Disable it (Part E).</td></tr><tr><td>Stray <code>appdata_*</code> directory</td><td>Harmless leftover if you ever did a fresh install; the restored DB references the old one.</td></tr><tr><td>Nextcloud warns <code>config.php differs from the image</code></td><td>Cosmetic: our <code>config.php</code> intentionally differs from the image stub.</td></tr></tbody></table>
+<h2>Notes and limits</h2>
+<ul><li>The app supports Nextcloud 31–35; the base image major must be ≥ the AIO major.</li><li><code>session</code> state lives in Redis; if the Redis PVC is lost, users simply log in again.</li><li>The static <code>local</code> PV is node-bound (<code>node-one</code>). Moving to the future Talos cluster means recreating it with the new node&#x27;s affinity.</li><li>The <code>nextcloud-config</code> Secret is only used to seed <code>config.php</code> on first boot; the init guard (<code>[ ! -f version.php ]</code>) means later boots never overwrite it.</li><li>Pinning <code>image.tag</code> as <code>v&lt;version&gt;@sha256:&lt;digest&gt;</code> gives the same immutable deploy as the nginx image; <code>update-nextcloud-image-pin.yml</code> refreshes it.</li></ul>
+<h2>Go-live checklist</h2>
+<ul><li><input type="checkbox" disabled> App repo image builds and the GHCR package is public</li><li><input type="checkbox" disabled> <code>NEXTCLOUD_VERSION</code> matches the AIO major</li><li><input type="checkbox" disabled> Secrets created (<code>nextcloud-db</code>, <code>nextcloud-admin</code>, <code>nextcloud-redis</code>, <code>byebyemoneylist</code>)</li><li><input type="checkbox" disabled> Storage PV/PVC bound (<code>nextcloud-data</code>, <code>nextcloud-html</code>)</li><li><input type="checkbox" disabled> HelmRepository + HelmRelease applied; Postgres and Redis Ready</li><li><input type="checkbox" disabled> AIO database dumped and restored into <code>nextcloud-postgresql</code></li><li><input type="checkbox" disabled> <code>nextcloud-config</code> Secret created from the adapted AIO <code>config.php</code></li><li><input type="checkbox" disabled> AIO Nextcloud/mastercontainer stopped</li><li><input type="checkbox" disabled> Nextcloud Pod Ready; <code>occ status</code> and <code>occ app:list</code> good</li><li><input type="checkbox" disabled> <code>https://cloud.otakeessen.com</code> loads through the in-cluster tunnel</li><li><input type="checkbox" disabled> Host <code>cloudflared</code> disabled</li><li><input type="checkbox" disabled> AIO Compose files removed; volumes and <code>/home/jaro/ncdata</code> kept for rollback</li><li><input type="checkbox" disabled> Wiki rebuilt (<code>make wiki</code>) and index/log updated</li></ul>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

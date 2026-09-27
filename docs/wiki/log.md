@@ -1,5 +1,22 @@
 # DevOps Wiki — Log
 
+## [2026-09-27] ingest | Nextcloud on k3s (custom image + Helm chart)
+
+Added [[Nextcloud on k3s (custom image + Helm chart)]], a design plus migration
+runbook for moving Nextcloud off the AIO Compose stack onto k3s. The target: the
+app repo publishes `ghcr.io/rykhalskyi/byebyemoneylist-nextcloud` (`FROM
+nextcloud:<ver>-apache`, app at `/opt/byebyemoneylist`), Flux deploys the
+official Nextcloud Helm chart, a `before-starting` hook overlays the baked app
+onto the PVC and writes `.env` from a Secret, `/home/jaro/ncdata` is reused via a
+static `local` PV, and `cloud.otakeessen.com` routes through Traefik as usual.
+Documents why AIO cannot be used in k8s, the exact values (Bitnami Postgres +
+Redis subcharts, external DB Secret wiring, seed init container, ingress, cron),
+the out-of-band Secrets, and a step-by-step in-place migration: dump the AIO
+Postgres, adapt and seed `config.php` (keeping `instanceid`/`secret`/
+`passwordsalt`), restore the schema, stop AIO, start the Pod, verify, cut over
+the tunnel, and retire Compose. Also covers rollback, a troubleshooting table,
+and a go-live checklist.
+
 ## [2026-09-27] ingest | Deploying site changes (GitOps)
 
 Added [[Deploying site changes (GitOps)]], a short runbook for the now-automated
