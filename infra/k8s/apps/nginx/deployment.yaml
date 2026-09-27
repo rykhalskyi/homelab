@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: homelab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: ghcr.io/rykhalskyi/homelab-nginx:sha-fe0c58512ab55695cefbe933fefc6dab49c8183a@sha256:6c8280af647d22aa0344059d1b2aa4070ae832c50e2f1227209ae0890e9b75f6
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
