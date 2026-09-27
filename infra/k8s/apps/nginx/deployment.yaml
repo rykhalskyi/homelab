@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: ghcr.io/rykhalskyi/homelab-nginx:sha-9a85c21f8a0c260e7264178b038abeef1566a8d9@sha256:eb786912fd558d99b059f63c532762ec34fe95e1814075ceb4d219f998870206
+          image: ghcr.io/rykhalskyi/homelab-nginx:sha-03fa352198390f3d9970ab2534e0d19f9567bb98@sha256:97b991613e6a6cb3ec70c9d407ab77b028f4476207f2893d7eb1ee8ea8442538
           ports:
             - containerPort: 80
           readinessProbe:
