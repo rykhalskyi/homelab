@@ -121,3 +121,15 @@ spec:
         memory: 256Mi
       limits:
         memory: 1Gi
+    # On first boot the entrypoint runs `occ maintenance:install` before Apache
+    # listens. The default liveness probe would hit /status.php during that
+    # window, get "connection refused", and kill the container mid-install.
+    # The startup probe gates liveness/readiness until Apache answers, so the
+    # install gets its full 10m budget.
+    startupProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 60
+      successThreshold: 1
