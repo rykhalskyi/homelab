@@ -1,4 +1,4 @@
-name: Update laya-api pin
+name: compose/laya-api 1/1 Update laya-api pin
 
 # Keeps infra/laya-api/versions.env in sync with the latest release of the
 # laya-api repo. It does the same as `make laya-api-pin` (writes

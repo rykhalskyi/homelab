@@ -16,7 +16,7 @@ opens a pin PR → merge → Flux rolls out the new Pod.**
 
 ## What triggers a rebuild
 
-The `Build nginx site image` workflow runs on a push to `main` that changes any
+The `k3s/nginx 1/2 Build nginx site image` workflow runs on a push to `main` that changes any
 of these paths:
 
 | Path | What it is |
@@ -46,10 +46,10 @@ of these paths:
    git push origin main
    ```
 
-4. **Let CI build the image.** Watch the `Build nginx site image` run under
+4. **Let CI build the image.** Watch the `k3s/nginx 1/2 Build nginx site image` run under
    **Actions**. It pushes `ghcr.io/rykhalskyi/homelab-nginx:sha-<commit>`.
 
-5. **Merge the pin PR.** On build success, `Update nginx image pin` opens a PR
+5. **Merge the pin PR.** On build success, `k3s/nginx 2/2 Pin nginx site image` opens a PR
    (`bot/nginx-image-<short>`) that rewrites the `image:` line in
    `infra/k8s/apps/nginx/deployment.yaml` to the new tag + digest. Review and
    merge it — this is the step that actually makes the change live.

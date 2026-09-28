@@ -1,4 +1,4 @@
-name: Update Nextcloud image pin
+name: k3s/nextcloud 3/3 Pin Nextcloud image
 
 # Keeps the Nextcloud HelmRelease pinned to the image CI just built. It resolves
 # the digest of the sha-<commit> tag from GHCR and opens a pull request, matching
@@ -6,7 +6,7 @@ name: Update Nextcloud image pin
 # and Flux reconciles the new image on node-one.
 #
 # Triggers:
-#   - workflow_run      -> after "Build Nextcloud image" succeeds on main
+#   - workflow_run      -> after "k3s/nextcloud 2/3 Build Nextcloud image" succeeds on main
 #   - workflow_dispatch -> manual run, optionally pinning a specific commit SHA
 #
 # Note: workflow_run only fires for workflows that exist on the default branch,
@@ -14,7 +14,7 @@ name: Update Nextcloud image pin
 
 on:
   workflow_run:
-    workflows: ["Build Nextcloud image"]
+    workflows: ["k3s/nextcloud 2/3 Build Nextcloud image"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -115,7 +115,7 @@ jobs:
           labels: |
             dependencies
           body: |
-            Automated pin update after the `Build Nextcloud image` workflow
+            Automated pin update after the `k3s/nextcloud 2/3 Build Nextcloud image` workflow
             succeeded for commit `${{ steps.resolve.outputs.sha }}`.
 
             - pin: `${{ steps.resolve.outputs.pin }}`

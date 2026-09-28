@@ -50,7 +50,7 @@ Nothing happens until you cut a release and bump the pin.
 | `release.yml` | byebyemoneylist-ns | yes | push a `v*` tag (or manual dispatch) |
 | `update-byebyemoneylist-pin.yml` | homelab | yes (cron) | daily poll, or you run `make nc-app-pin` |
 | `build-nextcloud-image.yml` | homelab | yes | push to `main` touching `infra/nextcloud/versions.env` (or the Dockerfile) |
-| `update-nextcloud-image-pin.yml` | homelab | yes | after `Build Nextcloud image` succeeds |
+| `update-nextcloud-image-pin.yml` | homelab | yes | after `k3s/nextcloud 2/3 Build Nextcloud image` succeeds |
 
 You do **not** run any of these by hand. Your only manual actions are the three
 marked below.

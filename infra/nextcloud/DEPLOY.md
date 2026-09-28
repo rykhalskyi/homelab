@@ -108,7 +108,7 @@ edits. It triggers on:
 | Trigger | How |
 |---------|-----|
 | `schedule` | daily poll of the latest app release |
-| `workflow_dispatch` | Actions → *Update byebyemoneylist pin* → Run workflow (optional `version` input) |
+| `workflow_dispatch` | Actions → *k3s/nextcloud 1/3 Update byebyemoneylist pin* → Run workflow (optional `version` input) |
 | `repository_dispatch` | event `byebyemoneylist-release`, optional `client_payload.version` |
 
 It only opens a PR when the resolved version differs from the pinned one, then

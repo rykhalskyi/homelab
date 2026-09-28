@@ -140,7 +140,7 @@ docker-compose.yml
 This builds and uploads the image every time the site or the wiki changes.
 
 ```yaml
-name: Build nginx site image
+name: k3s/nginx 1/2 Build nginx site image
 
 on:
   push:

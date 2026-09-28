@@ -1,4 +1,4 @@
-name: Update byebyemoneylist pin
+name: k3s/nextcloud 1/3 Update byebyemoneylist pin
 
 # Keeps infra/nextcloud/versions.env in sync with the latest release of the
 # app repo. It does the same as `make nc-app-pin` (writes BYML_VERSION and

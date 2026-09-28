@@ -1,4 +1,4 @@
-name: Update nginx image pin
+name: k3s/nginx 2/2 Pin nginx site image
 
 # Keeps infra/k8s/apps/nginx/deployment.yaml pinned to the image CI just built.
 # It resolves the digest of the sha-<commit> tag from GHCR and opens a pull
@@ -6,7 +6,7 @@ name: Update nginx image pin
 # byebyemoneylist). Merge the PR and Flux reconciles the new image on node-one.
 #
 # Triggers:
-#   - workflow_run      -> after "Build nginx site image" succeeds on main
+#   - workflow_run      -> after "k3s/nginx 1/2 Build nginx site image" succeeds on main
 #   - workflow_dispatch -> manual run, optionally pinning a specific commit SHA
 #
 # Note: workflow_run only fires for workflows that exist on the default branch,
@@ -14,7 +14,7 @@ name: Update nginx image pin
 
 on:
   workflow_run:
-    workflows: ["Build nginx site image"]
+    workflows: ["k3s/nginx 1/2 Build nginx site image"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -113,7 +113,7 @@ jobs:
           labels: |
             dependencies
           body: |
-            Automated pin update after the `Build nginx site image` workflow
+            Automated pin update after the `k3s/nginx 1/2 Build nginx site image` workflow
             succeeded for commit `${{ steps.resolve.outputs.sha }}`.
 
             - image: `${{ steps.resolve.outputs.image }}`
