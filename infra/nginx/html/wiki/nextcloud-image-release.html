@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Releasing a new Nextcloud image (byebyemoneylist app) · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-28</span><span class="tag-list"><span class="tag">nextcloud</span><span class="tag">k3s</span><span class="tag">byebyemoneylist</span><span class="tag">ci</span><span class="tag">github-actions</span><span class="tag">ghcr</span><span class="tag">flux</span><span class="tag">gitops</span><span class="tag">release</span><span class="tag">runbook</span></span></p>
+      <article class="panel wiki-article">
+<h1>Releasing a new Nextcloud image (byebyemoneylist app)</h1>
+<p>How to ship a new version of <strong>Bye Bye Money List</strong> into the Nextcloud image that k3s runs. It is the same idea as <a href="deploying-site-changes.html">Deploying site changes (GitOps)</a>, with one extra step: the app source lives in a <strong>different repo</strong> (<code>rykhalskyi/byebyemoneylist-ns</code>), so you publish a release there first, then point the homelab repo at it.</p>
+<p>See <a href="nextcloud-on-k3s.html">Nextcloud on k3s (custom image + Helm chart)</a> for the one-time migration, and <a href="nextcloud-aio-custom-app.html">Byebyemoneylist app integration (Nextcloud AIO)</a> for the old AIO path.</p>
+<h2>The chain</h2>
+<pre><code class="language-text">byebyemoneylist-ns   change the app, bump &lt;version&gt;, push tag vX.Y.Z
+                     release.yml builds the frontend and publishes
+                     byebyemoneylist-X.Y.Z.tar.gz + .sha256
+        |
+        v
+homelab              bump BYML_VERSION + BYML_SHA256 in
+                     infra/nextcloud/versions.env, push to main
+        |
+        v
+CI (homelab)         build-nextcloud-image.yml downloads + verifies the
+                     tarball, builds FROM nextcloud:31-apache + app,
+                     pushes ghcr.io/rykhalskyi/homelab-nextcloud:sha-&lt;commit&gt;
+        |
+        v
+CI (homelab)         update-nextcloud-image-pin.yml opens a PR pinning the
+                     digest in infra/k8s/apps/nextcloud/helmrelease.yaml
+        |
+        v
+you                  merge the pin PR -&gt; Flux reconciles -&gt; new Pod; the
+                     before-starting hook copies the app into custom_apps</code></pre>
+<p>The key idea: <strong>the image is built from the release tarball, not from a branch.</strong> Nothing happens until you cut a release and bump the pin.</p>
+<h2>Which workflow runs where</h2>
+<table><thead><tr><th>Workflow</th><th>Repo</th><th>Starts itself?</th><th>Trigger</th></tr></thead><tbody><tr><td><code>release.yml</code></td><td>byebyemoneylist-ns</td><td>yes</td><td>push a <code>v*</code> tag (or manual dispatch)</td></tr><tr><td><code>update-byebyemoneylist-pin.yml</code></td><td>homelab</td><td>yes (cron)</td><td>daily poll, or you run <code>make nc-app-pin</code></td></tr><tr><td><code>build-nextcloud-image.yml</code></td><td>homelab</td><td>yes</td><td>push to <code>main</code> touching <code>infra/nextcloud/versions.env</code> (or the Dockerfile)</td></tr><tr><td><code>update-nextcloud-image-pin.yml</code></td><td>homelab</td><td>yes</td><td>after <code>Build Nextcloud image</code> succeeds</td></tr></tbody></table>
+<p>You do <strong>not</strong> run any of these by hand. Your only manual actions are the three marked below.</p>
+<h2>Steps</h2>
+<h3>1. Change the app and bump the version (app repo)</h3>
+<p>Edit the app, then raise <code>&lt;version&gt;</code> in <code>appinfo/info.xml</code> (for example to <code>1.0.6</code>). The tag you push must equal that version, or CI fails.</p>
+<pre><code class="language-bash">cd ~/Source/byebyemoneylist-ns
+# edit the app + appinfo/info.xml -&gt; 1.0.6
+git commit -am &quot;Release 1.0.6&quot;</code></pre>
+<h3>2. Tag and push - this starts the release (app repo)</h3>
+<pre><code class="language-bash">git tag v1.0.6
+git push origin main
+git push origin v1.0.6</code></pre>
+<p><code>release.yml</code> starts automatically, builds the frontend, and publishes <code>byebyemoneylist-1.0.6.tar.gz</code> + <code>.sha256</code> to the GitHub Release. Wait until the run is green under <strong>Actions</strong>.</p>
+<h3>3. Point the homelab repo at the release</h3>
+<pre><code class="language-bash">cd ~/Source/homelab
+make nc-app-pin VERSION=1.0.6        # writes BYML_VERSION + BYML_SHA256
+git add infra/nextcloud/versions.env
+git commit -m &quot;Pin byebyemoneylist v1.0.6&quot;
+git push origin main</code></pre>
+<p><code>make nc-app-pin</code> needs no Docker and no server; it just copies the release&#x27;s <code>.sha256</code> hash into <code>versions.env</code>. (Or skip this and merge the bot&#x27;s PR from <code>update-byebyemoneylist-pin.yml</code>.)</p>
+<h3>4. CI builds the image</h3>
+<p>Pushing <code>versions.env</code> to <code>main</code> starts <code>build-nextcloud-image.yml</code>. It downloads the tarball, verifies <code>BYML_SHA256</code>, builds the image, and pushes <code>ghcr.io/rykhalskyi/homelab-nextcloud:sha-&lt;homelab commit&gt;</code>. Watch <strong>Actions</strong>.</p>
+<h3>5. Merge the pin PR</h3>
+<p>When the build succeeds, <code>update-nextcloud-image-pin.yml</code> opens a PR (<code>bot/nextcloud-image-&lt;short&gt;</code>) that rewrites the image pin in <code>infra/k8s/apps/nextcloud/helmrelease.yaml</code> to <code>sha-&lt;commit&gt;@sha256:&lt;digest&gt;</code>. Review and merge it - that is the step that makes the new version deployable.</p>
+<h3>6. Flux rolls it out</h3>
+<p>Within its interval Flux applies the new <code>HelmRelease</code>; force it if you like:</p>
+<pre><code class="language-bash">flux reconcile kustomization apps -n flux-system --with-source
+kubectl -n homelab rollout status deploy/nextcloud</code></pre>
+<p>On start the <code>before-starting</code> hook copies <code>/opt/byebyemoneylist</code> over <code>custom_apps/byebyemoneylist</code>; because <code>installed_version</code> differs it runs <code>occ app:enable</code>, which applies any DB migrations.</p>
+<h2>Your only manual steps</h2>
+<ol><li>Push the <code>vX.Y.Z</code> tag (step 2).</li><li>Land the <code>versions.env</code> change on <code>main</code> (step 3).</li><li>Merge the pin PR (step 5).</li></ol>
+<p>Everything else runs itself.</p>
+<h2>Verify</h2>
+<pre><code class="language-bash">kubectl -n homelab exec -u www-data deploy/nextcloud -- \
+  php /var/www/html/occ config:app:get byebyemoneylist installed_version
+kubectl -n homelab get deploy nextcloud \
+  -o jsonpath=&#x27;{.spec.template.spec.containers[0].image}&#x27;; echo</code></pre>
+<h2>Notes</h2>
+<ul><li>The image tag is the <strong>homelab</strong> commit that bumped <code>versions.env</code>, not the app version. That commit is the immutable thing Flux pins.</li><li>Changing the app code alone does <strong>nothing</strong> until you release and re-pin; the tarball is the artifact, not the branch.</li><li><code>NEXTCLOUD_VERSION</code> in <code>versions.env</code> sets the base image. Bump it to move the Nextcloud major (must be &gt;= what AIO ran; the app supports 31-35).</li><li>The GHCR package <code>homelab-nextcloud</code> must be <strong>public</strong>, or the Pod needs an image pull secret.</li><li><strong>Manual fallback</strong> (no bot): read the digest from the build log (&quot;Show the digest to pin&quot;), then set the tag in <code>helmrelease.yaml</code> yourself.</li><li>The pin workflow needs **Settings -&gt; Actions -&gt; General -&gt; Workflow permissions -&gt; &quot;Allow GitHub Actions to create and approve pull requests&quot;**.</li></ul>
+<h2>Status</h2>
+<p>The image pipeline (steps 1-5) is in place. Step 6 does not happen yet: the Nextcloud <code>HelmRelease</code> is not wired into Flux (<code>infra/k8s/apps/kustomization.yaml</code> does not list <code>nextcloud</code>) until the migration cutover in <a href="nextcloud-on-k3s.html">Nextcloud on k3s (custom image + Helm chart)</a>.</p>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

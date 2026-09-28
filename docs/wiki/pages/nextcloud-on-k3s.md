@@ -72,49 +72,47 @@ Cloudflare edge (TLS)
 
 | File | Role |
 |------|------|
-| app repo `Dockerfile` | `FROM nextcloud:<ver>-apache` + app at `/opt/byebyemoneylist` |
-| app repo `.github/workflows/image.yml` | build & push the image to GHCR on a `v*` tag |
+| `infra/nextcloud/Dockerfile` | `FROM nextcloud:${NEXTCLOUD_VERSION}` + app baked at `/opt/byebyemoneylist` |
+| `.github/workflows/build-nextcloud-image.yml` | download the pinned release tarball, build & push the image to GHCR |
 | `infra/k8s/infrastructure/sources/nextcloud.yaml` | `HelmRepository` for `https://nextcloud.github.io/helm/` |
 | `infra/k8s/apps/nextcloud/helmrelease.yaml` | the Nextcloud `HelmRelease` + values |
 | `infra/k8s/apps/nextcloud/storage.yaml` | static `local` PV + PVC for `/home/jaro/ncdata`, and `nextcloud-html` PVC |
 | `infra/k8s/apps/kustomization.yaml` | adds `- nextcloud` |
-| `.github/workflows/update-nextcloud-image-pin.yml` | bumps the image digest in Git (opens a PR) |
-| `infra/nextcloud/versions.env` | pinned image tag/digest metadata (no secrets) |
+| `.github/workflows/update-nextcloud-image-pin.yml` | bumps the image digest in `helmrelease.yaml` (opens a PR) |
+| `infra/nextcloud/versions.env` | `BYML_VERSION`, `BYML_SHA256`, `NEXTCLOUD_VERSION` (no secrets) |
 
 > The manifest files above are the target state for this migration. Until they
 > are committed, the steps below describe what to create.
 
-## Part A — Build the Nextcloud image (app repo)
+## Part A — Build the Nextcloud image (homelab repo)
 
-In `~/Source/byebyemoneylist-ns`, add a `Dockerfile` that starts from the
-official image and carries the app **outside** `/var/www/html` (so the PVC never
-shadows it):
+The image is built in **this** repo from the pinned release tarball — not in the
+app repo, and not from a git checkout. The release tarball already contains the
+compiled frontend (`js/`, `css/`), which are gitignored in the app repo, so the
+build consumes that artifact instead of rebuilding it.
 
 ```dockerfile
-# byebyemoneylist-ns/Dockerfile
+# infra/nextcloud/Dockerfile
 ARG NEXTCLOUD_VERSION=31-apache
 FROM nextcloud:${NEXTCLOUD_VERSION}
-
-# Runtime tree only (same set the release tarball ships).
-COPY appinfo lib templates l10n js css img \
-     composer.json CHANGELOG.md LICENSE README.md /opt/byebyemoneylist/
+COPY byebyemoneylist /opt/byebyemoneylist
 RUN chown -R www-data:www-data /opt/byebyemoneylist
 ```
 
-A matching `.github/workflows/image.yml` builds and pushes it on a `v*` tag:
+`.github/workflows/build-nextcloud-image.yml` downloads
+`byebyemoneylist-<ver>.tar.gz` (the pinned release asset), verifies `BYML_SHA256`,
+extracts it into the build context, builds, and pushes
+`ghcr.io/rykhalskyi/homelab-nextcloud:sha-<commit>`.
+`.github/workflows/update-nextcloud-image-pin.yml` then pins the digest. Make the
+GHCR package **public** (profile → Packages → the image → Package settings →
+Change visibility → Public), or the cluster needs an image pull secret.
 
-```bash
-ghcr.io/rykhalskyi/byebyemoneylist-nextcloud:v<version>
-```
+> The full day-to-day release flow is [[Releasing a new Nextcloud image (byebyemoneylist app)]].
 
-Then make the GHCR package **public** (profile → Packages → the image → Package
-settings → Change visibility → Public), or the cluster needs an image pull
-secret.
-
-> Keep `NEXTCLOUD_VERSION` equal to the **major version AIO is running**. Check
-> it with `docker exec -u www-data nextcloud-aio-nextcloud php occ status`. The
-> app supports Nextcloud 31–35, and a downgrade is impossible, so the k8s base
-> must be the same major or newer.
+> Keep `NEXTCLOUD_VERSION` equal to (or newer than) the **major version AIO is
+> running**. Check it with `docker exec -u www-data nextcloud-aio-nextcloud php occ status`.
+> The app supports Nextcloud 31–35, and a downgrade is impossible, so the k8s
+> base must be the same major or newer.
 
 ## Part B — Cluster manifests
 
@@ -518,7 +516,7 @@ is a second copy.
 
 ## Go-live checklist
 
-- [ ] App repo image builds and the GHCR package is public
+- [ ] Nextcloud image builds in homelab CI and the GHCR package is public
 - [ ] `NEXTCLOUD_VERSION` matches the AIO major
 - [ ] Secrets created (`nextcloud-db`, `nextcloud-admin`, `nextcloud-redis`, `byebyemoneylist`)
 - [ ] Storage PV/PVC bound (`nextcloud-data`, `nextcloud-html`)
