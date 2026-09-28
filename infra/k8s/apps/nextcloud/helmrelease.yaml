@@ -1,0 +1,150 @@
+# Nextcloud on k3s — target state.
+#
+# NOT wired into Flux yet: `infra/k8s/apps/kustomization.yaml` deliberately does
+# not list `nextcloud` until the migration runbook reaches cutover (see the
+# "Nextcloud on k3s" wiki page). Until then this file is the pin target for
+# .github/workflows/update-nextcloud-image-pin.yml only.
+#
+# The image is the custom image built by .github/workflows/build-nextcloud-image.yml
+# (official Nextcloud + the byebyemoneylist app baked in at /opt). The tag below
+# is replaced by that pin workflow with `sha-<commit>@sha256:<digest>`.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nextcloud
+  namespace: homelab
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: nextcloud
+      version: ">=5.0.0"
+      sourceRef:
+        kind: HelmRepository
+        name: nextcloud
+        namespace: flux-system
+  values:
+    image:
+      registry: ghcr.io
+      repository: rykhalskyi/homelab-nextcloud
+      tag: "sha-0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    replicaCount: 1
+    nextcloud:
+      host: cloud.otakeessen.com
+      trustedDomains:
+        - cloud.otakeessen.com
+      datadir: /var/www/html/data
+      existingSecret:
+        enabled: true
+        secretName: nextcloud-admin
+        usernameKey: nextcloud-username
+        passwordKey: nextcloud-password
+      extraEnv:
+        - name: TRUSTED_PROXIES
+          value: "10.42.0.0/16"
+        - name: APACHE_DISABLE_REWRITE_IP
+          value: "1"
+        - name: FORWARDED_FOR_HEADERS
+          value: "HTTP_X_FORWARDED_FOR HTTP_CF_CONNECTING_IP"
+        - name: SILICONFLOW_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: byebyemoneylist
+              key: SILICONFLOW_API_KEY
+      # First boot only: copy the image's code and our config.php onto the PVC so
+      # the entrypoint skips maintenance:install (the DB is already populated).
+      extraInitContainers:
+        - name: seed-nextcloud
+          image: ghcr.io/rykhalskyi/homelab-nextcloud:sha-0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              if [ ! -f /var/www/html/version.php ]; then
+                rsync -rlDog --chown www-data:www-data /usr/src/nextcloud/ /var/www/html/
+                install -o www-data -g www-data -m 640 /seed/config.php /var/www/html/config/config.php
+              fi
+          volumeMounts:
+            - name: nextcloud-main
+              mountPath: /var/www/html
+              subPath: html
+            - name: nextcloud-main
+              mountPath: /var/www/html/config
+              subPath: config
+            - name: seed-config
+              mountPath: /seed
+              readOnly: true
+      extraVolumes:
+        - name: seed-config
+          secret:
+            secretName: nextcloud-config
+      hooks:
+        before-starting: |
+          #!/bin/sh
+          set -e
+          SRC=/opt/byebyemoneylist
+          APP=/var/www/html/custom_apps/byebyemoneylist
+          mkdir -p /var/www/html/custom_apps
+          [ -d "$SRC" ] && { rm -rf "$APP"; cp -a "$SRC" "$APP"; }
+          [ -n "${SILICONFLOW_API_KEY:-}" ] && {
+            printf 'SILICONFLOW_API_KEY=%s\n' "$SILICONFLOW_API_KEY" > "$APP/.env"
+            chmod 640 "$APP/.env"
+          }
+          code="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$APP/appinfo/info.xml")"
+          inst="$(php /var/www/html/occ config:app:get byebyemoneylist installed_version 2>/dev/null || true)"
+          if [ "$inst" != "$code" ]; then
+            php /var/www/html/occ app:disable byebyemoneylist >/dev/null 2>&1 || true
+            php /var/www/html/occ app:enable byebyemoneylist
+          fi
+    phpClientHttpsFix:
+      enabled: true
+      protocol: https
+    persistence:
+      enabled: true
+      existingClaim: nextcloud-html
+      nextcloudData:
+        enabled: true
+        existingClaim: nextcloud-data
+    internalDatabase:
+      enabled: false
+    externalDatabase:
+      enabled: true
+      existingSecret:
+        enabled: true
+        secretName: nextcloud-db
+        usernameKey: username
+        passwordKey: password
+    postgresql:
+      enabled: true
+      global:
+        postgresql:
+          auth:
+            database: nextcloud
+            username: nextcloud
+            existingSecret: nextcloud-db
+            secretKeys:
+              adminPasswordKey: postgres-password
+              userPasswordKey: password
+      primary:
+        persistence:
+          enabled: true
+          storageClass: local-path
+          size: 8Gi
+    redis:
+      enabled: true
+      auth:
+        existingSecret: nextcloud-redis
+        existingSecretPasswordKey: redis-password
+    ingress:
+      enabled: true
+      className: traefik
+    cronjob:
+      enabled: true
+      type: cronjob
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi

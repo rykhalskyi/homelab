@@ -1,0 +1,84 @@
+name: Build Nextcloud image
+
+# Builds the custom Nextcloud image (official base + the pinned byebyemoneylist
+# release tarball) and pushes it to GHCR. Mirrors build-nginx-image.yml: the k3s
+# HelmRelease consumes the image by tag + digest, and the "Update Nextcloud
+# image pin" workflow bumps that pin (via PR) after this one succeeds.
+#
+# Everything is driven by infra/nextcloud/versions.env:
+#   BYML_VERSION / BYML_SHA256 -> which app release tarball to bake
+#   NEXTCLOUD_VERSION          -> the official Nextcloud base tag
+#
+# The tarball is downloaded and checksum-verified here, so the image always
+# contains exactly the reviewed release and the frontend is never rebuilt.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/nextcloud/Dockerfile'
+      - 'infra/nextcloud/versions.env'
+      - '.github/workflows/build-nextcloud-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-nextcloud-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load pinned versions
+        id: pin
+        run: |
+          set -euo pipefail
+          set -a; . infra/nextcloud/versions.env; set +a
+          [ -n "${BYML_VERSION:-}" ] || { echo "::error::BYML_VERSION is empty"; exit 1; }
+          [ -n "${BYML_SHA256:-}" ] || { echo "::error::BYML_SHA256 is empty - run 'make nc-app-pin'"; exit 1; }
+          [ -n "${NEXTCLOUD_VERSION:-}" ] || { echo "::error::NEXTCLOUD_VERSION is empty"; exit 1; }
+          {
+            echo "url=https://github.com/rykhalskyi/byebyemoneylist-ns/releases/download/v${BYML_VERSION}/byebyemoneylist-${BYML_VERSION}.tar.gz"
+            echo "sha256=${BYML_SHA256}"
+            echo "byml_version=${BYML_VERSION}"
+            echo "nextcloud_version=${NEXTCLOUD_VERSION}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download and verify the release tarball
+        run: |
+          set -euo pipefail
+          mkdir -p build-context
+          curl -fsSL --retry 3 --retry-delay 2 -o /tmp/byml.tar.gz "${{ steps.pin.outputs.url }}"
+          printf '%s  /tmp/byml.tar.gz\n' "${{ steps.pin.outputs.sha256 }}" | sha256sum -c -
+          tar -xzf /tmp/byml.tar.gz -C build-context
+          test -f build-context/byebyemoneylist/appinfo/info.xml
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: build-context
+          file: infra/nextcloud/Dockerfile
+          push: true
+          build-args: |
+            NEXTCLOUD_VERSION=${{ steps.pin.outputs.nextcloud_version }}
+          tags: ghcr.io/${{ github.repository_owner }}/homelab-nextcloud:sha-${{ github.sha }}
+
+      - name: Show the digest to pin
+        run: |
+          echo "Pin this digest: ${{ steps.build.outputs.digest }}"
+          echo "App version baked: ${{ steps.pin.outputs.byml_version }}"
+          echo "Nextcloud base:    ${{ steps.pin.outputs.nextcloud_version }}"

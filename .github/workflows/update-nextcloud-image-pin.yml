@@ -1,0 +1,124 @@
+name: Update Nextcloud image pin
+
+# Keeps the Nextcloud HelmRelease pinned to the image CI just built. It resolves
+# the digest of the sha-<commit> tag from GHCR and opens a pull request, matching
+# the other pin-update workflows (nginx, laya-api, byebyemoneylist). Merge the PR
+# and Flux reconciles the new image on node-one.
+#
+# Triggers:
+#   - workflow_run      -> after "Build Nextcloud image" succeeds on main
+#   - workflow_dispatch -> manual run, optionally pinning a specific commit SHA
+#
+# Note: workflow_run only fires for workflows that exist on the default branch,
+# so this takes effect once merged to main.
+
+on:
+  workflow_run:
+    workflows: ["Build Nextcloud image"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA of the sha-<sha> image tag to pin. Empty = latest main.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: read
+
+concurrency:
+  group: update-nextcloud-image-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: Refresh HelmRelease image tag
+    runs-on: ubuntu-latest
+    if: >-
+      github.repository == 'rykhalskyi/homelab' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'success')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Resolve image digest
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/rykhalskyi/homelab-nextcloud
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          sha="${INPUT_SHA:-${RUN_SHA:-}}"
+          if [ -z "$sha" ]; then
+            sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)"
+          fi
+          tag="sha-${sha}"
+          digest="$(docker buildx imagetools inspect "${IMAGE}:${tag}" --format '{{.Manifest.Digest}}')"
+          [ -n "$digest" ] || { echo "::error::could not resolve digest for ${IMAGE}:${tag}"; exit 1; }
+
+          new="${tag}@${digest}"
+          file=infra/k8s/apps/nextcloud/helmrelease.yaml
+          current="$(grep -oE 'sha-[0-9a-f]{40}(@sha256:[0-9a-f]{64})?' "$file" | head -n1 || true)"
+
+          {
+            echo "sha=${sha}"
+            echo "short=${sha:0:7}"
+            echo "pin=${new}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Resolved: ${new}"
+          echo "Pinned:   ${current:-none}"
+          if [ "$new" = "$current" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already pinned to this digest - nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update the HelmRelease
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          PIN: ${{ steps.resolve.outputs.pin }}
+        run: |
+          set -euo pipefail
+          file=infra/k8s/apps/nextcloud/helmrelease.yaml
+          # Replace every pinned reference (the chart image tag and the seed
+          # init container image) with the freshly built tag@digest.
+          sed -i -E "s|sha-[0-9a-f]{40}(@sha256:[0-9a-f]{64})?|${PIN}|g" "$file"
+
+      - name: Show diff
+        if: steps.resolve.outputs.changed == 'true'
+        run: git --no-pager diff
+
+      - name: Open pull request
+        if: steps.resolve.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/nextcloud-image-${{ steps.resolve.outputs.short }}
+          base: main
+          delete-branch: true
+          title: "Pin Nextcloud image to sha-${{ steps.resolve.outputs.short }}"
+          commit-message: "Pin Nextcloud image to sha-${{ steps.resolve.outputs.short }}"
+          labels: |
+            dependencies
+          body: |
+            Automated pin update after the `Build Nextcloud image` workflow
+            succeeded for commit `${{ steps.resolve.outputs.sha }}`.
+
+            - pin: `${{ steps.resolve.outputs.pin }}`
+
+            Merge; Flux on `node-one` reconciles the new image within its
+            `apps` interval.

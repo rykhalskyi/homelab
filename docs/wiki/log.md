@@ -1,5 +1,21 @@
 # DevOps Wiki — Log
 
+## [2026-09-28] ingest | Releasing a new Nextcloud image (byebyemoneylist app)
+
+Added [[Releasing a new Nextcloud image (byebyemoneylist app)]], the day-to-day
+runbook for shipping a new `byebyemoneylist` version into the k3s Nextcloud
+image. Spells out the cross-repo chain: tag a release in `byebyemoneylist-ns`
+(`release.yml` publishes the tarball) -> bump `BYML_VERSION`/`BYML_SHA256` in
+`infra/nextcloud/versions.env` -> `build-nextcloud-image.yml` builds and pushes
+`ghcr.io/rykhalskyi/homelab-nextcloud:sha-<commit>` -> `update-nextcloud-image-pin.yml`
+opens a digest-pin PR on `infra/k8s/apps/nextcloud/helmrelease.yaml` -> Flux
+reconciles and the `before-starting` hook applies the new app. Includes the
+"which workflow, which repo" table, the three manual steps, verification, and a
+note that deployment stays dark until the HelmRelease is wired into Flux at
+cutover. Also corrected the [[Nextcloud on k3s (custom image + Helm chart)]]
+Part A: the image is now built in the homelab repo from the pinned release
+tarball, not in the app repo.
+
 ## [2026-09-27] ingest | Nextcloud on k3s (custom image + Helm chart)
 
 Added [[Nextcloud on k3s (custom image + Helm chart)]], a design plus migration
