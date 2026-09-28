@@ -28,7 +28,10 @@ spec:
       registry: ghcr.io
       repository: rykhalskyi/homelab-nextcloud
       tag: "sha-a10e9ba57d51853f2066e5b66bb47123c4461054@sha256:2ce84d5e42fcc200c80025bf7018c4d82e4ae4664f92748fc5406ec1e88c95b6"
-    replicaCount: 1
+    # Migration staging: 0 until the AIO DB has been restored and AIO is stopped
+    # (the in-cluster Nextcloud must not touch /home/jaro/ncdata before then).
+    # Flip to 1 at cutover (D5).
+    replicaCount: 0
     nextcloud:
       host: cloud.otakeessen.com
       trustedDomains:
@@ -140,7 +143,8 @@ spec:
       enabled: true
       className: traefik
     cronjob:
-      enabled: true
+      # Off until cutover: the CronJob mounts /home/jaro/ncdata too.
+      enabled: false
       type: cronjob
     resources:
       requests:
