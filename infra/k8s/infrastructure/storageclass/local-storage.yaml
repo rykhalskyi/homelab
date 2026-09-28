@@ -1,0 +1,13 @@
+# StorageClass for static local PersistentVolumes (the file needs to live on the
+# node anyway, so nothing is dynamically provisioned). k3s only ships
+# `local-path`, which manages its own directories under
+# /var/lib/rancher/k3s/storage, so the Nextcloud data PV declares this class
+# instead. WaitForFirstConsumer delays binding until a Pod that uses the volume
+# is scheduled onto `node-one` (see infra/k8s/apps/nextcloud/storage.yaml).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain

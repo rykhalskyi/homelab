@@ -1,13 +1,14 @@
-# Nextcloud on k3s — target state.
+# Nextcloud on k3s.
 #
-# NOT wired into Flux yet: `infra/k8s/apps/kustomization.yaml` deliberately does
-# not list `nextcloud` until the migration runbook reaches cutover (see the
-# "Nextcloud on k3s" wiki page). Until then this file is the pin target for
-# .github/workflows/update-nextcloud-image-pin.yml only.
+# Deployed by Flux (listed in infra/k8s/apps/kustomization.yaml). This is a
+# fresh install: on first boot the official entrypoint runs
+# `occ maintenance:install` using the NEXTCLOUD_ADMIN_* env from the
+# `nextcloud-admin` Secret. The byebyemoneylist app is baked into the image at
+# /opt and copied into custom_apps by the `before-starting` hook below.
 #
-# The image is the custom image built by .github/workflows/build-nextcloud-image.yml
-# (official Nextcloud + the byebyemoneylist app baked in at /opt). The tag below
-# is replaced by that pin workflow with `sha-<commit>@sha256:<digest>`.
+# The image tag is the custom image built by
+# .github/workflows/build-nextcloud-image.yml and kept in sync by
+# .github/workflows/update-nextcloud-image-pin.yml.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -51,34 +52,6 @@ spec:
             secretKeyRef:
               name: byebyemoneylist
               key: SILICONFLOW_API_KEY
-      # First boot only: copy the image's code and our config.php onto the PVC so
-      # the entrypoint skips maintenance:install (the DB is already populated).
-      extraInitContainers:
-        - name: seed-nextcloud
-          image: ghcr.io/rykhalskyi/homelab-nextcloud:sha-a10e9ba57d51853f2066e5b66bb47123c4461054@sha256:2ce84d5e42fcc200c80025bf7018c4d82e4ae4664f92748fc5406ec1e88c95b6
-          command:
-            - sh
-            - -c
-            - |
-              set -e
-              if [ ! -f /var/www/html/version.php ]; then
-                rsync -rlDog --chown www-data:www-data /usr/src/nextcloud/ /var/www/html/
-                install -o www-data -g www-data -m 640 /seed/config.php /var/www/html/config/config.php
-              fi
-          volumeMounts:
-            - name: nextcloud-main
-              mountPath: /var/www/html
-              subPath: html
-            - name: nextcloud-main
-              mountPath: /var/www/html/config
-              subPath: config
-            - name: seed-config
-              mountPath: /seed
-              readOnly: true
-      extraVolumes:
-        - name: seed-config
-          secret:
-            secretName: nextcloud-config
       hooks:
         before-starting: |
           #!/bin/sh
