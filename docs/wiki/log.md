@@ -1,5 +1,19 @@
 # DevOps Wiki — Log
 
+## [2026-09-28] edit | Rename CI workflows with chain step prefixes
+
+Prefixed the GitHub Actions workflow display names with their chain and step
+position so the deploy chains are readable in the Actions list. Nextcloud k3s
+chain: `k3s/nextcloud 1/3 Update byebyemoneylist pin` ->
+`k3s/nextcloud 2/3 Build Nextcloud image` -> `k3s/nextcloud 3/3 Pin Nextcloud
+image`. nginx k3s chain: `k3s/nginx 1/2 Build nginx site image` ->
+`k3s/nginx 2/2 Pin nginx site image`. Compose chain: `compose/laya-api 1/1
+Update laya-api pin`. Updated
+the `workflow_run.workflows` references, workflow comments/PR bodies, and the
+[[Deploying site changes (GitOps)]], [[Releasing a new Nextcloud image
+(byebyemoneylist app)]], and [[k3s + GitOps: nginx and cloudflared (phase 2.1)]]
+pages plus `infra/laya-api/README.md` and `infra/nextcloud/DEPLOY.md`.
+
 ## [2026-09-28] ingest | Releasing a new Nextcloud image (byebyemoneylist app)
 
 Added [[Releasing a new Nextcloud image (byebyemoneylist app)]], the day-to-day

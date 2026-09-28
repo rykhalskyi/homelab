@@ -88,7 +88,7 @@ COPY html/ /usr/share/nginx/html/</code></pre>
 docker-compose.yml</code></pre>
 <h3>A3. Create <code>.github/workflows/build-nginx-image.yml</code></h3>
 <p>This builds and uploads the image every time the site or the wiki changes.</p>
-<pre><code class="language-yaml">name: Build nginx site image
+<pre><code class="language-yaml">name: k3s/nginx 1/2 Build nginx site image
 
 on:
   push:

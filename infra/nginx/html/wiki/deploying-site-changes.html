@@ -40,14 +40,14 @@
 <p>How to publish a change to the homelab landing page or wiki now that the site runs as an image on k3s and Flux reconciles this repo. This is the day-to-day flow; see <a href="k3s-gitops-nginx-cloudflared.html">k3s + GitOps: nginx and cloudflared (phase 2.1)</a> for the one-time setup.</p>
 <p>The chain: <strong>edit → <code>make wiki</code> → push to <code>main</code> → CI builds an image → a bot opens a pin PR → merge → Flux rolls out the new Pod.</strong></p>
 <h2>What triggers a rebuild</h2>
-<p>The <code>Build nginx site image</code> workflow runs on a push to <code>main</code> that changes any of these paths:</p>
+<p>The <code>k3s/nginx 1/2 Build nginx site image</code> workflow runs on a push to <code>main</code> that changes any of these paths:</p>
 <table><thead><tr><th>Path</th><th>What it is</th></tr></thead><tbody><tr><td><code>infra/nginx/**</code></td><td>the site itself (<code>html/</code>, <code>conf.d/</code>, <code>Dockerfile</code>)</td></tr><tr><td><code>docs/wiki/**</code></td><td>wiki Markdown sources</td></tr><tr><td><code>tools/build_wiki.py</code></td><td>the wiki generator</td></tr><tr><td><code>.github/workflows/build-nginx-image.yml</code></td><td>the workflow itself</td></tr></tbody></table>
 <h2>Publish a change</h2>
 <ol><li><strong>Edit the content</strong><ul><li>Wiki page: <code>docs/wiki/pages/&lt;page&gt;.md</code></li><li>Landing page / assets: <code>infra/nginx/html/**</code></li></ul></li></ol>
 <ol><li><strong>Regenerate the wiki</strong> (only if you touched <code>docs/wiki/</code>) ```bash make wiki ``` CI runs <code>make wiki</code> and <code>git diff --exit-code</code>, so a stale <code>infra/nginx/html/wiki/</code> fails the build.</li></ol>
 <ol><li><strong>Commit and push to <code>main</code></strong> ```bash git add docs/wiki infra/nginx/html/wiki git commit -m &quot;Update site: &lt;what changed&gt;&quot; git push origin main ```</li></ol>
-<ol><li><strong>Let CI build the image.</strong> Watch the <code>Build nginx site image</code> run under <strong>Actions</strong>. It pushes <code>ghcr.io/rykhalskyi/homelab-nginx:sha-&lt;commit&gt;</code>.</li></ol>
-<ol><li><strong>Merge the pin PR.</strong> On build success, <code>Update nginx image pin</code> opens a PR (<code>bot/nginx-image-&lt;short&gt;</code>) that rewrites the <code>image:</code> line in <code>infra/k8s/apps/nginx/deployment.yaml</code> to the new tag + digest. Review and merge it — this is the step that actually makes the change live.</li></ol>
+<ol><li><strong>Let CI build the image.</strong> Watch the <code>k3s/nginx 1/2 Build nginx site image</code> run under <strong>Actions</strong>. It pushes <code>ghcr.io/rykhalskyi/homelab-nginx:sha-&lt;commit&gt;</code>.</li></ol>
+<ol><li><strong>Merge the pin PR.</strong> On build success, <code>k3s/nginx 2/2 Pin nginx site image</code> opens a PR (<code>bot/nginx-image-&lt;short&gt;</code>) that rewrites the <code>image:</code> line in <code>infra/k8s/apps/nginx/deployment.yaml</code> to the new tag + digest. Review and merge it — this is the step that actually makes the change live.</li></ol>
 <ol><li><strong>Flux rolls it out</strong> (within its 10m interval), or force it: ```bash flux reconcile kustomization apps -n flux-system kubectl -n homelab rollout status deploy/nginx ```</li></ol>
 <h2>Verify</h2>
 <pre><code class="language-bash">kubectl -n homelab get deploy nginx \

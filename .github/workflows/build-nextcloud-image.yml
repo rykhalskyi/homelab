@@ -1,9 +1,9 @@
-name: Build Nextcloud image
+name: k3s/nextcloud 2/3 Build Nextcloud image
 
 # Builds the custom Nextcloud image (official base + the pinned byebyemoneylist
 # release tarball) and pushes it to GHCR. Mirrors build-nginx-image.yml: the k3s
-# HelmRelease consumes the image by tag + digest, and the "Update Nextcloud
-# image pin" workflow bumps that pin (via PR) after this one succeeds.
+# HelmRelease consumes the image by tag + digest, and the "k3s/nextcloud 3/3 Pin
+# Nextcloud image" workflow bumps that pin (via PR) after this one succeeds.
 #
 # Everything is driven by infra/nextcloud/versions.env:
 #   BYML_VERSION / BYML_SHA256 -> which app release tarball to bake

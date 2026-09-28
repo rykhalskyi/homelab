@@ -93,7 +93,7 @@ triggers on:
 | Trigger | How |
 |---------|-----|
 | `schedule` | daily poll of the latest laya-api release |
-| `workflow_dispatch` | Actions → *Update laya-api pin* → Run workflow (optional `version` input) |
+| `workflow_dispatch` | Actions → *compose/laya-api 1/1 Update laya-api pin* → Run workflow (optional `version` input) |
 | `repository_dispatch` | event `laya-api-release`, optional `client_payload.version` |
 
 It only opens a PR when the resolved version differs from the pinned one.
