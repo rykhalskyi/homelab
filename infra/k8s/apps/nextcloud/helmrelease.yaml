@@ -115,6 +115,13 @@ spec:
     cronjob:
       enabled: true
       type: cronjob
+      cronjob:
+        # occ (cron.php) refuses to run as root when config.php is owned by
+        # www-data, so run the cron job as www-data (33).
+        securityContext:
+          runAsUser: 33
+          runAsGroup: 33
+          runAsNonRoot: true
     resources:
       requests:
         cpu: 100m
