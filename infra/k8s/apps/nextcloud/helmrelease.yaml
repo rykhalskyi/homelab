@@ -27,7 +27,7 @@ spec:
     image:
       registry: ghcr.io
       repository: rykhalskyi/homelab-nextcloud
-      tag: "sha-0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      tag: "sha-a10e9ba57d51853f2066e5b66bb47123c4461054@sha256:2ce84d5e42fcc200c80025bf7018c4d82e4ae4664f92748fc5406ec1e88c95b6"
     replicaCount: 1
     nextcloud:
       host: cloud.otakeessen.com
@@ -55,7 +55,7 @@ spec:
       # the entrypoint skips maintenance:install (the DB is already populated).
       extraInitContainers:
         - name: seed-nextcloud
-          image: ghcr.io/rykhalskyi/homelab-nextcloud:sha-0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          image: ghcr.io/rykhalskyi/homelab-nextcloud:sha-a10e9ba57d51853f2066e5b66bb47123c4461054@sha256:2ce84d5e42fcc200c80025bf7018c4d82e4ae4664f92748fc5406ec1e88c95b6
           command:
             - sh
             - -c
