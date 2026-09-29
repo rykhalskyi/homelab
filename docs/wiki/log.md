@@ -1,5 +1,18 @@
 # DevOps Wiki — Log
 
+## [2026-09-29] ingest | Nextcloud 33 + Euro-Office
+
+Upgraded the k3s Nextcloud one major at a time, **31.0.14 → 32.0.15 → 33.0.9**,
+using the image entrypoint's built-in rsync + `occ upgrade` (each bump via a
+`NEXTCLOUD_VERSION` PR and image-pin PR). `byebyemoneylist` stayed enabled and
+the users survived. Then added [[Euro-Office on k3s]]: the document server
+(`ghcr.io/euro-office/documentserver`, digest-pinned, JWT from `eurooffice-jwt`)
+behind `office.otakeessen.com`, plus the `eurooffice` Nextcloud app configured
+with `occ` and verified with `eurooffice:documentserver --check` (DS 9.3.4.37).
+Also documented [[Nextcloud major upgrade on k3s (31 → 32 → 33)]]. Fixed
+`overwrite.cli.url` (`https://localhost` → `https://cloud.otakeessen.com`),
+which was breaking the connector's connection check.
+
 ## [2026-09-29] edit | Migrated Nextcloud onto the standalone PostgreSQL
 
 Executed the [[PostgreSQL + pgAdmin on k3s (decoupled from Nextcloud)]] runbook.

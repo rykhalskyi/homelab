@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Euro-Office on k3s · Homelab Otakeessen</title>
+  <meta name="description" content="Homelab DevOps wiki and runnable how-tos.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="/assets/img/logo.svg" alt="" width="32" height="32">
+        <span class="brand-name">Homelab Otakeessen</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#services">Services</a>
+        <a href="/#architecture">Architecture</a>
+        <a href="/wiki/" class="is-active">Wiki</a>
+      </nav>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <main>
+    <div class="container section">
+        <p class="wiki-crumb"><a href="index.html">&larr; Wiki index</a><span class="wiki-date">2026-09-29</span><span class="tag-list"><span class="tag">nextcloud</span><span class="tag">k3s</span><span class="tag">eurooffice</span><span class="tag">onlyoffice</span><span class="tag">documentserver</span><span class="tag">office</span><span class="tag">gitops</span><span class="tag">flux</span><span class="tag">oci</span></span></p>
+      <article class="panel wiki-article">
+<h1>Euro-Office on k3s</h1>
+<p>Euro-Office is the European fork of the ONLYOFFICE DocumentServer (backed by Nextcloud, IONOS, Proton, …). This page wires it up as the default office editor for the k3s Nextcloud, replacing the ONLYOFFICE integration that AIO used to ship automatically.</p>
+<p>Two parts, like ONLYOFFICE:</p>
+<ol><li>a <strong>DocumentServer</strong> workload (the editor backend), and</li><li>the <strong><code>eurooffice</code> Nextcloud app</strong> (the connector), configured with <code>occ</code>.</li></ol>
+<h2>Prerequisite</h2>
+<p>The <code>eurooffice</code> app requires <strong>Nextcloud 33–35</strong>, so the instance was upgraded first: see <a href="nextcloud-major-upgrade.html">Nextcloud major upgrade on k3s (31 → 32 → 33)</a>.</p>
+<h2>DocumentServer workload</h2>
+<p>Files under <code>infra/k8s/apps/eurooffice/</code>:</p>
+<table><thead><tr><th>File</th><th>Role</th></tr></thead><tbody><tr><td><code>deployment.yaml</code></td><td>the DocumentServer (all-in-one community image)</td></tr><tr><td><code>pvc.yaml</code></td><td>10Gi <code>local-path</code> PVC mounted at <code>/var/www/onlyoffice/Data</code></td></tr><tr><td><code>service.yaml</code></td><td>ClusterIP <code>eurooffice:80</code></td></tr><tr><td><code>ingress.yaml</code></td><td>host <code>office.otakeessen.com</code> (wildcard tunnel → Traefik)</td></tr></tbody></table>
+<p>Details that matter:</p>
+<ul><li>Image <strong><code>ghcr.io/euro-office/documentserver</code></strong> — upstream publishes only <code>latest</code>/<code>main</code> (no semver tags), so it is <strong>pinned by digest</strong>: <code>latest@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290</code>. Bump the digest deliberately.</li><li>The all-in-one image embeds its own Postgres/RabbitMQ/Redis; it needs **~2–4 GB RAM**.</li><li>JWT is mandatory and must match the app: <code>JWT_ENABLED=true</code>, <code>JWT_HEADER=Authorization</code>, <code>JWT_SECRET</code> from the out-of-band Secret.</li><li><code>ALLOW_PRIVATE_IP_ADDRESS=true</code> so the DS may talk to in-cluster addresses.</li><li>A <code>Memory</code> emptyDir at <code>/dev/shm</code> (embedded services).</li><li>Readiness on <code>/healthcheck</code>.</li></ul>
+<p>Secret (not in Git):</p>
+<pre><code class="language-bash">kubectl -n homelab create secret generic eurooffice-jwt \
+  --from-literal=JWT_SECRET=&quot;$(openssl rand -hex 32)&quot;</code></pre>
+<h2>Nextcloud app (connector)</h2>
+<pre><code class="language-bash">NC=&quot;kubectl -n homelab exec deploy/nextcloud -c nextcloud -- php /var/www/html/occ&quot;
+$NC app:install eurooffice &amp;&amp; $NC app:enable eurooffice
+$NC config:app:set eurooffice DocumentServerUrl --value=&quot;https://office.otakeessen.com/&quot;
+$NC config:app:set eurooffice jwt_secret  --value=&quot;$(kubectl -n homelab get secret eurooffice-jwt -o jsonpath=&#x27;{.data.JWT_SECRET}&#x27; | base64 -d)&quot;
+$NC config:app:set eurooffice jwt_header  --value=&quot;Authorization&quot;
+$NC config:app:set eurooffice sameTab     --value=true     # click-to-open default</code></pre>
+<p><code>DocumentServerUrl</code> must end with <code>/</code>. These app settings live in the database (not Git), so re-run them after a rebuild from scratch.</p>
+<h3>Gotcha: <code>overwrite.cli.url</code></h3>
+<p>If <code>overwrite.cli.url</code> is wrong (it was <code>https://localhost</code> inherited from the AIO migration), the connection check fails with:</p>
+<pre><code>Error while downloading the document file to be converted.</code></pre>
+<p>Because CLI-generated document URLs then point at <code>https://localhost</code>, which the DocumentServer cannot reach. Fix:</p>
+<pre><code class="language-bash">$NC config:system:set overwrite.cli.url --value=https://cloud.otakeessen.com</code></pre>
+<h2>Verify</h2>
+<pre><code class="language-bash">$NC eurooffice:documentserver --check
+# Document server https://office.otakeessen.com/ version 9.3.4.37 is successfully connected
+
+curl -s https://office.otakeessen.com/healthcheck     # true</code></pre>
+<p>Then open <code>https://cloud.otakeessen.com</code>, create or open a <code>.docx</code>/<code>.xlsx</code>/ <code>.pptx</code>, and edit it. <code>sameTab=true</code> makes Euro-Office the default handler for those types; per-type/per-user defaults are in <strong>Settings → Administration → Euro-Office</strong> (<code>/settings/admin/eurooffice</code>).</p>
+<p>Working versions: Nextcloud <strong>33.0.9</strong>, <code>eurooffice</code> app <strong>11.0.5</strong>, DocumentServer <strong>9.3.4.37</strong>.</p>
+<h2>Notes and limits</h2>
+<ul><li>The DocumentServer is a single pod on <code>node-one</code>; documents themselves stay in Nextcloud, so the DS PVC is not user data.</li><li>Public URLs are used in both directions (browser and server) — fine for a homelab; the DS&#x27;s internal-URL/<code>StorageUrl</code> options exist if you later want to keep server-to-server traffic in-cluster.</li><li>Only Office file types get the Euro-Office handler; plain text/markdown keep the normal editor.</li><li>To remove it: <code>occ app:disable eurooffice</code>, drop <code>- eurooffice</code> from <code>infra/k8s/apps/kustomization.yaml</code>, and delete the Secret/PVC.</li></ul>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>&copy; <span id="year">2026</span> Homelab Otakeessen</span>
+      <span class="muted">Built with plain HTML &amp; CSS</span>
+    </div>
+  </footer>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

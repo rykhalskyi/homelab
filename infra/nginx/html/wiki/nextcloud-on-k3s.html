@@ -39,6 +39,7 @@
 <h1>Nextcloud on k3s (custom image + Helm chart)</h1>
 <p>How to move Nextcloud from the All-in-One (AIO) Compose stack on <code>node-one</code> onto the k3s cluster, while keeping the <code>byebyemoneylist</code> app <strong>inside the Pod</strong>. This page is the plan and the migration runbook: it explains the target design and then lists the concrete steps, in the order you should run them.</p>
 <p>See <a href="nextcloud-aio-custom-app.html">Byebyemoneylist app integration (Nextcloud AIO)</a> for how the app is delivered today, and <a href="k3s-gitops-nginx-cloudflared.html">k3s + GitOps: nginx and cloudflared (phase 2.1)</a> for the cluster that this builds on.</p>
+<blockquote><p><strong>Superseded in places:</strong> the Bitnami Postgres + Redis subcharts described here were later decoupled (<a href="postgresql-pgadmin.html">PostgreSQL + pgAdmin on k3s (decoupled from Nextcloud)</a>), Nextcloud was upgraded to 33 (<a href="nextcloud-major-upgrade.html">Nextcloud major upgrade on k3s (31 → 32 → 33)</a>), and office editing now uses <a href="eurooffice.html">Euro-Office on k3s</a> instead of AIO&#x27;s ONLYOFFICE. This page stays as the migration design/runbook.</p></blockquote>
 <h2>Goal in one sentence</h2>
 <p>Nextcloud runs as a normal Kubernetes workload whose image <strong>already contains <code>byebyemoneylist</code></strong>, is deployed by Flux from Git, and is reached at <code>https://cloud.otakeessen.com</code> through the same Cloudflare tunnel and Traefik as the rest of the homelab.</p>
 <h2>Why not keep AIO in Kubernetes</h2>

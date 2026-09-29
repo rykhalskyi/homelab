@@ -15,6 +15,12 @@ See [[Byebyemoneylist app integration (Nextcloud AIO)]] for how the app is
 delivered today, and [[k3s + GitOps: nginx and cloudflared (phase 2.1)]] for the
 cluster that this builds on.
 
+> **Superseded in places:** the Bitnami Postgres + Redis subcharts described
+> here were later decoupled ([[PostgreSQL + pgAdmin on k3s (decoupled from
+> Nextcloud)]]), Nextcloud was upgraded to 33 ([[Nextcloud major upgrade on k3s
+> (31 → 32 → 33)]]), and office editing now uses [[Euro-Office on k3s]] instead
+> of AIO's ONLYOFFICE. This page stays as the migration design/runbook.
+
 ## Goal in one sentence
 
 Nextcloud runs as a normal Kubernetes workload whose image **already contains
