@@ -44,25 +44,53 @@
 <p>The <code>eurooffice</code> app requires <strong>Nextcloud 33–35</strong>, so the instance was upgraded first: see <a href="nextcloud-major-upgrade.html">Nextcloud major upgrade on k3s (31 → 32 → 33)</a>.</p>
 <h2>DocumentServer workload</h2>
 <p>Files under <code>infra/k8s/apps/eurooffice/</code>:</p>
-<table><thead><tr><th>File</th><th>Role</th></tr></thead><tbody><tr><td><code>deployment.yaml</code></td><td>the DocumentServer (all-in-one community image)</td></tr><tr><td><code>pvc.yaml</code></td><td>10Gi <code>local-path</code> PVC mounted at <code>/var/www/onlyoffice/Data</code></td></tr><tr><td><code>service.yaml</code></td><td>ClusterIP <code>eurooffice:80</code></td></tr><tr><td><code>ingress.yaml</code></td><td>host <code>office.otakeessen.com</code> (wildcard tunnel → Traefik)</td></tr></tbody></table>
+<table><thead><tr><th>File</th><th>Role</th></tr></thead><tbody><tr><td><code>deployment.yaml</code></td><td>the DocumentServer (all-in-one community image)</td></tr><tr><td><code>pvc.yaml</code></td><td>10Gi <code>local-path</code> PVC mounted at <code>/var/www/onlyoffice/Data</code></td></tr><tr><td><code>service.yaml</code></td><td>ClusterIP <code>eurooffice:80</code></td></tr><tr><td><code>middleware.yaml</code></td><td>Traefik <code>Middleware</code> forcing <code>X-Forwarded-Proto: https</code></td></tr><tr><td><code>ingress.yaml</code></td><td>host <code>office.otakeessen.com</code> (wildcard tunnel → Traefik)</td></tr></tbody></table>
 <p>Details that matter:</p>
-<ul><li>Image <strong><code>ghcr.io/euro-office/documentserver</code></strong> — upstream publishes only <code>latest</code>/<code>main</code> (no semver tags), so it is <strong>pinned by digest</strong>: <code>latest@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290</code>. Bump the digest deliberately.</li><li>The all-in-one image embeds its own Postgres/RabbitMQ/Redis; it needs **~2–4 GB RAM**.</li><li>JWT is mandatory and must match the app: <code>JWT_ENABLED=true</code>, <code>JWT_HEADER=Authorization</code>, <code>JWT_SECRET</code> from the out-of-band Secret.</li><li><code>ALLOW_PRIVATE_IP_ADDRESS=true</code> so the DS may talk to in-cluster addresses.</li><li>A <code>Memory</code> emptyDir at <code>/dev/shm</code> (embedded services).</li><li>Readiness on <code>/healthcheck</code>.</li></ul>
+<ul><li>Image <strong><code>ghcr.io/euro-office/documentserver</code></strong> — upstream publishes only <code>latest</code>/<code>main</code> (no semver tags), so it is <strong>pinned by digest</strong>: <code>latest@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290</code>. Bump the digest deliberately.</li><li>The all-in-one image embeds its own Postgres/RabbitMQ/Redis; it needs **~2–4 GB RAM**.</li><li>JWT is mandatory and must match the app: <code>JWT_ENABLED=true</code>, <code>JWT_HEADER=Authorization</code>, <code>JWT_SECRET</code> from the out-of-band Secret.</li><li><code>ALLOW_PRIVATE_IP_ADDRESS=true</code> so the DS may talk to in-cluster addresses.</li><li>A <code>Memory</code> emptyDir at <code>/dev/shm</code> (embedded services).</li><li>Readiness on <code>/healthcheck</code>.</li><li>The <code>X-Forwarded-Proto: https</code> middleware is <strong>required</strong> (see the mixed-content gotcha below).</li></ul>
 <p>Secret (not in Git):</p>
 <pre><code class="language-bash">kubectl -n homelab create secret generic eurooffice-jwt \
   --from-literal=JWT_SECRET=&quot;$(openssl rand -hex 32)&quot;</code></pre>
 <h2>Nextcloud app (connector)</h2>
 <pre><code class="language-bash">NC=&quot;kubectl -n homelab exec deploy/nextcloud -c nextcloud -- php /var/www/html/occ&quot;
 $NC app:install eurooffice &amp;&amp; $NC app:enable eurooffice
-$NC config:app:set eurooffice DocumentServerUrl --value=&quot;https://office.otakeessen.com/&quot;
+$NC config:app:set eurooffice DocumentServerUrl         --value=&quot;https://office.otakeessen.com/&quot;
+$NC config:app:set eurooffice DocumentServerInternalUrl --value=&quot;http://eurooffice.homelab.svc.cluster.local/&quot;
+$NC config:app:set eurooffice StorageUrl                --value=&quot;http://nextcloud.homelab.svc.cluster.local:8080/&quot;
 $NC config:app:set eurooffice jwt_secret  --value=&quot;$(kubectl -n homelab get secret eurooffice-jwt -o jsonpath=&#x27;{.data.JWT_SECRET}&#x27; | base64 -d)&quot;
 $NC config:app:set eurooffice jwt_header  --value=&quot;Authorization&quot;
 $NC config:app:set eurooffice sameTab     --value=true     # click-to-open default</code></pre>
-<p><code>DocumentServerUrl</code> must end with <code>/</code>. These app settings live in the database (not Git), so re-run them after a rebuild from scratch.</p>
+<p>Why these three URLs:</p>
+<ul><li><code>DocumentServerUrl</code> — what the <strong>browser</strong> loads; the public URL, must end with <code>/</code>.</li><li><code>DocumentServerInternalUrl</code> — Nextcloud → DocumentServer calls (health check, conversions), kept in-cluster.</li><li><code>StorageUrl</code> — the Nextcloud address the <strong>DocumentServer</strong> uses to fetch files; the in-cluster Service on its real port (<code>8080</code>).</li></ul>
+<p>Do <strong>not</strong> let these go through Cloudflare: NC → DS over the public hostname timed out (<code>cURL error 28: timed out after 120s</code>).</p>
+<p>The internal hostname must also be trusted, or Nextcloud answers the DS with <code>400</code> (untrusted domain) and downloads fail:</p>
+<pre><code class="language-bash">$NC config:system:set trusted_domains 2 --value=nextcloud.homelab.svc.cluster.local
+$NC config:system:set trusted_domains 3 --value=nextcloud</code></pre>
+<p>These app/system settings live in the database / <code>config.php</code> (not Git), so re-run them after a rebuild from scratch.</p>
 <h3>Gotcha: <code>overwrite.cli.url</code></h3>
 <p>If <code>overwrite.cli.url</code> is wrong (it was <code>https://localhost</code> inherited from the AIO migration), the connection check fails with:</p>
 <pre><code>Error while downloading the document file to be converted.</code></pre>
 <p>Because CLI-generated document URLs then point at <code>https://localhost</code>, which the DocumentServer cannot reach. Fix:</p>
 <pre><code class="language-bash">$NC config:system:set overwrite.cli.url --value=https://cloud.otakeessen.com</code></pre>
+<h3>Gotcha: Mixed Content (<code>X-Forwarded-Proto</code>)</h3>
+<p>TLS terminates at Cloudflare and Traefik&#x27;s entrypoint is plain HTTP, so the DocumentServer sees <code>X-Forwarded-Proto: http</code> and builds its own asset URLs (e.g. <code>/cache/files/data/.../Editor.bin</code>) as <code>http://office.otakeessen.com/...</code>. The HTTPS page then blocks them — the browser console shows:</p>
+<pre><code>Mixed Content: The page at &#x27;https://cloud.otakeessen.com/...&#x27; was loaded over
+HTTPS, but requested an insecure XMLHttpRequest endpoint
+&#x27;http://office.otakeessen.com/cache/files/data/.../Editor.bin...&#x27;</code></pre>
+<p>Fix: force the header at Traefik with a <code>Middleware</code> referenced from the Ingress.</p>
+<pre><code class="language-yaml"># infra/k8s/apps/eurooffice/middleware.yaml
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: eurooffice-forwarded-proto
+  namespace: homelab
+spec:
+  headers:
+    customRequestHeaders:
+      X-Forwarded-Proto: https</code></pre>
+<pre><code class="language-yaml"># infra/k8s/apps/eurooffice/ingress.yaml  (metadata)
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-eurooffice-forwarded-proto@kubernetescrd</code></pre>
+<p>After changing this, hard-reload (the old <code>http://</code> editor config may be cached; a private window works too).</p>
 <h2>Verify</h2>
 <pre><code class="language-bash">$NC eurooffice:documentserver --check
 # Document server https://office.otakeessen.com/ version 9.3.4.37 is successfully connected
@@ -71,7 +99,7 @@ curl -s https://office.otakeessen.com/healthcheck     # true</code></pre>
 <p>Then open <code>https://cloud.otakeessen.com</code>, create or open a <code>.docx</code>/<code>.xlsx</code>/ <code>.pptx</code>, and edit it. <code>sameTab=true</code> makes Euro-Office the default handler for those types; per-type/per-user defaults are in <strong>Settings → Administration → Euro-Office</strong> (<code>/settings/admin/eurooffice</code>).</p>
 <p>Working versions: Nextcloud <strong>33.0.9</strong>, <code>eurooffice</code> app <strong>11.0.5</strong>, DocumentServer <strong>9.3.4.37</strong>.</p>
 <h2>Notes and limits</h2>
-<ul><li>The DocumentServer is a single pod on <code>node-one</code>; documents themselves stay in Nextcloud, so the DS PVC is not user data.</li><li>Public URLs are used in both directions (browser and server) — fine for a homelab; the DS&#x27;s internal-URL/<code>StorageUrl</code> options exist if you later want to keep server-to-server traffic in-cluster.</li><li>Only Office file types get the Euro-Office handler; plain text/markdown keep the normal editor.</li><li>To remove it: <code>occ app:disable eurooffice</code>, drop <code>- eurooffice</code> from <code>infra/k8s/apps/kustomization.yaml</code>, and delete the Secret/PVC.</li></ul>
+<ul><li>Server-to-server traffic stays in-cluster (<code>DocumentServerInternalUrl</code> / <code>StorageUrl</code>); only the browser uses the public <code>office.otakeessen.com</code>.</li><li>The DocumentServer is a single pod on <code>node-one</code>; documents themselves stay in Nextcloud, so the DS PVC is not user data.</li><li>Only Office file types get the Euro-Office handler; plain text/markdown keep the normal editor.</li><li>To remove it: <code>occ app:disable eurooffice</code>, drop <code>- eurooffice</code> from <code>infra/k8s/apps/kustomization.yaml</code>, and delete the Secret/PVC.</li></ul>
       </article>
     </div>
   </main>
