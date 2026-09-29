@@ -1,0 +1,20 @@
+# Public on purpose: the browser and the Nextcloud server both load the editor
+# from here. Covered by the wildcard *.otakeessen.com tunnel to Traefik.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eurooffice
+  namespace: homelab
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: office.otakeessen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: eurooffice
+                port:
+                  number: 80
