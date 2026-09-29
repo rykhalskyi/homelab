@@ -3,7 +3,7 @@ kind: Kustomization
 resources:
   - sources/traefik.yaml
   - sources/nextcloud.yaml
-  - sources/bitnami.yaml
+  - sources/postgresql-chart.yaml
   - storageclass/local-storage.yaml
   - traefik/namespace.yaml
   - traefik/helmrelease.yaml

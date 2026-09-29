@@ -35,8 +35,8 @@ migration is a plain logical dump/restore (no `pg_upgrade`).
 
 | File | Role |
 |------|------|
-| `infra/k8s/infrastructure/sources/bitnami.yaml` | `HelmRepository` for `https://charts.bitnami.com/bitnami` |
-| `infra/k8s/apps/postgresql/helmrelease.yaml` | standalone Postgres `HelmRelease` |
+| `infra/k8s/infrastructure/sources/postgresql-chart.yaml` | `OCIRepository` for the Bitnami `postgresql` chart |
+| `infra/k8s/apps/postgresql/helmrelease.yaml` | standalone Postgres `HelmRelease` (uses `chartRef` → the `OCIRepository`) |
 | `infra/k8s/apps/postgresql/kustomization.yaml` | adds it to the `apps` Kustomization |
 | `infra/k8s/apps/pgadmin/{pvc,deployment,service,ingress}.yaml` | LAN-only pgAdmin |
 | `infra/k8s/apps/nextcloud/helmrelease.yaml` | `redis.architecture: standalone` (slims Redis to 1 pod) |
@@ -47,13 +47,19 @@ Pinned versions:
   image `bitnamilegacy/postgresql:17.6.0-debian-12-r4`.
 - pgAdmin image `dpage/pgadmin4:9.18.0@sha256:c332c5f6…26de`.
 
-Two environment details matter:
+Three environment details matter:
 
 - Bitnami moved the community images to `bitnamilegacy`; the chart verifies
   image provenance, so `global.security.allowInsecureImages: true` is set, and
   the `volumePermissions` init image is also pointed at `bitnamilegacy/os-shell`.
 - `volumePermissions.enabled: true` chowns the root-owned `local-path` volume
   before Postgres (uid 1001) starts.
+- **Bitnami's charts are OCI-only now.** The legacy
+  `https://charts.bitnami.com/bitnami` index lists every chart as
+  `oci://registry-1.docker.io/bitnamicharts/...`, so a `HelmRepository`
+  (generic) fails with `unsupported protocol scheme "oci"`. The chart is
+  therefore consumed through an `OCIRepository` and the `HelmRelease` points at
+  it with `chartRef` (not `chart.spec`).
 
 ## Credentials
 
