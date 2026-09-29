@@ -18,14 +18,12 @@ metadata:
   namespace: homelab
 spec:
   interval: 1h
-  chart:
-    spec:
-      chart: postgresql
-      version: "16.7.27" # appVersion Postgres 17.6.0
-      sourceRef:
-        kind: HelmRepository
-        name: bitnami
-        namespace: flux-system
+  # Bitnami's chart is OCI-only now; consume it through the OCIRepository set up
+  # in infra/k8s/infrastructure/sources/postgresql-chart.yaml.
+  chartRef:
+    kind: OCIRepository
+    name: bitnami-postgresql
+    namespace: flux-system
   values:
     global:
       security:
