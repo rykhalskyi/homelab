@@ -106,6 +106,7 @@ spec:
           size: 8Gi
     redis:
       enabled: true
+      architecture: standalone
       auth:
         existingSecret: nextcloud-redis
         existingSecretPasswordKey: redis-password

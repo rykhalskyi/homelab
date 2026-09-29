@@ -4,4 +4,6 @@ resources:
   - namespace.yaml
   - nginx
   - nextcloud
+  - postgresql
+  - pgadmin
   - cloudflared
