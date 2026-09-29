@@ -2,9 +2,9 @@
 # Cloudflare tunnel (which only routes that wildcard) never exposes pgAdmin.
 # Reach it from the LAN by adding to your client /etc/hosts:
 #
-#   192.168.2.233 pgadmin.home.arpa
+#   192.168.2.233 pgadmin.homelab.local
 #
-# then open http://pgadmin.home.arpa/.
+# then open http://pgadmin.homelab.local/.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -13,7 +13,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: pgadmin.home.arpa
+    - host: pgadmin.homelab.local
       http:
         paths:
           - path: /

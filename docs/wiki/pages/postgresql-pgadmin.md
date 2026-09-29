@@ -25,7 +25,7 @@ Euro-Office app come **after** this and are not covered here.
 ```
 nextcloud (pod, 31.0.14) ──► postgresql.homelab.svc:5432   (Bitnami HelmRelease, own PVC)
                                     ▲
-pgadmin.homelab.svc ◄── pgAdmin Deployment ──► http://pgadmin.home.arpa/  (LAN only)
+pgadmin.homelab.svc ◄── pgAdmin Deployment ──► http://pgadmin.homelab.local/  (LAN only)
 ```
 
 The Postgres major stays **17** to match the subchart it replaces, so the
@@ -85,15 +85,15 @@ kubectl -n homelab get pods -w   # postgresql-0, pgadmin
 
 ## LAN access to pgAdmin
 
-The Ingress host is **`pgadmin.home.arpa`**, deliberately *not* under
+The Ingress host is **`pgadmin.homelab.local`**, deliberately *not* under
 `*.otakeessen.com`, so the Cloudflare tunnel (which routes that wildcard only)
 never exposes it publicly. Add to each client's `/etc/hosts`:
 
 ```
-192.168.2.233 pgadmin.home.arpa
+192.168.2.233 pgadmin.homelab.local
 ```
 
-Then open `http://pgadmin.home.arpa/`. Log in with the `pgadmin-auth` email and
+Then open `http://pgadmin.homelab.local/`. Log in with the `pgadmin-auth` email and
 password, and register the server: host `postgresql`, port `5432`, database
 `nextcloud`, user `nextcloud` (password from `nextcloud-db`).
 

@@ -8,7 +8,7 @@ Helm chart's bundled `postgresql` subchart into a pinned standalone Bitnami
 `HelmRelease` (`postgresql` chart 16.7.27 / Postgres 17.6.0, images under
 `bitnamilegacy`, `global.security.allowInsecureImages`), reusing the existing
 `nextcloud-db` Secret so only `dbhost` changes. Adds a LAN-only pgAdmin
-(`dpage/pgadmin4`, Ingress host `pgadmin.home.arpa`, resolved by a client
+(`dpage/pgadmin4`, Ingress host `pgadmin.homelab.local`, resolved by a client
 `/etc/hosts` entry so the Cloudflare wildcard never exposes it), slims the Redis
 subchart to standalone, and documents the one-window `pg_dump`/`pg_restore`
 migration, verification, rollback, and the Pi-hole port-80 caveat. Nextcloud
