@@ -6,4 +6,5 @@ resources:
   - nextcloud
   - postgresql
   - pgadmin
+  - eurooffice
   - cloudflared
