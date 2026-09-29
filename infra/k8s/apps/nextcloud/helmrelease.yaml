@@ -81,29 +81,21 @@ spec:
         existingClaim: nextcloud-data
     internalDatabase:
       enabled: false
+    # The database runs as its own workload (infra/k8s/apps/postgresql) now.
+    # Credentials still come from `nextcloud-db`; only the host changed.
+    # Migrated off the chart subchart on 2026-09-29 (see
+    # docs/wiki/pages/postgresql-pgadmin.md).
     externalDatabase:
       enabled: true
+      type: postgresql
+      host: postgresql
       existingSecret:
         enabled: true
         secretName: nextcloud-db
         usernameKey: username
         passwordKey: password
     postgresql:
-      enabled: true
-      global:
-        postgresql:
-          auth:
-            database: nextcloud
-            username: nextcloud
-            existingSecret: nextcloud-db
-            secretKeys:
-              adminPasswordKey: postgres-password
-              userPasswordKey: password
-      primary:
-        persistence:
-          enabled: true
-          storageClass: local-path
-          size: 8Gi
+      enabled: false
     redis:
       enabled: true
       architecture: standalone

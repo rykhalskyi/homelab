@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-09-29] edit | Migrated Nextcloud onto the standalone PostgreSQL
+
+Executed the [[PostgreSQL + pgAdmin on k3s (decoupled from Nextcloud)]] runbook.
+Dumped the chart subchart DB (`nextcloud-postgresql-0`) with `pg_dump -Fc` and
+restored it into the standalone `postgresql-0` (137 tables, 3 users, 163
+`oc_appconfig` rows — verified equal). Repointed Nextcloud with
+`occ config:system:set dbhost --value=postgresql`, restarted the pod, and turned
+maintenance mode off. Updated `infra/k8s/apps/nextcloud/helmrelease.yaml` to
+disable the `postgresql` subchart and point `externalDatabase` at the standalone
+service (`host: postgresql`, `type: postgresql`). Old PVC and the dump are kept
+for rollback. Also fixed the Bitnami chart source (OCI → `OCIRepository`).
+
 ## [2026-09-29] ingest | PostgreSQL + pgAdmin on k3s (decoupled from Nextcloud)
 
 Added [[PostgreSQL + pgAdmin on k3s (decoupled from Nextcloud)]], the first step

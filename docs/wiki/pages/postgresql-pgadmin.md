@@ -12,6 +12,12 @@ it with a LAN-only pgAdmin. This is the first half of the [[Nextcloud on k3s
 (custom image + Helm chart)]] follow-up; the Nextcloud 31→33 upgrade and the
 Euro-Office app come **after** this and are not covered here.
 
+> **Status (2026-09-29): executed.** Nextcloud now runs on the standalone
+> `postgresql`; the subchart is disabled in the `nextcloud` HelmRelease. The
+> pre-migration dump is kept at `/tmp/opencode/nextcloud-nc31.dump` (move it
+> somewhere persistent) and the old `data-nextcloud-postgresql-0` PVC was left
+> untouched as rollback.
+
 ## Why decouple
 
 - The database lifecycle stops being tied to the Nextcloud chart version.
