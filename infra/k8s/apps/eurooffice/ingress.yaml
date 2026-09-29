@@ -5,6 +5,8 @@ kind: Ingress
 metadata:
   name: eurooffice
   namespace: homelab
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-eurooffice-forwarded-proto@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
