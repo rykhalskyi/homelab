@@ -38,6 +38,7 @@
       <article class="panel wiki-article">
 <h1>PostgreSQL + pgAdmin on k3s (decoupled from Nextcloud)</h1>
 <p>How to run Nextcloud&#x27;s database as its <strong>own</strong> PostgreSQL workload instead of the <code>postgresql</code> subchart bundled with the Nextcloud Helm chart, and how to inspect it with a LAN-only pgAdmin. This is the first half of the <a href="nextcloud-on-k3s.html">Nextcloud on k3s (custom image + Helm chart)</a> follow-up; the Nextcloud 31→33 upgrade and the Euro-Office app come <strong>after</strong> this and are not covered here.</p>
+<blockquote><p><strong>Status (2026-09-29): executed.</strong> Nextcloud now runs on the standalone <code>postgresql</code>; the subchart is disabled in the <code>nextcloud</code> HelmRelease. The pre-migration dump is kept at <code>/tmp/opencode/nextcloud-nc31.dump</code> (move it somewhere persistent) and the old <code>data-nextcloud-postgresql-0</code> PVC was left untouched as rollback.</p></blockquote>
 <h2>Why decouple</h2>
 <ul><li>The database lifecycle stops being tied to the Nextcloud chart version.</li><li>It is easy to dump/restore and roll back independently of the app.</li><li>One obvious DB endpoint (<code>postgresql:5432</code>) instead of the subchart + <code>externalDatabase</code> tangle.</li><li>No HA gain on a single node — this is about separation and operability.</li></ul>
 <h2>Target picture</h2>
