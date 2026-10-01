@@ -6,7 +6,7 @@ metadata:
   name: eurooffice
   namespace: homelab
   annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: homelab-eurooffice-forwarded-proto@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-eurooffice-forwarded-proto@kubernetescrd,homelab-eurooffice-hide-welcome@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

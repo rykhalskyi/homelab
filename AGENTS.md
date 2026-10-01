@@ -4,35 +4,28 @@ Guidance for agents working in this repository (the `homelab` project).
 
 ## What this repo is
 
-- `infra/` — deployable Docker Compose stacks: `nginx/` (the static homelab
-  site), `nextcloud/`, `forgejo/`, `pihole/`, and `laya-api/` (a pinned prebuilt
-  image deployed via `infra/laya-api/deploy.sh`).
-- `docs/wiki/` — the DevOps wiki, authored in Markdown. See
+- `infra/` — deployable stacks. `nginx/` is the static homelab landing page;
+  `nextcloud/`, `forgejo/`, `pihole/`, and `laya-api/` (a pinned prebuilt image
+  deployed via `infra/laya-api/deploy.sh`) are Docker Compose; `infra/k8s/` is
+  the k3s cluster (apps + infrastructure) reconciled by Flux.
+- `docs/wiki/` — the DevOps wiki, authored in Markdown. It is **served by
+  Pullini** at `https://wiki.otakeessen.com`, not built into the nginx site. See
   `docs/wiki/AGENTS.md` for the wiki schema and ingest workflow.
-- `infra/nginx/html/` — the served site. `wiki/` inside it is **generated**.
-- `tools/build_wiki.py` — stdlib-only Markdown → HTML generator.
+- `infra/nginx/html/` — the static landing page (`index.html` + assets). It has
+  no build step.
 - `node-one` (Ubuntu, HP ProDesk 400 G3 DM) runs the stacks; it deploys with
-  `git pull` against the `main` branch.
+  `git pull` against the `main` branch and Flux for the k8s apps.
 
-## Golden rule: rebuild the site after touching the wiki
+## Golden rule: the wiki is Markdown only
 
-After **any** change under `docs/wiki/` (adding or editing pages, `index.md`,
-or `log.md`), regenerate the published site and commit the output:
+There is **no HTML wiki generation**. `docs/wiki/` stays as Markdown, and
+Pullini (a read-only Git-backed wiki browser) renders it at
+`https://wiki.otakeessen.com`. Do not add a generator or commit generated HTML
+into `infra/nginx/html/`.
 
-```bash
-make wiki          # == python3 tools/build_wiki.py
-```
-
-Then commit both the Markdown sources and the regenerated
-`infra/nginx/html/wiki/*.html`. Both are versioned; the site deploys by
-`git pull`.
-
-- **Never edit `infra/nginx/html/wiki/*.html` by hand** — the next build
-  overwrites it. Edit Markdown in `docs/wiki/` instead.
-- If `index.md` gains a new page link, the generator rewrites `.md` links and
-  resolves `[[wikilinks]]` automatically; just rerun `make wiki`.
-- Run `make wiki` before finishing a task that changed wiki content, and verify
-  it wrote the expected files (the script prints each path).
+- Edit wiki content in `docs/wiki/` directly; no rebuild step.
+- The landing page links out to `https://wiki.otakeessen.com` — keep it that
+  way rather than embedding wiki pages.
 
 ## Other common commands
 
@@ -49,11 +42,9 @@ make laya-api-pin VERSION=x.y.z  # pin a new laya-api release
 - The site is plain HTML/CSS/JS with no build step and no runtime deps — keep
   it that way. Do not introduce a framework or external CDN.
 - Landing page: `infra/nginx/html/index.html` (services + `#architecture`
-  sections). Host facts live in the architecture card.
+  sections). Host facts live in the architecture card. It links to the wiki at
+  `https://wiki.otakeessen.com`.
 - Styles: `infra/nginx/html/assets/css/style.css` (CSS variables at the top,
   light + dark themes).
-- Wiki generators only support the Markdown subset in `docs/wiki/` (headings,
-  lists/checkboxes, tables, fenced code, blockquotes, bold, inline code,
-  links, `[[wikilinks]]`). Extend `tools/build_wiki.py` if you need more.
 - Keep secrets out of the repo — `.env`, `*.pem`, `*.key`, `.cloudflared/` are
   gitignored. Never commit credentials.

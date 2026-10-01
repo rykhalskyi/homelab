@@ -38,19 +38,17 @@ Lives inside the homelab project at `~/Source/homelab/docs/wiki/`.
 
 ## Workflows
 
-- **Ingest:** write/update `pages/*.md` → update `index.md` → append to `log.md`
-  → run `make wiki` (from the repo root) to rebuild the published site under
-  `infra/nginx/html/wiki/`, and commit the generated HTML too.
+- **Ingest:** write/update `pages/*.md` → update `index.md` → append to `log.md`.
+  That is the whole flow: edit Markdown and commit.
 - **Query:** read `index.md` first, drill into pages, cite them in the answer.
 - **Lint:** check contradictions, stale claims, orphans, missing cross-refs, gaps.
 
 ## Publishing
 
-The wiki is rendered to static HTML for the homelab site by
-`tools/build_wiki.py` (stdlib-only Python). Output lives in
-`infra/nginx/html/wiki/` and is **generated** — never edit those HTML files by
-hand. Titles become page filenames via the source file name; `[[wikilinks]]`
-resolve against page titles.
+There is **no HTML build**. This directory stays Markdown, and
+[Pullini](https://wiki.otakeessen.com) (a read-only Git-backed wiki browser)
+renders it. Titles become page slugs via the source file name; `[[wikilinks]]`
+resolve against page titles. Do not add a generator or commit generated HTML.
 
 ## Operations log
 

@@ -20,22 +20,22 @@ my internal network and expose a small number of resources publicly.
 
 ## Repository layout
 
-- `infra/` — deployable service stacks (Docker Compose): `nginx/`, `nextcloud/`,
-  `forgejo/`, `pihole/`, `laya-api/`.
-- `docs/wiki/` — the DevOps wiki, written in Markdown.
-- `infra/nginx/html/` — the static homelab site (landing page + generated wiki).
+- `infra/` — deployable service stacks: `nginx/`, `nextcloud/`, `forgejo/`,
+  `pihole/`, `laya-api/` (Docker Compose) and `k8s/` (the k3s cluster, reconciled
+  by Flux).
+- `docs/wiki/` — the DevOps wiki, written in Markdown and served by Pullini at
+  `https://wiki.otakeessen.com`.
+- `infra/nginx/html/` — the static homelab landing page.
 
 ## Site & wiki
 
-The site is plain HTML/CSS/JS served by nginx (`infra/nginx/`). The wiki
-Markdown in `docs/wiki/` is converted to static pages under
-`infra/nginx/html/wiki/`:
+The landing page is plain HTML/CSS/JS served by nginx (`infra/nginx/`). The wiki
+Markdown in `docs/wiki/` is served directly by Pullini at
+`https://wiki.otakeessen.com` — no HTML build step.
 
 ```bash
-make wiki     # build the wiki into the site
-make serve    # preview at http://localhost:8080
+make serve    # preview the landing page at http://localhost:8080
 ```
 
-Generated wiki HTML is committed, so `git pull` on `node-one` is enough to
-publish. See `infra/nginx/README.md` for details.
+See `infra/nginx/README.md` for details.
 
