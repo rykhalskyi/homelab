@@ -43,16 +43,24 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+          # Kubelet probes hit the Pod IP as the Host header, which Django
+          # rejects (ALLOWED_HOSTS). Send the real hostname instead.
           readinessProbe:
             httpGet:
               path: /healthz
               port: http
+              httpHeaders:
+                - name: Host
+                  value: wiki.otakeessen.com
             initialDelaySeconds: 10
             periodSeconds: 15
           livenessProbe:
             httpGet:
               path: /livez
               port: http
+              httpHeaders:
+                - name: Host
+                  value: wiki.otakeessen.com
             initialDelaySeconds: 30
             periodSeconds: 30
           resources:

@@ -204,6 +204,19 @@ kubectl -n homelab exec postgresql-0 -- env PGPASSWORD="$PGPW" \
   pg_restore --no-owner --no-acl -U pullini -d pullini /tmp/pullini.dump
 ```
 
+## Troubleshooting
+
+- **Pod never becomes Ready; logs show `DisallowedHost: Invalid HTTP_HOST
+  header: '10.42.x.y:8000'`.** Kubelet probes connect to the Pod IP and send it
+  as the `Host` header, which Django rejects because `DJANGO_ALLOWED_HOSTS` only
+  lists `wiki.otakeessen.com`. The probes in `deployment.yaml` therefore set
+  `httpHeaders: [{name: Host, value: wiki.otakeessen.com}]`. (A `301` from
+  `SECURE_SSL_REDIRECT` still counts as probe success.)
+- **`CreateContainerConfigError`.** `pullini-secrets` is missing in namespace
+  `homelab` — create it before the Deployment rolls out.
+- **`migrate` loops on startup.** The `pullini` role/database is not provisioned
+  or `DATABASE_URL` is wrong — run `provision-db.sh`.
+
 ## Rollback
 
 ```bash
