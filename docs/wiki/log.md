@@ -1,5 +1,21 @@
 # DevOps Wiki — Log
 
+## [2026-10-01] ingest | Pullini on k3s
+
+Added [[Pullini on k3s (postgresql + Flux)]]. Moved the `pullini` app onto
+`node-one`'s k3s cluster: image built **on demand** by the `rykhalskyi/pullini`
+repo's `Build image` workflow (`ghcr.io/rykhalskyi/pullini:sha-<sha>`, commit
+stamped in as `PULLINI_GIT_SHA`), pinned by the new
+`.github/workflows/update-pullini-image-pin.yml`, deployed as a web + scheduler
+sidecar `Deployment` in namespace `homelab`, exposed at `wiki.otakeessen.com`
+via Traefik with an `X-Forwarded-Proto` middleware. It uses a dedicated `pullini`
+role/database on the standalone PostgreSQL, provisioned idempotently by
+`infra/k8s/apps/pullini/provision-db.sh` from the out-of-band `pullini-secrets`
+Secret (which also carries the admin login). The single admin user is seeded on
+first boot (Option A entrypoint bootstrap) instead of an interactive
+`createsuperuser`. Documents the build/pin chain, secret layout, verify/rollback,
+and node-migration (pg_dump/restore) notes.
+
 ## [2026-09-29] ingest | Nextcloud 33 + Euro-Office
 
 Upgraded the k3s Nextcloud one major at a time, **31.0.14 → 32.0.15 → 33.0.9**,

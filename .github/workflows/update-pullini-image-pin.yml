@@ -1,0 +1,118 @@
+name: k3s/pullini 2/2 Pin pullini image
+
+# Keeps `infra/k8s/apps/pullini/deployment.yaml` pinned to the image built by
+# the pullini repo's CI (ghcr.io/rykhalskyi/pullini:sha-<commit>). It resolves
+# the digest from GHCR and opens a PR that rewrites both the web and scheduler
+# image references to `sha-<commit>@sha256:<digest>`.
+#
+# The pullini image is built manually (pullini repo's "Build image" workflow),
+# so this is triggered by that build rather than by a schedule:
+#   - repository_dispatch -> event_type "pullini-image" with client_payload.sha,
+#     sent by the pullini repo's build-image.yml after a successful push
+#     (requires a HOMELAB_DISPATCH_TOKEN PAT secret there).
+#   - workflow_dispatch   -> manual run, optionally pinning a specific SHA.
+#
+# The GHCR package must be public (or this workflow needs a pull credential).
+# Mirrors update-nginx-image-pin.yml.
+
+on:
+  repository_dispatch:
+    types: [pullini-image]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA of the sha-<sha> image tag to pin. Empty = latest pullini main.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-pullini-image-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: Refresh deployment image
+    runs-on: ubuntu-latest
+    if: github.repository == 'rykhalskyi/homelab'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve image digest
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/rykhalskyi/pullini
+          APP_REPO: rykhalskyi/pullini
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+          DISPATCH_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          set -euo pipefail
+          sha="${INPUT_SHA:-${DISPATCH_SHA:-}}"
+          if [ -z "$sha" ]; then
+            sha="$(gh api "repos/${APP_REPO}/commits/main" --jq .sha)"
+          fi
+          tag="sha-${sha}"
+          digest="$(docker buildx imagetools inspect "${IMAGE}:${tag}" --format '{{.Manifest.Digest}}')"
+          [ -n "$digest" ] || { echo "::error::could not resolve digest for ${IMAGE}:${tag}"; exit 1; }
+
+          image="${IMAGE}:${tag}@${digest}"
+          file=infra/k8s/apps/pullini/deployment.yaml
+          current="$(grep -oE 'rykhalskyi/pullini:[^[:space:]]+' "$file" | head -n1 || true)"
+
+          {
+            echo "sha=${sha}"
+            echo "short=${sha:0:7}"
+            echo "image=${image}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Resolved: ${image}"
+          echo "Pinned:   ${current:-none}"
+          if [ "$image" = "$current" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already pinned to this digest - nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update deployment.yaml
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          IMAGE: ${{ steps.resolve.outputs.image }}
+        run: |
+          set -euo pipefail
+          file=infra/k8s/apps/pullini/deployment.yaml
+          sed -i -E "s|^(\s*image: ).*rykhalskyi/pullini.*$|\1${IMAGE}|" "$file"
+
+      - name: Show diff
+        if: steps.resolve.outputs.changed == 'true'
+        run: git --no-pager diff
+
+      - name: Open pull request
+        if: steps.resolve.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/pullini-image-${{ steps.resolve.outputs.short }}
+          base: main
+          delete-branch: true
+          title: "Pin pullini image to sha-${{ steps.resolve.outputs.short }}"
+          commit-message: "Pin pullini image to sha-${{ steps.resolve.outputs.short }}"
+          labels: |
+            dependencies
+          body: |
+            Automated pin update after the pullini image
+            `ghcr.io/rykhalskyi/pullini:sha-${{ steps.resolve.outputs.sha }}` was
+            published.
+
+            - image: `${{ steps.resolve.outputs.image }}`
+
+            Merge; Flux on `node-one` reconciles the new image within its `apps`
+            interval.
