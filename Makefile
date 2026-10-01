@@ -1,7 +1,4 @@
-.PHONY: wiki serve nc-app-deploy nc-app-pin nc-app-status laya-api-deploy laya-api-pin laya-api-status help
-
-wiki: ## Build the wiki into infra/nginx/html/wiki
-	python3 tools/build_wiki.py
+.PHONY: serve nc-app-deploy nc-app-pin nc-app-status laya-api-deploy laya-api-pin laya-api-status help
 
 serve: ## Preview the site locally at http://localhost:8080
 	cd infra/nginx/html && python3 -m http.server 8080

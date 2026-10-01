@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Homelab Otakeessen — Wiki</title>
-  <meta name="description" content="DevOps notes and runnable how-tos from my homelab." />
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <title>Homelab Otakeessen</title>
+  <meta name="description" content="Services running on my homelab (node-one)." />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <meta name="color-scheme" content="light dark" />
 </head>
@@ -13,13 +14,13 @@
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="/">
-        <img class="brand-mark" src="assets/img/logo.svg" alt="" width="32" height="32" />
+        <img class="brand-mark" src="assets/img/logo.png" alt="" width="32" height="32" />
         <span class="brand-name">Homelab Otakeessen</span>
       </a>
       <nav class="site-nav" aria-label="Main">
         <a href="#services">Services</a>
         <a href="#architecture">Architecture</a>
-        <a href="#wiki">Wiki</a>
+        <a href="https://wiki.otakeessen.com" rel="noopener">Wiki</a>
       </nav>
       <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle color theme">
         <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
@@ -36,9 +37,9 @@
   <main>
     <section class="hero container">
       <h1>Homelab Otakeessen</h1>
-      <p class="lead">DevOps notes and runnable how-tos from my home server — installs, GitOps, and the things I break along the way.</p>
+      <p class="lead">Services running on my home server (node-one) — self-hosted apps, GitOps, and the things I break along the way.</p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="#wiki">Browse the wiki</a>
+        <a class="btn btn-primary" href="https://wiki.otakeessen.com" rel="noopener">Open the wiki</a>
         <a class="btn" href="#services">Services</a>
         <a class="btn" href="https://github.com/rykhalskyi/homelab" rel="noopener">Source</a>
       </div>
@@ -54,8 +55,17 @@
               <span class="svc-name">Homelab site</span>
               <span class="svc-meta">nginx &middot; <a href="https://homelab.otakeessen.com" rel="noopener">homelab.otakeessen.com</a></span>
             </li>
+            <li>
+              <span class="dot dot-on" title="online"></span>
+              <span class="svc-name">Wiki</span>
+              <span class="svc-meta">Pullini &middot; <a href="https://wiki.otakeessen.com" rel="noopener">wiki.otakeessen.com</a></span>
+            </li>
+            <li>
+              <span class="dot dot-on" title="online"></span>
+              <span class="svc-name">Nextcloud</span>
+              <span class="svc-meta">files &amp; sync &middot; <a href="https://cloud.otakeessen.com" rel="noopener">cloud.otakeessen.com</a></span>
+            </li>
           </ul>
-          <p class="card-desc">Only the homelab site is running for now.</p>
         </div>
 
         <div id="architecture" class="panel arch-host">
@@ -78,46 +88,6 @@
       </div>
     </section>
 
-    <section id="wiki" class="container section">
-      <div class="section-head">
-        <h2>From the wiki</h2>
-        <a class="wiki-all" href="wiki/">All pages &rarr;</a>
-      </div>
-
-      <div class="grid wiki-groups">
-        <div class="panel wiki-group">
-          <h3>Guides</h3>
-          <ul class="wiki-links">
-            <li><a href="wiki/cloudflare-tunnel-nginx.html">Cloudflare Tunnel &rarr; nginx (install + first tunnel)</a></li>
-            <li><a href="wiki/cloudflared-reconfigure-hostname.html">Reconfiguring a Cloudflare Tunnel</a></li>
-          </ul>
-        </div>
-
-        <div class="panel wiki-group">
-          <h3>Orchestration</h3>
-          <ul class="wiki-links">
-            <li><a href="wiki/k3s-gitops-nginx-cloudflared.html">k3s + GitOps: nginx and cloudflared</a></li>
-            <li><a href="wiki/deploying-site-changes.html">Deploying site changes (GitOps)</a></li>
-          </ul>
-        </div>
-
-        <div class="panel wiki-group">
-          <h3>Design</h3>
-          <ul class="wiki-links">
-            <li><a href="wiki/nextcloud-aio-custom-app.html">Byebyemoneylist app integration (Nextcloud AIO)</a></li>
-            <li><a href="wiki/laya-api-container-deploy.html">laya-api container deploy (pinned GHCR image)</a></li>
-          </ul>
-        </div>
-
-        <div class="panel wiki-group">
-          <h3>Reference</h3>
-          <ul class="wiki-links">
-            <li><a href="wiki/">Index</a></li>
-            <li><a href="wiki/log.html">Change log</a></li>
-          </ul>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="site-footer">

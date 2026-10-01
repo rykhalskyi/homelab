@@ -30,7 +30,7 @@ Files under `infra/k8s/apps/eurooffice/`:
 | `deployment.yaml` | the DocumentServer (all-in-one community image) |
 | `pvc.yaml` | 10Gi `local-path` PVC mounted at `/var/www/onlyoffice/Data` |
 | `service.yaml` | ClusterIP `eurooffice:80` |
-| `middleware.yaml` | Traefik `Middleware` forcing `X-Forwarded-Proto: https` |
+| `middleware.yaml` | Traefik `Middleware`s: force `X-Forwarded-Proto: https`; hide the `/welcome/` landing page |
 | `ingress.yaml` | host `office.otakeessen.com` (wildcard tunnel → Traefik) |
 
 Details that matter:
@@ -144,6 +144,36 @@ spec:
 
 After changing this, hard-reload (the old `http://` editor config may be cached;
 a private window works too).
+
+### Hiding the welcome page
+
+The DocumentServer is public because the browser loads the editor from it, but
+its landing page (`/` 302s to `/welcome/`) is not meant for visitors. A second
+`Middleware`, `eurooffice-hide-welcome`, redirects just that path to Nextcloud:
+
+```yaml
+# infra/k8s/apps/eurooffice/middleware.yaml
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: eurooffice-hide-welcome
+  namespace: homelab
+spec:
+  redirectRegex:
+    regex: '^https?://office\.otakeessen\.com/welcome/?$'
+    replacement: 'https://cloud.otakeessen.com/'
+    permanent: false
+```
+
+The Ingress lists both middlewares:
+
+```yaml
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-eurooffice-forwarded-proto@kubernetescrd,homelab-eurooffice-hide-welcome@kubernetescrd
+```
+
+Only `/welcome/` is redirected; `/web-apps/...`, `/coauthoring/...`, and
+`/healthcheck` still serve directly, so embedding is unaffected
+(`occ eurooffice:documentserver --check` stays green).
 
 ## Verify
 

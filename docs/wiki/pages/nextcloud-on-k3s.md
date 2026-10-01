@@ -534,4 +534,4 @@ is a second copy.
 - [ ] `https://cloud.otakeessen.com` loads through the in-cluster tunnel
 - [ ] Host `cloudflared` disabled
 - [ ] AIO Compose files removed; volumes and `/home/jaro/ncdata` kept for rollback
-- [ ] Wiki rebuilt (`make wiki`) and index/log updated
+- [ ] Wiki index/log updated (Markdown only; served by Pullini)

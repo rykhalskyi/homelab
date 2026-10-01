@@ -1,5 +1,25 @@
 # DevOps Wiki — Log
 
+## [2026-10-01] change | Hide the Euro-Office welcome page
+
+`https://office.otakeessen.com/` 302s to a public `/welcome/` landing page.
+Added a Traefik `Middleware` (`eurooffice-hide-welcome`) that redirects that
+path to Nextcloud, and listed it alongside `eurooffice-forwarded-proto` on the
+Ingress. The editor endpoints (`/web-apps`, `/coauthoring`, `/healthcheck`) are
+untouched, so embedding keeps working (`eurooffice:documentserver --check`
+passes). Updated [[Euro-Office on k3s]].
+
+## [2026-10-01] change | Wiki un-hosted from nginx; served by Pullini
+
+Removed the HTML wiki generation: deleted `tools/build_wiki.py`, the generated
+`infra/nginx/html/wiki/`, the `make wiki` target, and the CI "wiki up to date"
+check. The landing page lost its "From the wiki" tiles and now links to
+`https://wiki.otakeessen.com` (Pullini), and its service list is now just the
+public apps: Homelab site, Wiki, Nextcloud.
+`docs/wiki/` stays Markdown only — edit and commit, no build. Updated
+`AGENTS.md`, `docs/wiki/AGENTS.md`, the nginx README, and
+[[Deploying site changes (GitOps)]].
+
 ## [2026-10-01] ingest | Pullini on k3s
 
 Added [[Pullini on k3s (postgresql + Flux)]]. Moved the `pullini` app onto

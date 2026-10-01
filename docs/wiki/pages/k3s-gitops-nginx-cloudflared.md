@@ -54,10 +54,11 @@ You change files in Git; Flux notices and makes the cluster match.
 
 ## What stays the same
 
-- The website HTML/CSS/JS and the generated wiki. Nothing about the site changes.
+- The website HTML/CSS/JS. Nothing about the site changes.
 - The domain `otakeessen.com`, the Cloudflare tunnel, and the public hostname
   `homelab.otakeessen.com`.
-- The wiki workflow (`docs/wiki/` → `make wiki`).
+- The wiki Markdown lives in `docs/wiki/` (now served by Pullini, not built into
+  the site).
 
 ## What you need before starting
 
@@ -137,7 +138,7 @@ docker-compose.yml
 
 ### A3. Create `.github/workflows/build-nginx-image.yml`
 
-This builds and uploads the image every time the site or the wiki changes.
+This builds and uploads the image every time the site changes.
 
 ```yaml
 name: k3s/nginx 1/2 Build nginx site image
@@ -147,8 +148,6 @@ on:
     branches: [main]
     paths:
       - 'infra/nginx/**'
-      - 'docs/wiki/**'
-      - 'tools/build_wiki.py'
       - '.github/workflows/build-nginx-image.yml'
   workflow_dispatch:
 
@@ -161,11 +160,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Check the generated wiki is up to date
-        run: |
-          make wiki
-          git diff --exit-code
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -901,12 +895,17 @@ flux suspend kustomization apps             # stop Flux changing the apps
 
 A normal content change now flows like this:
 
-1. Edit Markdown in `docs/wiki/`, or edit `infra/nginx/html/`.
-2. Run `make wiki` (for wiki changes) and commit/push.
+1. Edit `infra/nginx/html/` (or asset files).
+2. Commit and push to `main`.
 3. The GitHub Action in Part A builds a new image and prints a new digest.
-4. Paste the new digest into `infra/k8s/apps/nginx/deployment.yaml` and push.
+4. Merge the pin PR (or paste the new digest into
+   `infra/k8s/apps/nginx/deployment.yaml` and push).
 5. Flux rolls out a new nginx Pod automatically (watch it with
    `flux get kustomizations -A` and `kubectl -n homelab get pods -w`).
+
+Wiki Markdown under `docs/wiki/` is separate: it is served by Pullini at
+`https://wiki.otakeessen.com` and needs no build ([[Pullini on k3s (postgresql +
+Flux)]]).
 
 > Later we can add Flux **image automation** so step 4 happens by itself. Until
 > then, pinning the digest by hand keeps deploys deliberate and reproducible,
@@ -952,4 +951,3 @@ Ingress.
 - [ ] Part F: `https://homelab.otakeessen.com` works
 - [ ] Part G: host `cloudflared` service disabled
 - [ ] Part G: `infra/nginx/docker-compose.yml` removed
-- [ ] Wiki updated: `make wiki` run and committed
