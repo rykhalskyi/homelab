@@ -111,6 +111,8 @@ kubectl -n homelab exec postgresql-0 -- env PGPASSWORD=&quot;$PGPW&quot; \
 kubectl -n homelab cp pullini.dump postgresql-0:/tmp/pullini.dump
 kubectl -n homelab exec postgresql-0 -- env PGPASSWORD=&quot;$PGPW&quot; \
   pg_restore --no-owner --no-acl -U pullini -d pullini /tmp/pullini.dump</code></pre>
+<h2>Troubleshooting</h2>
+<ul><li>**Pod never becomes Ready; logs show `DisallowedHost: Invalid HTTP_HOST header: &#x27;10.42.x.y:8000&#x27;`.** Kubelet probes connect to the Pod IP and send it as the <code>Host</code> header, which Django rejects because <code>DJANGO_ALLOWED_HOSTS</code> only lists <code>wiki.otakeessen.com</code>. The probes in <code>deployment.yaml</code> therefore set <code>httpHeaders: [{name: Host, value: wiki.otakeessen.com}]</code>. (A <code>301</code> from <code>SECURE_SSL_REDIRECT</code> still counts as probe success.)</li><li><strong><code>CreateContainerConfigError</code>.</strong> <code>pullini-secrets</code> is missing in namespace <code>homelab</code> — create it before the Deployment rolls out.</li><li><strong><code>migrate</code> loops on startup.</strong> The <code>pullini</code> role/database is not provisioned or <code>DATABASE_URL</code> is wrong — run <code>provision-db.sh</code>.</li></ul>
 <h2>Rollback</h2>
 <pre><code class="language-bash">flux suspend kustomization apps -n flux-system     # stop Flux changing apps
 kubectl -n homelab scale deploy/pullini --replicas=0</code></pre>
