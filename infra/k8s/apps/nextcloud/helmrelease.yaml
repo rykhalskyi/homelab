@@ -70,6 +70,18 @@ spec:
             php /var/www/html/occ app:disable byebyemoneylist >/dev/null 2>&1 || true
             php /var/www/html/occ app:enable byebyemoneylist
           fi
+      # Synology NAS share mounted over NFS and exposed to Nextcloud as a
+      # "Local" external storage. Kubelet on node-one performs the NFS mount
+      # and presents it at /nas in the Nextcloud and cron pods. See
+      # docs/wiki/pages/nextcloud-external-storage-nas.md.
+      extraVolumes:
+        - name: nas-nextcloud
+          nfs:
+            server: 192.168.2.112
+            path: /volume1/nextcloud
+      extraVolumeMounts:
+        - name: nas-nextcloud
+          mountPath: /nas
     phpClientHttpsFix:
       enabled: true
       protocol: https
