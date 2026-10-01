@@ -1,0 +1,15 @@
+# Holds the shallow Git clones under /data/repositories (DATA_DIR). The clones
+# are reproducible from the remote repos, so this volume is disposable; the
+# authoritative state is the PostgreSQL database.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pullini-data
+  namespace: homelab
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
