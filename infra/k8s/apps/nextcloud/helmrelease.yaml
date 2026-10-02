@@ -16,6 +16,10 @@ metadata:
   namespace: homelab
 spec:
   interval: 1h
+  # Don't roll out before the database (apps/postgresql) is Ready. Removes the
+  # startup race where Nextcloud retries until Postgres comes up.
+  dependsOn:
+    - name: postgresql
   chart:
     spec:
       chart: nextcloud
