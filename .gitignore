@@ -12,6 +12,13 @@ credentials*
 .cloudflared/
 **/.cloudflared/
 
+# SOPS/age keys and encrypted secrets are LOCAL ONLY -- never pushed to GitHub.
+*.agekey
+/keys.txt
+/.sops.yaml
+*.sops.yaml
+/infra/k8s/apps/secrets/
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
