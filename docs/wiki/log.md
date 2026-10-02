@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-10-02] change | Prune guard + backup runbook after Flux self-prune incident
+
+A bad GitOps change (the explicit `infra/k8s/clusters/node-one/kustomization.yaml`
+omitted `flux-system`) made Flux prune its own root Kustomization, which then
+garbage-collected the `homelab` namespace and destroyed the Nextcloud database.
+The files survived (static `Retain` PV) but accounts/shares/calendars/config did
+not. Prevention added: `.github/workflows/kustomize-prune-guard.yml` fails a PR
+that removes a `Namespace`/`CustomResourceDefinition`/`PersistentVolumeClaim` or
+anything in `flux-system` from the kustomize build. Added
+[[Backups: what to save and how to restore]] (backup layers + restore sketch;
+automation still TODO).
+
 ## [2026-10-02] change | Harden cloudflared, pin chart/image versions
 
 Pinned the Traefik `HelmRelease` to `41.6.1` (was the floating `>=30.0.0`
