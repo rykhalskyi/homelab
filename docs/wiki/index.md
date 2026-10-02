@@ -18,6 +18,10 @@ Home-server DevOps notes and runnable how-tos (server `node-one`).
 - [[Euro-Office on k3s]] — [open](pages/eurooffice.md) — (2026-09-29, 0 sources) — deploy the Euro-Office DocumentServer (all-in-one `ghcr.io/euro-office/documentserver`, digest-pinned, JWT) behind `office.otakeessen.com` and wire the `eurooffice` Nextcloud app (needs NC 33–35) with `occ`, making it the default editor. Includes the `overwrite.cli.url` gotcha that breaks the connection check, verification, and the working versions (NC 33.0.9 / app 11.0.5 / DS 9.3.4.37).
 - [[Pullini on k3s (postgresql + Flux)]] — [open](pages/pullini-on-k3s.md) — (2026-10-01, 0 sources) — run the Git-backed wiki browser at `wiki.otakeessen.com`: image built in the `pullini` repo's CI and pinned by `update-pullini-image-pin.yml`, web + scheduler sidecar in namespace `homelab`, a dedicated `pullini` role/database on the standalone PostgreSQL provisioned by an idempotent `provision-db.sh`, the admin user seeded from `pullini-secrets` on first boot, plus verify, rollback, and node-migration notes.
 
+## Operations
+
+- [[Backups: what to save and how to restore]] — [open](pages/backups.md) — (2026-10-02, 0 sources) — what to back up on `node-one` and how to restore it: the Postgres `nextcloud`/`pullini` dumps (users, shares, calendars/contacts, app config), `/home/jaro/ncdata`, the SOPS-encrypted secrets + age key, k3s etcd snapshots, and the Cloudflare tunnel creds. Records the 2026-10-02 Flux self-prune incident that destroyed the Nextcloud DB, and the CI prune guard + explicit root `kustomization.yaml` added to prevent a repeat.
+
 ## Design
 
 - [[Byebyemoneylist app integration (Nextcloud AIO)]] — [open](pages/nextcloud-aio-custom-app.md) — (2026-09-19, 0 sources) — how the `byebyemoneylist` app is shipped onto Nextcloud AIO: GitHub Actions builds a versioned release tarball, `versions.env` pins it, and `infra/nextcloud/deploy-app.sh` sideloads it into `custom_apps` (AIO's `nextcloud_aio_nextcloud` volume). Why a custom Nextcloud image is not possible with AIO, plus update/rollback and the k3s path.

@@ -1,0 +1,96 @@
+name: kustomize prune guard
+
+# Fails a PR that would remove protected resources (Namespace / CRD / PVC, or
+# anything in flux-system) from the GitOps build. Flux's `prune: true` deletes
+# resources that disappear from the desired set, so such a removal silently
+# destroys cluster state on the next reconcile (this is what wiped the homelab
+# namespace once). Non-protected removals are reported but allowed.
+#
+# See docs/wiki/pages/k3s-gitops-nginx-cloudflared.md for context.
+
+on:
+  pull_request:
+    paths:
+      - 'infra/k8s/**'
+      - '.github/workflows/kustomize-prune-guard.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install kustomize + yq
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/k.tgz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.5.0/kustomize_v5.5.0_linux_amd64.tar.gz"
+          tar xzf /tmp/k.tgz -C /tmp
+          sudo install /tmp/kustomize /usr/local/bin/kustomize
+          curl -fsSL -o /tmp/yq \
+            "https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64"
+          sudo install /tmp/yq /usr/local/bin/yq
+          kustomize version
+          yq --version
+
+      - name: Build resource sets (base vs head)
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha }}"
+          git fetch --no-tags --depth=1 origin "$BASE"
+          git worktree add --detach /tmp/base "$BASE"
+
+          # Resource identity is kind|namespace|name (apiVersion can contain a
+          # slash, so it is deliberately excluded).
+          ids() {
+            kustomize build "$1" 2>/dev/null \
+              | yq -N -r '[ .kind, (.metadata.namespace // "-"), .metadata.name ] | join("|")' \
+              | LC_ALL=C sort -u
+          }
+
+          paths=(infra/k8s/clusters/node-one infra/k8s/apps infra/k8s/infrastructure)
+          for p in "${paths[@]}"; do
+            key="${p//\//_}"
+            ids "$p"           > "/tmp/head_$key.txt"
+            ids "/tmp/base/$p" > "/tmp/base_$key.txt"
+            echo "$p: base=$(wc -l < "/tmp/base_$key.txt") head=$(wc -l < "/tmp/head_$key.txt")"
+          done
+
+      - name: Reject protected removals
+        run: |
+          set -euo pipefail
+          paths=(infra/k8s/clusters/node-one infra/k8s/apps infra/k8s/infrastructure)
+          fail=0
+          for p in "${paths[@]}"; do
+            key="${p//\//_}"
+            removed="$(comm -23 "/tmp/base_$key.txt" "/tmp/head_$key.txt" || true)"
+            [ -n "$removed" ] || continue
+
+            protected="$(printf '%s\n' "$removed" | grep -E '^(Namespace|CustomResourceDefinition|PersistentVolumeClaim)\|' || true)"
+            fluxsys="$(printf '%s\n' "$removed" | grep -E '^[^|]*\|flux-system\|' || true)"
+
+            if [ -n "$protected" ] || [ -n "$fluxsys" ]; then
+              fail=1
+              echo "::error::Protected resources would be pruned from $p"
+              [ -n "$protected" ] && printf '%s\n' "$protected"
+              [ -n "$fluxsys" ] && printf '%s\n' "$fluxsys"
+            else
+              echo "::warning::resources removed from $p (allowed, not protected):"
+              printf '%s\n' "$removed"
+            fi
+          done
+
+          if [ "$fail" -ne 0 ]; then
+            echo
+            echo "Refusing: this PR removes Namespace/CRD/PVC or flux-system resources."
+            echo "Flux 'prune: true' would DELETE them on the next reconcile."
+            echo "If this is intentional, remove it via a separate, reviewed change."
+            exit 1
+          fi
+          echo "OK: no protected resources removed."
