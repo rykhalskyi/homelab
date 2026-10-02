@@ -8,7 +8,9 @@ spec:
   chart:
     spec:
       chart: traefik
-      version: ">=30.0.0"
+      # Pinned exactly (41.6.1 was the resolved version of the previous
+      # `>=30.0.0` range). Keep this in lockstep with intentional upgrades.
+      version: "41.6.1"
       sourceRef:
         kind: HelmRepository
         name: traefik

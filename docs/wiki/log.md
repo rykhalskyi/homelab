@@ -1,5 +1,20 @@
 # DevOps Wiki — Log
 
+## [2026-10-02] change | Harden cloudflared, pin chart/image versions
+
+Pinned the Traefik `HelmRelease` to `41.6.1` (was the floating `>=30.0.0`
+range) and the `cloudflared` `Deployment` to
+`cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c`
+(was `:latest`, distroless so no exec probes). Added resource requests/limits,
+`/ready` readiness + liveness probes backed by a metrics server
+(`--metrics 0.0.0.0:2000`), and Cloudflare's upstream `securityContext`
+(non-root uid `65532`, read-only rootfs, drop ALL capabilities). Verified by
+running the hardened pod next to the live tunnel — all four edge connections
+registered and the probe went Ready. Also added `dependsOn: postgresql` to the
+Nextcloud `HelmRelease`, an explicit `clusters/node-one/kustomization.yaml`, and
+`infra/k8s/README.md` (required out-of-band Secrets index). Updated
+[[k3s + GitOps: nginx and cloudflared (phase 2.1)]] so its copied manifests match.
+
 ## [2026-10-01] change | Hide the Euro-Office welcome page
 
 `https://office.otakeessen.com/` 302s to a public `/welcome/` landing page.

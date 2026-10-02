@@ -415,7 +415,7 @@ spec:
   chart:
     spec:
       chart: traefik
-      version: ">=30.0.0"
+      version: "41.6.1"
       sourceRef:
         kind: HelmRepository
         name: traefik
@@ -694,13 +694,54 @@ spec:
     spec:
       containers:
         - name: cloudflared
-          image: cloudflare/cloudflared:latest
+          image: cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c
           args:
             - tunnel
             - --no-autoupdate
             - --config
             - /etc/cloudflared/config.yml
+            - --metrics
+            - 0.0.0.0:2000
             - run
+            - $(TUNNEL_ID)
+          ports:
+            - name: metrics
+              containerPort: 2000
+          env:
+            - name: TUNNEL_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-tunnel
+                  key: TUNNEL_ID
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: config
               mountPath: /etc/cloudflared
