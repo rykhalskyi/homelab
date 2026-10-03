@@ -1,4 +1,4 @@
-.PHONY: serve nc-app-deploy nc-app-pin nc-app-status laya-api-deploy laya-api-pin laya-api-status help
+.PHONY: serve nc-app-deploy nc-app-pin nc-app-status k8s-nc-reset-bruteforce laya-api-deploy laya-api-pin laya-api-status help
 
 serve: ## Preview the site locally at http://localhost:8080
 	cd infra/nginx/html && python3 -m http.server 8080
@@ -13,6 +13,9 @@ nc-app-status: ## Show byebyemoneylist app + installed version in Nextcloud AIO
 	docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep -i byebyemoneylist || true
 	docker exec -u www-data nextcloud-aio-nextcloud php occ config:app:get byebyemoneylist installed_version
 
+k8s-nc-reset-bruteforce: ## Clear Nextcloud (k3s) brute-force/rate-limit state
+	bash infra/k8s/apps/nextcloud/reset-bruteforce.sh
+
 laya-api-deploy: ## Deploy/update the pinned laya-api image on node-one
 	bash infra/laya-api/deploy.sh
 
@@ -23,5 +26,5 @@ laya-api-status: ## Show the laya-api container status
 	docker ps --filter name=laya-api --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
 
 help: ## Show available targets
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-8s\033[0m %s\n", $$1, $$2}'
