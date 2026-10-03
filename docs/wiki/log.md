@@ -1,5 +1,19 @@
 # DevOps Wiki — Log
 
+## [2026-10-03] ingest | k3s config graph (entrypoint, Kustomizations, leaves)
+
+Added [[k3s config graph: entrypoint, Kustomizations, and leaves]], a reference
+map of the `infra/k8s/` manifests with four Mermaid diagrams: the Flux reconcile
+chain from the `flux-system` Kustomization (`gotk-sync.yaml`) through
+`clusters/node-one/kustomization.yaml` to the `infrastructure`/`apps`
+Kustomizations; the infrastructure root (chart sources, StorageClass, Traefik);
+the apps root with every workload→Secret/StorageClass/Ingress edge; and the
+runtime Cloudflare→Traefik→Service flow. Includes an edge table and flags two
+gotchas already known from prior pages: `flux-system` must stay in the root
+`resources:` list (2026-10-02 self-prune), and `apps/secrets/` is gitignored and
+applied out of band via `apps/secrets/apply.sh`, so the Secrets are leaves, not
+reconciled.
+
 ## [2026-10-02] change | Prune guard + backup runbook after Flux self-prune incident
 
 A bad GitOps change (the explicit `infra/k8s/clusters/node-one/kustomization.yaml`
