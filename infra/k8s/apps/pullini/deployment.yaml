@@ -30,7 +30,7 @@ spec:
         fsGroup: 10001
       containers:
         - name: web
-          image: ghcr.io/rykhalskyi/pullini:sha-e696245ca18ee182bd899edd8c933215b116bb2f@sha256:ee860f5eec8d959b416ce8883a20b31bec874b399c4f81ae82d3da993792fe1d
+          image: ghcr.io/rykhalskyi/pullini:sha-bfc19ba48f324e148dc4d6a2af4907d107974cbb@sha256:c146a1b55f78a02c05a706553fc7fbdf93d0933d95ee4e782b08b7e021914b04
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -73,7 +73,7 @@ spec:
         # `args` (not `command`) keeps the image ENTRYPOINT, which with
         # PULLINI_SKIP_BOOTSTRAP=true skips migrations and execs the scheduler.
         - name: scheduler
-          image: ghcr.io/rykhalskyi/pullini:sha-e696245ca18ee182bd899edd8c933215b116bb2f@sha256:ee860f5eec8d959b416ce8883a20b31bec874b399c4f81ae82d3da993792fe1d
+          image: ghcr.io/rykhalskyi/pullini:sha-bfc19ba48f324e148dc4d6a2af4907d107974cbb@sha256:c146a1b55f78a02c05a706553fc7fbdf93d0933d95ee4e782b08b7e021914b04
           imagePullPolicy: IfNotPresent
           args: ["/app/docker/scheduler.sh"]
           env:
