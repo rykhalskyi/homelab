@@ -1,4 +1,4 @@
-name: k3s/pullini 2/2 Pin pullini image
+name: k3s/pullini 1/1 Pin pullini image
 
 # Keeps `infra/k8s/apps/pullini/deployment.yaml` pinned to the image built by
 # the pullini repo's CI (ghcr.io/rykhalskyi/pullini:sha-<commit>). It resolves
