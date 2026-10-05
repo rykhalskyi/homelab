@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Resolve target version
         id: resolve
@@ -82,7 +82,7 @@ jobs:
 
       - name: Open pull request
         if: steps.resolve.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: bot/laya-api-${{ steps.resolve.outputs.version }}
