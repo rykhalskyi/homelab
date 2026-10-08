@@ -1,6 +1,6 @@
 name: k3s/nextcloud 1/3 Update byebyemoneylist pin
 
-# Keeps infra/nextcloud/versions.env in sync with the latest release of the
+# Keeps infra/images/nextcloud/versions.env in sync with the latest release of the
 # app repo. It does the same as `make nc-app-pin` (writes BYML_VERSION and
 # BYML_SHA256) and opens a pull request so the deploy pin is reviewed in Git.
 #
@@ -9,7 +9,7 @@ name: k3s/nextcloud 1/3 Update byebyemoneylist pin
 #   - workflow_dispatch -> manual run, optionally pinning a specific version
 #   - repository_dispatch -> event_type "byebyemoneylist-release", optionally
 #     with client_payload.version; sent by the app repo's release workflow
-#     (requires a PAT secret there, see infra/nextcloud/DEPLOY.md).
+#     (requires a PAT secret there, see infra/phase1/nextcloud/DEPLOY.md).
 
 on:
   schedule:
@@ -57,7 +57,7 @@ jobs:
           fi
           [ -n "$version" ] || { echo "::error::could not resolve a version"; exit 1; }
 
-          current="$(grep -oP '^BYML_VERSION=\K.*' infra/nextcloud/versions.env || true)"
+          current="$(grep -oP '^BYML_VERSION=\K.*' infra/images/nextcloud/versions.env || true)"
           {
             echo "version=${version}"
             echo "current=${current}"
@@ -74,7 +74,7 @@ jobs:
       - name: Pin version + checksum
         if: steps.resolve.outputs.changed == 'true'
         run: |
-          bash infra/nextcloud/deploy-app.sh --pin --version "${{ steps.resolve.outputs.version }}"
+          bash infra/phase1/nextcloud/deploy-app.sh --pin --version "${{ steps.resolve.outputs.version }}"
 
       - name: Show diff
         if: steps.resolve.outputs.changed == 'true'

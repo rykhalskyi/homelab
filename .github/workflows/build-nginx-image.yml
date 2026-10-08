@@ -1,8 +1,8 @@
 name: k3s/nginx 1/2 Build nginx site image
 
-# Builds the homelab landing page (infra/nginx: conf.d + static html) into a
+# Builds the homelab landing page (infra/images/nginx: conf.d + static html) into a
 # container image and pushes it to GHCR. The k3s Deployment consumes the image
-# by tag + digest in infra/k8s/apps/nginx/deployment.yaml; the "k3s/nginx 2/2
+# by tag + digest in infra/clusters/k8s/apps/nginx/deployment.yaml; the "k3s/nginx 2/2
 # Pin nginx site image" workflow bumps that pin (via PR) after this one succeeds.
 #
 # The wiki is no longer built into this image; it is served by Pullini at
@@ -12,7 +12,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'infra/nginx/**'
+      - 'infra/images/nginx/**'
       - '.github/workflows/build-nginx-image.yml'
   workflow_dispatch:
 
@@ -37,7 +37,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: infra/nginx
+          context: infra/images/nginx
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/homelab-nginx:sha-${{ github.sha }}
 

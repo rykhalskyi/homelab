@@ -1,5 +1,19 @@
 # DevOps Wiki — Log
 
+## [2026-10-08] ingest | infra/ restructure (clusters, phase1, images, pi3)
+
+Reorganized `infra/` and updated every wiki page that referenced the old paths:
+the k8s cluster moved from `infra/k8s/` to `infra/clusters/k8s/` (self-contained:
+Flux entrypoint + `apps/` + `infrastructure/`), phase-1 Compose stacks moved to
+`infra/phase1/`, the k8s image build sources split out to
+`infra/images/{nginx,nextcloud}/`, and `infra/clusters/talos/` + `infra/pi3/`
+added as placeholders. The cluster was cut over in two steps: an additive commit
+added the new tree and flipped the root `flux-system` Kustomization `path` in
+`gotk-sync.yaml`, then the old `infra/k8s/` tree was removed. `node-one` is a
+node of the `k8s` cluster, not the cluster id; node-name references were left
+untouched. CI workflows (including the kustomize prune guard), the `Makefile`,
+`.sops.yaml`, `.gitignore`, and the repo READMEs were updated to match.
+
 ## [2026-10-03] ingest | k3s config graph (entrypoint, Kustomizations, leaves)
 
 Added [[k3s config graph: entrypoint, Kustomizations, and leaves]], a reference

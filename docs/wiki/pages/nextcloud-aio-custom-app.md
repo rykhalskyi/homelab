@@ -25,7 +25,7 @@ exposed; this page is only about delivering the app.
    `.sha256` to the GitHub Release.
 2. **Pin it in the homelab repo** (on your workstation) - either:
    - **manual:** `make nc-app-pin VERSION=X.Y.Z` writes both `BYML_VERSION` and
-     `BYML_SHA256` into `infra/nextcloud/versions.env`; or
+     `BYML_SHA256` into `infra/images/nextcloud/versions.env`; or
    - **bot:** `update-byebyemoneylist-pin.yml` does the same and opens a pull
      request.
 3. **Land it on `main`.** Commit/push the manual change, or review and merge the
@@ -70,9 +70,9 @@ reproducible, and leaves the door open to reuse the same artifact on k3s later.
 
 | File | Role |
 |------|------|
-| `infra/nextcloud/versions.env` | Pinned `BYML_VERSION` + `BYML_SHA256`. Committed, no secrets. |
-| `infra/nextcloud/deploy-app.sh` | Download the pinned tarball and install it. `--pin` writes version + checksum. |
-| `infra/nextcloud/DEPLOY.md` | Build/deploy/update/rollback runbook beside the script. |
+| `infra/images/nextcloud/versions.env` | Pinned `BYML_VERSION` + `BYML_SHA256`. Committed, no secrets. |
+| `infra/phase1/nextcloud/deploy-app.sh` | Download the pinned tarball and install it. `--pin` writes version + checksum. |
+| `infra/phase1/nextcloud/DEPLOY.md` | Build/deploy/update/rollback runbook beside the script. |
 | `Makefile` (`nc-app-deploy`, `nc-app-pin`, `nc-app-status`) | Convenience wrappers. |
 
 The **checksum is filled explicitly**, not automatically: CI publishes a

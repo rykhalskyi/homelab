@@ -1,0 +1,78 @@
+# nginx — homelab landing page (build source)
+
+The landing page's content and its container image source. No runtime
+dependencies — plain HTML/CSS/JS. Mirrors `~/Source/nginx` on `node-one`.
+
+- The **k8s cluster** runs this as an image: CI builds `infra/images/nginx/`
+  (`build-nginx-image.yml`) and Flux deploys it from
+  `infra/clusters/k8s/apps/nginx/`.
+- The **phase-1 Compose stack** (`infra/phase1/nginx/docker-compose.yml`)
+  bind-mounts the same `html/` and `conf.d/` directly.
+
+The DevOps wiki is **not** served here anymore; it lives at
+`https://wiki.otakeessen.com` (Pullini). The landing page just links to it.
+
+## Structure
+
+```
+infra/images/nginx/          # build context for the k8s nginx image
+├── Dockerfile               # COPY conf.d/ + html/ into nginx:stable
+├── .dockerignore
+├── conf.d/
+│   └── default.conf         # server block: listen 80, root /usr/share/nginx/html
+└── html/                    # document root
+    ├── index.html           # landing page (services + architecture)
+    ├── favicon.png          # 64x64 site icon (from assets/img/logo.png)
+    ├── apple-touch-icon.png # 180x180 touch icon
+    └── assets/
+        ├── css/style.css    # all styles (light + dark theme)
+        ├── js/main.js       # theme toggle + footer year
+        └── img/logo.png     # brand mark (the painting)
+
+infra/phase1/nginx/docker-compose.yml   # bind-mounts ../../images/nginx/{html,conf.d}
+```
+
+## Editing
+
+- **Service cards:** in `html/index.html`, copy/edit an `<a class="card">`
+  block. Change the `href`, name, description, and the status dot
+  (`dot-on` = online, `dot-off` = planned/offline).
+- **Architecture:** the `#architecture` section shows the `node-one` host
+  (`ul.facts`) and the traffic-flow diagram (`ol.arch-flow`). Update the facts
+  when the hardware changes and add `.arch-step` items as the topology grows.
+- **Colors / spacing:** tweak the CSS variables at the top of
+  `html/assets/css/style.css`. Both light and dark themes are defined there.
+
+## Run it (Compose)
+
+```bash
+cd infra/phase1/nginx
+docker compose up -d
+```
+
+`infra/phase1/nginx/docker-compose.yml` mounts the content from here:
+
+```yaml
+services:
+  nginx:
+    image: nginx:stable
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../../images/nginx/html:/usr/share/nginx/html:ro
+      - ../../images/nginx/conf.d:/etc/nginx/conf.d:ro
+```
+
+Because it is a bind mount, edit `html/index.html` and refresh — no container
+restart needed. After `git pull` on the server, changes are live too.
+
+## Preview without Docker
+
+```bash
+cd infra/images/nginx/html
+python3 -m http.server 8080
+# open http://localhost:8080
+```

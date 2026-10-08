@@ -1,26 +1,26 @@
 .PHONY: serve nc-app-deploy nc-app-pin nc-app-status k8s-nc-reset-bruteforce laya-api-deploy laya-api-pin laya-api-status help
 
 serve: ## Preview the site locally at http://localhost:8080
-	cd infra/nginx/html && python3 -m http.server 8080
+	cd infra/images/nginx/html && python3 -m http.server 8080
 
 nc-app-deploy: ## Install/update the pinned byebyemoneylist release in Nextcloud AIO
-	bash infra/nextcloud/deploy-app.sh
+	bash infra/phase1/nextcloud/deploy-app.sh
 
 nc-app-pin: ## Pin version + sha256 (VERSION=x.y.z to override) into versions.env
-	bash infra/nextcloud/deploy-app.sh --pin $(if $(VERSION),--version $(VERSION),)
+	bash infra/phase1/nextcloud/deploy-app.sh --pin $(if $(VERSION),--version $(VERSION),)
 
 nc-app-status: ## Show byebyemoneylist app + installed version in Nextcloud AIO
 	docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep -i byebyemoneylist || true
 	docker exec -u www-data nextcloud-aio-nextcloud php occ config:app:get byebyemoneylist installed_version
 
-k8s-nc-reset-bruteforce: ## Clear Nextcloud (k3s) brute-force/rate-limit state
-	bash infra/k8s/apps/nextcloud/reset-bruteforce.sh
+k8s-nc-reset-bruteforce: ## Clear Nextcloud (k8s) brute-force/rate-limit state
+	bash infra/clusters/k8s/apps/nextcloud/reset-bruteforce.sh
 
 laya-api-deploy: ## Deploy/update the pinned laya-api image on node-one
-	bash infra/laya-api/deploy.sh
+	bash infra/phase1/laya-api/deploy.sh
 
 laya-api-pin: ## Pin laya-api version + digest (VERSION=x.y.z to override) into versions.env
-	bash infra/laya-api/deploy.sh --pin $(if $(VERSION),--version $(VERSION),)
+	bash infra/phase1/laya-api/deploy.sh --pin $(if $(VERSION),--version $(VERSION),)
 
 laya-api-status: ## Show the laya-api container status
 	docker ps --filter name=laya-api --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true

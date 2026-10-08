@@ -1,6 +1,6 @@
 name: compose/laya-api 1/1 Update laya-api pin
 
-# Keeps infra/laya-api/versions.env in sync with the latest release of the
+# Keeps infra/phase1/laya-api/versions.env in sync with the latest release of the
 # laya-api repo. It does the same as `make laya-api-pin` (writes
 # LAYA_API_VERSION and LAYA_API_SHA256) and opens a pull request so the deploy
 # pin is reviewed in Git.
@@ -10,7 +10,7 @@ name: compose/laya-api 1/1 Update laya-api pin
 #   - workflow_dispatch -> manual run, optionally pinning a specific version
 #   - repository_dispatch -> event_type "laya-api-release", optionally with
 #     client_payload.version; sent by the laya-api release workflow (requires a
-#     PAT secret there, see infra/laya-api/README.md).
+#     PAT secret there, see infra/phase1/laya-api/README.md).
 
 on:
   schedule:
@@ -58,7 +58,7 @@ jobs:
           fi
           [ -n "$version" ] || { echo "::error::could not resolve a version"; exit 1; }
 
-          current="$(grep -oP '^LAYA_API_VERSION=\K.*' infra/laya-api/versions.env || true)"
+          current="$(grep -oP '^LAYA_API_VERSION=\K.*' infra/phase1/laya-api/versions.env || true)"
           {
             echo "version=${version}"
             echo "current=${current}"
@@ -74,7 +74,7 @@ jobs:
 
       - name: Pin version + digest
         if: steps.resolve.outputs.changed == 'true'
-        run: bash infra/laya-api/deploy.sh --pin --version "${{ steps.resolve.outputs.version }}"
+        run: bash infra/phase1/laya-api/deploy.sh --pin --version "${{ steps.resolve.outputs.version }}"
 
       - name: Show diff
         if: steps.resolve.outputs.changed == 'true'

@@ -23,7 +23,7 @@ first: see [[Nextcloud major upgrade on k3s (31 → 32 → 33)]].
 
 ## DocumentServer workload
 
-Files under `infra/k8s/apps/eurooffice/`:
+Files under `infra/clusters/k8s/apps/eurooffice/`:
 
 | File | Role |
 |------|------|
@@ -124,7 +124,7 @@ HTTPS, but requested an insecure XMLHttpRequest endpoint
 Fix: force the header at Traefik with a `Middleware` referenced from the Ingress.
 
 ```yaml
-# infra/k8s/apps/eurooffice/middleware.yaml
+# infra/clusters/k8s/apps/eurooffice/middleware.yaml
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -137,7 +137,7 @@ spec:
 ```
 
 ```yaml
-# infra/k8s/apps/eurooffice/ingress.yaml  (metadata)
+# infra/clusters/k8s/apps/eurooffice/ingress.yaml  (metadata)
   annotations:
     traefik.ingress.kubernetes.io/router.middlewares: homelab-eurooffice-forwarded-proto@kubernetescrd
 ```
@@ -152,7 +152,7 @@ its landing page (`/` 302s to `/welcome/`) is not meant for visitors. A second
 `Middleware`, `eurooffice-hide-welcome`, redirects just that path to Nextcloud:
 
 ```yaml
-# infra/k8s/apps/eurooffice/middleware.yaml
+# infra/clusters/k8s/apps/eurooffice/middleware.yaml
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -201,4 +201,4 @@ DocumentServer **9.3.4.37**.
 - Only Office file types get the Euro-Office handler; plain text/markdown keep
   the normal editor.
 - To remove it: `occ app:disable eurooffice`, drop `- eurooffice` from
-  `infra/k8s/apps/kustomization.yaml`, and delete the Secret/PVC.
+  `infra/clusters/k8s/apps/kustomization.yaml`, and delete the Secret/PVC.

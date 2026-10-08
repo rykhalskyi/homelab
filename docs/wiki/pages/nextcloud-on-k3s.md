@@ -78,14 +78,14 @@ Cloudflare edge (TLS)
 
 | File | Role |
 |------|------|
-| `infra/nextcloud/Dockerfile` | `FROM nextcloud:${NEXTCLOUD_VERSION}` + app baked at `/opt/byebyemoneylist` |
+| `infra/images/nextcloud/Dockerfile` | `FROM nextcloud:${NEXTCLOUD_VERSION}` + app baked at `/opt/byebyemoneylist` |
 | `.github/workflows/build-nextcloud-image.yml` | download the pinned release tarball, build & push the image to GHCR |
-| `infra/k8s/infrastructure/sources/nextcloud.yaml` | `HelmRepository` for `https://nextcloud.github.io/helm/` |
-| `infra/k8s/apps/nextcloud/helmrelease.yaml` | the Nextcloud `HelmRelease` + values |
-| `infra/k8s/apps/nextcloud/storage.yaml` | static `local` PV + PVC for `/home/jaro/ncdata`, and `nextcloud-html` PVC |
-| `infra/k8s/apps/kustomization.yaml` | adds `- nextcloud` |
+| `infra/clusters/k8s/infrastructure/sources/nextcloud.yaml` | `HelmRepository` for `https://nextcloud.github.io/helm/` |
+| `infra/clusters/k8s/apps/nextcloud/helmrelease.yaml` | the Nextcloud `HelmRelease` + values |
+| `infra/clusters/k8s/apps/nextcloud/storage.yaml` | static `local` PV + PVC for `/home/jaro/ncdata`, and `nextcloud-html` PVC |
+| `infra/clusters/k8s/apps/kustomization.yaml` | adds `- nextcloud` |
 | `.github/workflows/update-nextcloud-image-pin.yml` | bumps the image digest in `helmrelease.yaml` (opens a PR) |
-| `infra/nextcloud/versions.env` | `BYML_VERSION`, `BYML_SHA256`, `NEXTCLOUD_VERSION` (no secrets) |
+| `infra/images/nextcloud/versions.env` | `BYML_VERSION`, `BYML_SHA256`, `NEXTCLOUD_VERSION` (no secrets) |
 
 > The manifest files above are the target state for this migration. Until they
 > are committed, the steps below describe what to create.
@@ -98,7 +98,7 @@ compiled frontend (`js/`, `css/`), which are gitignored in the app repo, so the
 build consumes that artifact instead of rebuilding it.
 
 ```dockerfile
-# infra/nextcloud/Dockerfile
+# infra/images/nextcloud/Dockerfile
 ARG NEXTCLOUD_VERSION=31-apache
 FROM nextcloud:${NEXTCLOUD_VERSION}
 COPY byebyemoneylist /opt/byebyemoneylist
@@ -124,7 +124,7 @@ Change visibility → Public), or the cluster needs an image pull secret.
 
 ### B1. Helm repository
 
-`infra/k8s/infrastructure/sources/nextcloud.yaml`:
+`infra/clusters/k8s/infrastructure/sources/nextcloud.yaml`:
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -137,11 +137,11 @@ spec:
   url: https://nextcloud.github.io/helm/
 ```
 
-Add it to `infra/k8s/infrastructure/kustomization.yaml` under `resources:`.
+Add it to `infra/clusters/k8s/infrastructure/kustomization.yaml` under `resources:`.
 
 ### B2. Storage
 
-`infra/k8s/apps/nextcloud/storage.yaml` defines the data volume (the existing
+`infra/clusters/k8s/apps/nextcloud/storage.yaml` defines the data volume (the existing
 `/home/jaro/ncdata`) plus a small volume for the rest of `/var/www/html`:
 
 ```yaml
@@ -185,7 +185,7 @@ spec:
 
 ### B3. The HelmRelease
 
-`infra/k8s/apps/nextcloud/helmrelease.yaml` — the important parts:
+`infra/clusters/k8s/apps/nextcloud/helmrelease.yaml` — the important parts:
 
 ```yaml
 apiVersion: helm.toolkit.fluxcd.io/v2
@@ -308,7 +308,7 @@ Notes:
 
 ### B4. Wire it into Flux
 
-Add `- nextcloud` to `infra/k8s/apps/kustomization.yaml`. Commit and push; Flux
+Add `- nextcloud` to `infra/clusters/k8s/apps/kustomization.yaml`. Commit and push; Flux
 applies the manifests.
 
 ## Part C — Secrets (out of band, never in Git)
@@ -469,7 +469,7 @@ Now load `https://cloud.otakeessen.com` and log in. If it works, retire AIO:
 
 ```bash
 cd ~/Source/homelab
-git rm infra/nextcloud/docker-compose.yml infra/nextcloud/deploy-app.sh
+git rm infra/phase1/nextcloud/docker-compose.yml infra/phase1/nextcloud/deploy-app.sh
 git commit -m "Retire the Nextcloud AIO Compose stack"
 git push
 ```

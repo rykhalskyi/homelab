@@ -41,11 +41,11 @@ migration is a plain logical dump/restore (no `pg_upgrade`).
 
 | File | Role |
 |------|------|
-| `infra/k8s/infrastructure/sources/postgresql-chart.yaml` | `OCIRepository` for the Bitnami `postgresql` chart |
-| `infra/k8s/apps/postgresql/helmrelease.yaml` | standalone Postgres `HelmRelease` (uses `chartRef` → the `OCIRepository`) |
-| `infra/k8s/apps/postgresql/kustomization.yaml` | adds it to the `apps` Kustomization |
-| `infra/k8s/apps/pgadmin/{pvc,deployment,service,ingress}.yaml` | LAN-only pgAdmin |
-| `infra/k8s/apps/nextcloud/helmrelease.yaml` | `redis.architecture: standalone` (slims Redis to 1 pod) |
+| `infra/clusters/k8s/infrastructure/sources/postgresql-chart.yaml` | `OCIRepository` for the Bitnami `postgresql` chart |
+| `infra/clusters/k8s/apps/postgresql/helmrelease.yaml` | standalone Postgres `HelmRelease` (uses `chartRef` → the `OCIRepository`) |
+| `infra/clusters/k8s/apps/postgresql/kustomization.yaml` | adds it to the `apps` Kustomization |
+| `infra/clusters/k8s/apps/pgadmin/{pvc,deployment,service,ingress}.yaml` | LAN-only pgAdmin |
+| `infra/clusters/k8s/apps/nextcloud/helmrelease.yaml` | `redis.architecture: standalone` (slims Redis to 1 pod) |
 
 Pinned versions:
 
@@ -142,7 +142,7 @@ password, and register the server: host `postgresql`, port `5432`, database
    kubectl -n homelab exec deploy/nextcloud -c nextcloud -- \
      php /var/www/html/occ config:system:set dbhost --value=postgresql
    ```
-   In `infra/k8s/apps/nextcloud/helmrelease.yaml`: `postgresql.enabled: false`
+   In `infra/clusters/k8s/apps/nextcloud/helmrelease.yaml`: `postgresql.enabled: false`
    and add `externalDatabase.host: postgresql` + `externalDatabase.type:
    postgresql`. Commit, push, and reconcile `apps`.
 6. Nextcloud restarts against the new DB. Take it out of maintenance mode:

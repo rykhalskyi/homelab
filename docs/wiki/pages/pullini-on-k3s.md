@@ -14,7 +14,7 @@ tunnel.
 
 The app's source lives in the separate `rykhalskyi/pullini` repo. Its own `k8s/`
 folder is only a reference: **this homelab repo is the source of truth** — the
-manifests here, under `infra/k8s/apps/pullini/`, are what the cluster runs.
+manifests here, under `infra/clusters/k8s/apps/pullini/`, are what the cluster runs.
 
 ## Picture
 
@@ -36,14 +36,14 @@ GitHub rykhalskyi/homelab  ◄── pin PR ────────────
 
 | File | Role |
 |------|------|
-| `infra/k8s/apps/pullini/deployment.yaml` | web + scheduler sidecar; pinned image; PVC mount |
-| `infra/k8s/apps/pullini/configmap.yaml` | non-secret Django config (host, CSRF, HSTS, `DATA_DIR`) |
-| `infra/k8s/apps/pullini/service.yaml` | ClusterIP `pullini:80` → `http` |
-| `infra/k8s/apps/pullini/ingress.yaml` | host `wiki.otakeessen.com` → Traefik |
-| `infra/k8s/apps/pullini/middleware.yaml` | forces `X-Forwarded-Proto: https` (TLS ends at Cloudflare) |
-| `infra/k8s/apps/pullini/pvc.yaml` | `pullini-data` 5Gi `local-path` (Git clones; disposable) |
-| `infra/k8s/apps/pullini/provision-db.sh` | idempotent role/database provisioning |
-| `infra/k8s/apps/pullini/secret.example.yaml` | template only; the real Secret is out of band |
+| `infra/clusters/k8s/apps/pullini/deployment.yaml` | web + scheduler sidecar; pinned image; PVC mount |
+| `infra/clusters/k8s/apps/pullini/configmap.yaml` | non-secret Django config (host, CSRF, HSTS, `DATA_DIR`) |
+| `infra/clusters/k8s/apps/pullini/service.yaml` | ClusterIP `pullini:80` → `http` |
+| `infra/clusters/k8s/apps/pullini/ingress.yaml` | host `wiki.otakeessen.com` → Traefik |
+| `infra/clusters/k8s/apps/pullini/middleware.yaml` | forces `X-Forwarded-Proto: https` (TLS ends at Cloudflare) |
+| `infra/clusters/k8s/apps/pullini/pvc.yaml` | `pullini-data` 5Gi `local-path` (Git clones; disposable) |
+| `infra/clusters/k8s/apps/pullini/provision-db.sh` | idempotent role/database provisioning |
+| `infra/clusters/k8s/apps/pullini/secret.example.yaml` | template only; the real Secret is out of band |
 | `.github/workflows/update-pullini-image-pin.yml` | pins the image digest in a PR |
 
 ## Image build
@@ -112,7 +112,7 @@ Nextcloud)]]). `provision-db.sh` is idempotent, reads `DATABASE_URL` from
 credential (`nextcloud-db` key `postgres-password`):
 
 ```bash
-bash infra/k8s/apps/pullini/provision-db.sh
+bash infra/clusters/k8s/apps/pullini/provision-db.sh
 ```
 
 It creates the role if missing, always resets its password to match

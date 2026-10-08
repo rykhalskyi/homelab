@@ -20,7 +20,7 @@ source_count: 0
 | Layer | Back up | Recovers | Priority |
 |------|---------|----------|----------|
 | Git repo | `github.com/rykhalskyi/homelab` | every workload / infra manifest | already off-cluster |
-| **Secrets** | `infra/k8s/apps/secrets/` **and** `~/.config/sops/age/keys.txt` | every Secret value | critical — key **and** files together |
+| **Secrets** | `infra/clusters/k8s/apps/secrets/` **and** `~/.config/sops/age/keys.txt` | every Secret value | critical — key **and** files together |
 | **Postgres** | `pg_dump -Fc` of `nextcloud` + `pullini` | users, shares, calendars/contacts, comments, versions metadata, app config, external-storage config | critical |
 | **Nextcloud files** | `/home/jaro/ncdata` | user files | critical |
 | etcd | k3s snapshots (`/var/lib/rancher/k3s/server/db/snapshots/`) | API objects: Secrets, ConfigMaps, RBAC, Kustomizations (**not** PVC contents) | useful secondary |
@@ -61,7 +61,7 @@ rsync -a --delete /home/jaro/ncdata/ <backup-host>:/backup/ncdata/
 # the age key + the encrypted files are useless apart — back them up together
 tar czf homelab-secrets-$(date +%F).tgz \
   ~/.config/sops/age/keys.txt \
-  -C ~/Source/homelab infra/k8s/apps/secrets
+  -C ~/Source/homelab infra/clusters/k8s/apps/secrets
 # store in a password manager / offline medium
 ```
 
@@ -80,7 +80,7 @@ Copy `~/.cloudflared/<UUID>.json` (and `cert.pem`) to your password manager.
 ## Restore sketch
 
 1. Fix/revert the offending commit; let Flux rebuild the manifests.
-2. Restore Secrets: `bash infra/k8s/apps/secrets/apply.sh` (or `sops -d … | kubectl apply -f -`).
+2. Restore Secrets: `bash infra/clusters/k8s/apps/secrets/apply.sh` (or `sops -d … | kubectl apply -f -`).
 3. Recreate the DB and load the dump:
    ```bash
    PGPW=$(kubectl -n homelab get secret nextcloud-db -o jsonpath='{.data.postgres-password}' | base64 -d)
@@ -92,7 +92,7 @@ Copy `~/.cloudflared/<UUID>.json` (and `cert.pem`) to your password manager.
    ```
 4. Restore `/home/jaro/ncdata` if needed, then
    `occ files:scan --all`.
-5. Provision pullini: `bash infra/k8s/apps/pullini/provision-db.sh`.
+5. Provision pullini: `bash infra/clusters/k8s/apps/pullini/provision-db.sh`.
 
 With a current dump this restores accounts/shares/calendars too — i.e. the
 *exact* prior state, in tens of minutes.
@@ -101,14 +101,14 @@ With a current dump this restores accounts/shares/calendars too — i.e. the
 
 - **Not automated yet.** Planned:
   - a `pg_dump` CronJob writing `nextcloud` + `pullini` dumps to the NAS,
-  - a `restic`/`rsync` job for `/home/jaro/ncdata` + `infra/k8s/apps/secrets/`
+  - a `restic`/`rsync` job for `/home/jaro/ncdata` + `infra/clusters/k8s/apps/secrets/`
     (+ the age key kept separately),
   - verify k3s etcd snapshot retention, and
   - **test one full restore** (an untested backup is not a backup).
 
 ## Prevention (why this is a net, not the only guard)
 
-- `infra/k8s/clusters/node-one/kustomization.yaml` now lists `flux-system`
+- `infra/clusters/k8s/kustomization.yaml` now lists `flux-system`
   explicitly (the missing entry is what let Flux prune itself).
 - `.github/workflows/kustomize-prune-guard.yml` fails a PR that removes a
   `Namespace`/`CustomResourceDefinition`/`PersistentVolumeClaim` or anything in

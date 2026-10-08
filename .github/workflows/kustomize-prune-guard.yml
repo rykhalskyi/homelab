@@ -11,7 +11,7 @@ name: kustomize prune guard
 on:
   pull_request:
     paths:
-      - 'infra/k8s/**'
+      - 'infra/clusters/k8s/**'
       - '.github/workflows/kustomize-prune-guard.yml'
 
 permissions:
@@ -54,7 +54,7 @@ jobs:
               | LC_ALL=C sort -u
           }
 
-          paths=(infra/k8s/clusters/node-one infra/k8s/apps infra/k8s/infrastructure)
+          paths=(infra/clusters/k8s infra/clusters/k8s/apps infra/clusters/k8s/infrastructure)
           for p in "${paths[@]}"; do
             key="${p//\//_}"
             ids "$p"           > "/tmp/head_$key.txt"
@@ -65,7 +65,7 @@ jobs:
       - name: Reject protected removals
         run: |
           set -euo pipefail
-          paths=(infra/k8s/clusters/node-one infra/k8s/apps infra/k8s/infrastructure)
+          paths=(infra/clusters/k8s infra/clusters/k8s/apps infra/clusters/k8s/infrastructure)
           fail=0
           for p in "${paths[@]}"; do
             key="${p//\//_}"

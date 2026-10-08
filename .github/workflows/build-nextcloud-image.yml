@@ -5,7 +5,7 @@ name: k3s/nextcloud 2/3 Build Nextcloud image
 # HelmRelease consumes the image by tag + digest, and the "k3s/nextcloud 3/3 Pin
 # Nextcloud image" workflow bumps that pin (via PR) after this one succeeds.
 #
-# Everything is driven by infra/nextcloud/versions.env:
+# Everything is driven by infra/images/nextcloud/versions.env:
 #   BYML_VERSION / BYML_SHA256 -> which app release tarball to bake
 #   NEXTCLOUD_VERSION          -> the official Nextcloud base tag
 #
@@ -16,8 +16,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'infra/nextcloud/Dockerfile'
-      - 'infra/nextcloud/versions.env'
+      - 'infra/images/nextcloud/Dockerfile'
+      - 'infra/images/nextcloud/versions.env'
       - '.github/workflows/build-nextcloud-image.yml'
   workflow_dispatch:
 
@@ -39,7 +39,7 @@ jobs:
         id: pin
         run: |
           set -euo pipefail
-          set -a; . infra/nextcloud/versions.env; set +a
+          set -a; . infra/images/nextcloud/versions.env; set +a
           [ -n "${BYML_VERSION:-}" ] || { echo "::error::BYML_VERSION is empty"; exit 1; }
           [ -n "${BYML_SHA256:-}" ] || { echo "::error::BYML_SHA256 is empty - run 'make nc-app-pin'"; exit 1; }
           [ -n "${NEXTCLOUD_VERSION:-}" ] || { echo "::error::NEXTCLOUD_VERSION is empty"; exit 1; }
@@ -71,7 +71,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: build-context
-          file: infra/nextcloud/Dockerfile
+          file: infra/images/nextcloud/Dockerfile
           push: true
           build-args: |
             NEXTCLOUD_VERSION=${{ steps.pin.outputs.nextcloud_version }}

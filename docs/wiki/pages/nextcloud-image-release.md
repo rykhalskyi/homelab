@@ -24,7 +24,7 @@ byebyemoneylist-ns   change the app, bump <version>, push tag vX.Y.Z
         |
         v
 homelab              bump BYML_VERSION + BYML_SHA256 in
-                     infra/nextcloud/versions.env, push to main
+                     infra/images/nextcloud/versions.env, push to main
         |
         v
 CI (homelab)         build-nextcloud-image.yml downloads + verifies the
@@ -33,7 +33,7 @@ CI (homelab)         build-nextcloud-image.yml downloads + verifies the
         |
         v
 CI (homelab)         update-nextcloud-image-pin.yml opens a PR pinning the
-                     digest in infra/k8s/apps/nextcloud/helmrelease.yaml
+                     digest in infra/clusters/k8s/apps/nextcloud/helmrelease.yaml
         |
         v
 you                  merge the pin PR -> Flux reconciles -> new Pod; the
@@ -49,7 +49,7 @@ Nothing happens until you cut a release and bump the pin.
 |---|---|---|---|
 | `release.yml` | byebyemoneylist-ns | yes | push a `v*` tag (or manual dispatch) |
 | `update-byebyemoneylist-pin.yml` | homelab | yes (cron) | daily poll, or you run `make nc-app-pin` |
-| `build-nextcloud-image.yml` | homelab | yes | push to `main` touching `infra/nextcloud/versions.env` (or the Dockerfile) |
+| `build-nextcloud-image.yml` | homelab | yes | push to `main` touching `infra/images/nextcloud/versions.env` (or the Dockerfile) |
 | `update-nextcloud-image-pin.yml` | homelab | yes | after `k3s/nextcloud 2/3 Build Nextcloud image` succeeds |
 
 You do **not** run any of these by hand. Your only manual actions are the three
@@ -85,7 +85,7 @@ run is green under **Actions**.
 ```bash
 cd ~/Source/homelab
 make nc-app-pin VERSION=1.0.6        # writes BYML_VERSION + BYML_SHA256
-git add infra/nextcloud/versions.env
+git add infra/images/nextcloud/versions.env
 git commit -m "Pin byebyemoneylist v1.0.6"
 git push origin main
 ```
@@ -104,7 +104,7 @@ downloads the tarball, verifies `BYML_SHA256`, builds the image, and pushes
 
 When the build succeeds, `update-nextcloud-image-pin.yml` opens a PR
 (`bot/nextcloud-image-<short>`) that rewrites the image pin in
-`infra/k8s/apps/nextcloud/helmrelease.yaml` to `sha-<commit>@sha256:<digest>`.
+`infra/clusters/k8s/apps/nextcloud/helmrelease.yaml` to `sha-<commit>@sha256:<digest>`.
 Review and merge it - that is the step that makes the new version deployable.
 
 ### 6. Flux rolls it out
@@ -155,6 +155,6 @@ kubectl -n homelab get deploy nextcloud \
 ## Status
 
 The image pipeline (steps 1-5) is in place. Step 6 does not happen yet: the
-Nextcloud `HelmRelease` is not wired into Flux (`infra/k8s/apps/kustomization.yaml`
+Nextcloud `HelmRelease` is not wired into Flux (`infra/clusters/k8s/apps/kustomization.yaml`
 does not list `nextcloud`) until the migration cutover in
 [[Nextcloud on k3s (custom image + Helm chart)]].

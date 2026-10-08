@@ -1,6 +1,6 @@
 name: k3s/nginx 2/2 Pin nginx site image
 
-# Keeps infra/k8s/apps/nginx/deployment.yaml pinned to the image CI just built.
+# Keeps infra/clusters/k8s/apps/nginx/deployment.yaml pinned to the image CI just built.
 # It resolves the digest of the sha-<commit> tag from GHCR and opens a pull
 # request, matching the other pin-update workflows (laya-api,
 # byebyemoneylist). Merge the PR and Flux reconciles the new image on node-one.
@@ -69,7 +69,7 @@ jobs:
           [ -n "$digest" ] || { echo "::error::could not resolve digest for ${IMAGE}:${tag}"; exit 1; }
 
           new="${IMAGE}:${tag}@${digest}"
-          file=infra/k8s/apps/nginx/deployment.yaml
+          file=infra/clusters/k8s/apps/nginx/deployment.yaml
           current="$(grep -oP 'image:\s*\K\S*homelab-nginx\S*' "$file" || true)"
 
           {
@@ -93,7 +93,7 @@ jobs:
           IMAGE: ${{ steps.resolve.outputs.image }}
         run: |
           set -euo pipefail
-          file=infra/k8s/apps/nginx/deployment.yaml
+          file=infra/clusters/k8s/apps/nginx/deployment.yaml
           sed -i -E "s|^(\s*image: ).*homelab-nginx.*$|\1${IMAGE}|" "$file"
 
       - name: Show diff
