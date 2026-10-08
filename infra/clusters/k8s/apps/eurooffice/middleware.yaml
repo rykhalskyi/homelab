@@ -1,0 +1,28 @@
+# TLS terminates at Cloudflare and Traefik's entrypoint is plain HTTP, so the
+# DocumentServer otherwise builds its own asset URLs with `http://`, which the
+# browser blocks as mixed content. Force the original scheme so the DS emits
+# `https://` URLs.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: eurooffice-forwarded-proto
+  namespace: homelab
+spec:
+  headers:
+    customRequestHeaders:
+      X-Forwarded-Proto: https
+---
+# The DocumentServer's default landing page (`/` 302s to `/welcome/`) is public
+# and not meant for visitors. Redirect only that path to Nextcloud; the editor
+# endpoints used for embedding (/web-apps, /coauthoring, /healthcheck, ...) are
+# untouched, so editing inside Nextcloud keeps working.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: eurooffice-hide-welcome
+  namespace: homelab
+spec:
+  redirectRegex:
+    regex: '^https?://office\.otakeessen\.com/welcome/?$'
+    replacement: 'https://cloud.otakeessen.com/'
+    permanent: false

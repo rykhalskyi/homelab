@@ -1,0 +1,21 @@
+# Non-secret configuration for Pullini (a read-only, Git-backed wiki browser).
+# Secrets (DJANGO_SECRET_KEY, DATABASE_URL, DJANGO_SUPERUSER_*) come from the
+# out-of-band `pullini-secrets` Secret; see secret.example.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pullini-config
+  namespace: homelab
+data:
+  DJANGO_DEBUG: "false"
+  DJANGO_ALLOWED_HOSTS: "wiki.otakeessen.com"
+  DJANGO_CSRF_TRUSTED_ORIGINS: "https://wiki.otakeessen.com"
+  DJANGO_SECURE_COOKIES: "true"
+  # TLS terminates at Cloudflare and Traefik's entrypoint is plain HTTP; force
+  # X-Forwarded-Proto in the Ingress middleware so secure-cookie / SSL-redirect
+  # work without a redirect loop.
+  DJANGO_TRUST_PROXY_HEADERS: "true"
+  DJANGO_SECURE_SSL_REDIRECT: "true"
+  DJANGO_SECURE_HSTS_SECONDS: "31536000"
+  DJANGO_LOG_LEVEL: "INFO"
+  DATA_DIR: "/data"

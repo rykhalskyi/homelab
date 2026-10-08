@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: homelab
+data:
+  config.yml: |
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    no-autoupdate: true
+    ingress:
+      - hostname: "*.otakeessen.com"
+        service: http://traefik.traefik.svc.cluster.local:80
+      - service: http_status:404
