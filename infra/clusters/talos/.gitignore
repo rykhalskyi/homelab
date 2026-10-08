@@ -1,0 +1,7 @@
+# Ephemeral Talos bootstrap artifacts — contain cluster secrets.
+# Kept local only; remove this directory once the cluster is bootstrapped.
+secrets.yaml
+talosconfig
+controlplane.yaml
+worker.yaml
+*.kubeconfig

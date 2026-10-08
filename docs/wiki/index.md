@@ -20,6 +20,11 @@ Home-server DevOps notes and runnable how-tos (server `node-one`).
 
 - [[k3s config graph: entrypoint, Kustomizations, and leaves]] — [open](pages/k3s-config-graph.md) — (2026-10-03, 0 sources) — a map of every YAML manifest under `infra/clusters/k8s/`: the Flux entrypoint (`clusters/k8s`), the `infrastructure`/`apps` Kustomizations, and every config reference down to the leaves (Helm charts, OCI chart, Secrets, StorageClasses, the Cloudflare tunnel). Four Mermaid diagrams (reconcile chain, infrastructure root, apps root, runtime edge) plus an edge table and the gotchas — `apps/secrets/` is gitignored and applied out of band via `apply.sh`, and `flux-system` must stay listed or Flux prunes itself.
 
+## Cluster access
+
+- [[Talos CLI: common commands (dashboard, status, shutdown)]] — [open](pages/talos-common-commands.md) — (2026-10-08, 0 sources) — everyday `talosctl` for the Talos cluster (`node-two`): config/context, the live `talosctl dashboard`, status/health/logs, reboot/shutdown, etcd/bootstrap, and machine-config commands. Notes the Talos gRPC API (mTLS, port 50000) and that `talosctl` acts on the machine, not on Kubernetes objects.
+- [[kubectl contexts: switching between clusters]] — [open](pages/kubectl-context-switching.md) — (2026-10-08, 0 sources) — drive the k3s (`k8s`) and Talos (`talos`) clusters from one kubeconfig: list/switch contexts, per-command `--context`, rename, merge kubeconfigs with `$KUBECONFIG` + `view --flatten`, per-context namespace, and one k9s for both (`:ctx`, `k9s --context`).
+
 ## Operations
 
 - [[Backups: what to save and how to restore]] — [open](pages/backups.md) — (2026-10-02, 0 sources) — what to back up on `node-one` and how to restore it: the Postgres `nextcloud`/`pullini` dumps (users, shares, calendars/contacts, app config), `/home/jaro/ncdata`, the SOPS-encrypted secrets + age key, k3s etcd snapshots, and the Cloudflare tunnel creds. Records the 2026-10-02 Flux self-prune incident that destroyed the Nextcloud DB, and the CI prune guard + explicit root `kustomization.yaml` added to prevent a repeat.

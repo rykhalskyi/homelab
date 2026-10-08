@@ -1,5 +1,16 @@
 # DevOps Wiki — Log
 
+## [2026-10-08] ingest | Talos CLI + kubectl context switching
+
+Added two pages under a new *Cluster access* index section:
+[[Talos CLI: common commands (dashboard, status, shutdown)]] (context/config,
+`talosctl dashboard`, health/status/logs, reboot/shutdown, etcd/bootstrap,
+machine config; notes the gRPC API on port 50000) and
+[[kubectl contexts: switching between clusters]] (one kubeconfig for the `k8s`
+and `talos` clusters: switch/rename/merge contexts, `--context`, per-context
+namespace, k9s `:ctx`). Follows bootstrapping `node-two` as the `talos` cluster
+(`192.168.2.234`) and merging its kubeconfig into `~/.kube/config`.
+
 ## [2026-10-08] ingest | infra/ restructure (clusters, phase1, images, pi3)
 
 Reorganized `infra/` and updated every wiki page that referenced the old paths:
