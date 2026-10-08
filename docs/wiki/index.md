@@ -29,6 +29,8 @@ Home-server DevOps notes and runnable how-tos (server `node-one`).
 
 - [[Backups: what to save and how to restore]] — [open](pages/backups.md) — (2026-10-02, 0 sources) — what to back up on `node-one` and how to restore it: the Postgres `nextcloud`/`pullini` dumps (users, shares, calendars/contacts, app config), `/home/jaro/ncdata`, the SOPS-encrypted secrets + age key, k3s etcd snapshots, and the Cloudflare tunnel creds. Records the 2026-10-02 Flux self-prune incident that destroyed the Nextcloud DB, and the CI prune guard + explicit root `kustomization.yaml` added to prevent a repeat.
 
+- [[Secrets with SOPS + age (local, out-of-band)]] — [open](pages/secrets-sops-age.md) — (2026-10-08, 0 sources) — how secrets are stored and used: SOPS/age-encrypted, **local only** (never committed), applied out of band for both the `k8s` and `talos` clusters. Covers where the files + age key live, creating/editing/encrypting a Secret, `apply.sh` (`CTX`/`NS`), copying between clusters, key rotation, verification, and the gotchas.
+
 ## Design
 
 - [[Byebyemoneylist app integration (Nextcloud AIO)]] — [open](pages/nextcloud-aio-custom-app.md) — (2026-09-19, 0 sources) — how the `byebyemoneylist` app is shipped onto Nextcloud AIO: GitHub Actions builds a versioned release tarball, `versions.env` pins it, and `infra/phase1/nextcloud/deploy-app.sh` sideloads it into `custom_apps` (AIO's `nextcloud_aio_nextcloud` volume). Why a custom Nextcloud image is not possible with AIO, plus update/rollback and the k3s path.

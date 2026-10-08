@@ -1,5 +1,14 @@
 # DevOps Wiki — Log
 
+## [2026-10-08] ingest | Secrets with SOPS + age
+
+Added [[Secrets with SOPS + age (local, out-of-band)]]: documents that secrets
+are SOPS/age-encrypted, stored locally (gitignored, never committed), and
+applied out of band for both clusters (`k8s`, `talos`) with one shared age key.
+Covers the file/key layout, creating/editing/encrypting a Secret, `apply.sh`
+(`CTX`/`NS`), copying files between clusters, key rotation, verification, and
+gotchas. Notes Flux does no in-cluster decryption today.
+
 ## [2026-10-08] ingest | Talos CLI + kubectl context switching
 
 Added two pages under a new *Cluster access* index section:
