@@ -1,0 +1,100 @@
+# Pullini web + scheduler sidecar. The scheduler shares the ReadWriteOnce data
+# volume with the web container (a separate CronJob could not mount it) and runs
+# `manage.py sync_projects` in a loop; both share the same database.
+#
+# The image is built on demand by the pullini repo's "Build image" workflow and
+# pinned here as sha-<commit>@sha256:<digest>;
+# .github/workflows/update-pullini-image-pin.yml opens the PR that bumps it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pullini
+  namespace: homelab
+  labels:
+    app: pullini
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pullini
+  template:
+    metadata:
+      labels:
+        app: pullini
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: web
+          image: ghcr.io/rykhalskyi/pullini:sha-e696245ca18ee182bd899edd8c933215b116bb2f@sha256:ee860f5eec8d959b416ce8883a20b31bec874b399c4f81ae82d3da993792fe1d
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: pullini-config
+            - secretRef:
+                name: pullini-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          # Kubelet probes hit the Pod IP as the Host header, which Django
+          # rejects (ALLOWED_HOSTS). Send the real hostname instead.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: wiki.otakeessen.com
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: wiki.otakeessen.com
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+        # `args` (not `command`) keeps the image ENTRYPOINT, which with
+        # PULLINI_SKIP_BOOTSTRAP=true skips migrations and execs the scheduler.
+        - name: scheduler
+          image: ghcr.io/rykhalskyi/pullini:sha-e696245ca18ee182bd899edd8c933215b116bb2f@sha256:ee860f5eec8d959b416ce8883a20b31bec874b399c4f81ae82d3da993792fe1d
+          imagePullPolicy: IfNotPresent
+          args: ["/app/docker/scheduler.sh"]
+          env:
+            - name: PULLINI_SKIP_BOOTSTRAP
+              value: "true"
+          envFrom:
+            - configMapRef:
+                name: pullini-config
+            - secretRef:
+                name: pullini-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pullini-data
