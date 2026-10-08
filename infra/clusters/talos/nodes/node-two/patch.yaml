@@ -1,7 +1,31 @@
-# Cluster-wide CNI patch: drop Talos's default flannel and disable kube-proxy
-# so Cilium (installed via the control-plane inline manifest) takes over.
-# Apply to EVERY node's config (control planes and workers) to avoid drift:
+# node-two machine patch, applied when generating this node's config:
 #   --config-patch @nodes/node-two/patch.yaml
+#
+# 1. Allow workloads on this single control-plane node: delete the
+#    node-role.kubernetes.io/control-plane:NoSchedule taint. Drop this if you
+#    add dedicated workers.
+# 2. Static network on eno1 -- the cluster endpoint/API is 192.168.2.234, so
+#    the node must always come back on that address (DHCP would move it).
+# 3. Cluster-wide CNI switch: drop Talos's default flannel and disable
+#    kube-proxy so Cilium (cilium/install.sh) takes over. Apply the CNI part
+#    to EVERY node; the network part is per-node.
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+taints:
+  node-role.kubernetes.io/control-plane:
+    $patch: delete
+---
+machine:
+  network:
+    interfaces:
+      - interface: eno1
+        addresses:
+          - 192.168.2.234/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 192.168.2.1
+        dhcp: false
+---
 apiVersion: v1alpha1
 kind: KubeFlannelCNIConfig
 $patch: delete

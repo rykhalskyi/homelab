@@ -41,3 +41,8 @@ hubble:
     enabled: true
   ui:
     enabled: true
+# Single-node cluster: the default 2 operator replicas cannot both schedule
+# (they request the same host ports). One replica is plenty; raise this again
+# once the cluster has multiple nodes.
+operator:
+  replicas: 1
