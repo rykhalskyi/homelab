@@ -45,6 +45,13 @@ make laya-api-deploy            # deploy/update the pinned laya-api image
 make laya-api-pin VERSION=x.y.z  # pin a new laya-api release
 ```
 
+## Git & pull requests
+
+- **Never merge a PR to `main`, and never push directly to `main`, on the user's
+  behalf.** Open the pull request and stop; the user reviews and merges it
+  themselves. (This includes not using `gh pr merge`, even with `--admin`.)
+- Committing to a feature branch and pushing that branch (to open a PR) is fine.
+
 ## Conventions
 
 - The site is plain HTML/CSS/JS with no build step and no runtime deps — keep
