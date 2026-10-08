@@ -40,16 +40,27 @@ nodes/
     └── worker.yaml
 ```
 
-Generate a node's config (from this directory):
+Generate a node's config (from this directory). Two steps: generate the base,
+then apply `patch.yaml` with `machineconfig patch` — the taint deletion in the
+patch needs the generated defaults to already exist, which `gen config
+--config-patch` does not (it patches before defaults are added).
 
 ```bash
 talosctl gen config talos https://192.168.2.234:6443 \
   --with-secrets secrets.yaml \
   --install-disk /dev/nvme0n1 \
-  --config-patch @nodes/<node>/patch.yaml \
   --with-docs=false --with-examples=false \
   -t controlplane -o nodes/<node>/controlplane.yaml
+
+talosctl machineconfig patch nodes/<node>/controlplane.yaml \
+  --patch @nodes/<node>/patch.yaml \
+  -o nodes/<node>/controlplane.yaml.tmp && \
+  mv nodes/<node>/controlplane.yaml.tmp nodes/<node>/controlplane.yaml
 ```
+
+> The `secrets.yaml` MUST be the one matching the running cluster's CA. A
+> stale/mismatched secrets file produces a config with the wrong machine CA
+> and locks you out of the node's Talos API (recoverable only with the CA key).
 
 Apply it from maintenance mode (the node's current DHCP IP):
 
@@ -60,3 +71,26 @@ talosctl apply-config --insecure -n <dhcp-ip> --file nodes/<node>/controlplane.y
 > The running cluster's admin access is configured in `~/.talos/config`
 > (context `talos`) and `~/.kube/config` (context `talos`) — see the wiki pages
 > on Talos commands and kubectl contexts. Files here are the source/backup.
+
+## Cilium (CNI) — replaces flannel
+
+`node-two` runs Cilium instead of Talos's default flannel, with kube-proxy
+disabled ("kube-proxy-free"). Cilium must exist **before** Flux can run, so it
+is installed **out of band** with Helm, not reconciled by Flux (yet).
+
+- **Machine patch:** `nodes/<node>/patch.yaml` deletes `KubeFlannelCNIConfig`
+  and sets `KubeProxyConfig` `enabled: false`. Apply it when generating
+  **every** node's config (control planes and workers) so the CNI stays off.
+- **Helm values:** `cilium/values.yaml` (Talos-specific — see the file header).
+- **Install / upgrade:** `bash cilium/install.sh`, run once after
+  `talosctl bootstrap` and again to upgrade. Helm owns the CA + mTLS certs and
+  reuses them across upgrades (no cert rotation, no partial-rotation outage).
+- **Verify:** `cilium status --wait`; `kubectl -n kube-system get ds` should show
+  no `kube-flannel` / `kube-proxy`.
+
+Adding a node needs no Cilium work — it is cluster-wide, so the cilium
+DaemonSet schedules onto the new node automatically. Just apply the same
+`patch.yaml` when generating that node's machine config.
+
+Future: a Flux `HelmRelease` named `cilium` in `kube-system` can adopt this
+release (matching name/namespace) to bring it under GitOps.
