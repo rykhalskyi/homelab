@@ -1,7 +1,11 @@
-# Ephemeral Talos bootstrap artifacts — contain cluster secrets.
-# Kept local only; remove this directory once the cluster is bootstrapped.
+# Talos machine-level files — contain cluster secrets, kept LOCAL only.
+# Cluster-wide (shared by all nodes):
 secrets.yaml
 talosconfig
+*.kubeconfig
+# Per-node generated machine configs:
+nodes/**/controlplane.yaml
+nodes/**/worker.yaml
+# (basename fallbacks, in case files are generated elsewhere)
 controlplane.yaml
 worker.yaml
-*.kubeconfig
