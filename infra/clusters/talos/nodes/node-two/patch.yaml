@@ -1,0 +1,11 @@
+# Cluster-wide CNI patch: drop Talos's default flannel and disable kube-proxy
+# so Cilium (installed via the control-plane inline manifest) takes over.
+# Apply to EVERY node's config (control planes and workers) to avoid drift:
+#   --config-patch @nodes/node-two/patch.yaml
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false

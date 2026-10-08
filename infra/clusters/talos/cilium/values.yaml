@@ -1,0 +1,43 @@
+# Cilium Helm values for the Talos cluster.
+#
+# These are the Talos-specific requirements, not personal taste — see
+# https://www.talos.dev/latest/kubernetes-guides/network/deploying-cilium/
+# The chart is rendered by render.sh and embedded in each control-plane machine
+# config as a Talos KubeInlineManifestConfig (create-only).
+ipam:
+  mode: kubernetes
+# kube-proxy-free: Talos runs no kube-proxy, Cilium's eBPF handles Services.
+# k8sServiceHost kubePrism to reach the API before service routing exists.
+kubeProxyReplacement: true
+k8sServiceHost: localhost
+k8sServicePort: 7445
+securityContext:
+  capabilities:
+    # Default set minus SYS_MODULE: Talos forbids loading kernel modules.
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+# Talos already mounts cgroup2 and bpffs; Cilium must not try to mount them.
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
