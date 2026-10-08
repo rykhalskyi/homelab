@@ -7,7 +7,7 @@ source_count: 0
 # k3s + GitOps: nginx and cloudflared (phase 2.1)
 
 A plain-language, step-by-step guide for moving the homelab website
-(`infra/nginx`) and the Cloudflare tunnel off Docker Compose + a host systemd
+(`infra/images/nginx`) and the Cloudflare tunnel off Docker Compose + a host systemd
 service, and onto a **k3s** cluster where **Flux** keeps everything in sync with
 this Git repository.
 
@@ -121,7 +121,7 @@ Two safety notes:
 repo like Compose did. Instead we bake the site into an image and the Pod runs
 that image.
 
-### A1. Create `infra/nginx/Dockerfile`
+### A1. Create `infra/images/nginx/Dockerfile`
 
 ```dockerfile
 FROM nginx:stable
@@ -129,7 +129,7 @@ COPY conf.d/ /etc/nginx/conf.d/
 COPY html/ /usr/share/nginx/html/
 ```
 
-### A2. Create `infra/nginx/.dockerignore`
+### A2. Create `infra/images/nginx/.dockerignore`
 
 ```
 README.md
@@ -147,7 +147,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'infra/nginx/**'
+      - 'infra/images/nginx/**'
       - '.github/workflows/build-nginx-image.yml'
   workflow_dispatch:
 
@@ -172,7 +172,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: infra/nginx
+          context: infra/images/nginx
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/homelab-nginx:sha-${{ github.sha }}
 
@@ -190,7 +190,7 @@ jobs:
 
 ```bash
 cd ~/Source/homelab
-git add infra/nginx/Dockerfile infra/nginx/.dockerignore \
+git add infra/images/nginx/Dockerfile infra/images/nginx/.dockerignore \
         .github/workflows/build-nginx-image.yml
 git commit -m "Build nginx site image in CI"
 git push
@@ -335,7 +335,7 @@ flux bootstrap github \
   --owner=rykhalskyi \
   --repository=homelab \
   --branch=main \
-  --path=infra/k8s/clusters/node-one \
+  --path=infra/clusters/k8s \
   --personal
 ```
 
@@ -348,7 +348,7 @@ flux bootstrap github \
 > A is separate and automatic.
 
 This installs the Flux controllers into the cluster and commits a
-`flux-system/` folder under `infra/k8s/clusters/node-one/` that tells those
+`flux-system/` folder under `infra/clusters/k8s/` that tells those
 controllers where to sync from. You can confirm the Pods exist with
 `kubectl -n flux-system get deploy,rs,pods`.
 
@@ -360,8 +360,8 @@ controllers where to sync from. You can confirm the Pods exist with
 > **k3s or Talos — same command.** `flux bootstrap github` does not care which
 > distribution runs the cluster. Only two things change: your kubeconfig must
 > point at the target cluster, and `--path` names the folder for that cluster
-> (for example `--path=infra/k8s/clusters/talos`). Everything under
-> `infra/k8s/apps/` and `infra/k8s/infrastructure/` is reused unchanged.
+> (for example `--path=infra/clusters/talos`). Everything under
+> `infra/clusters/k8s/apps/` and `infra/clusters/k8s/infrastructure/` is reused unchanged.
 
 ### C2. Verify
 
@@ -380,7 +380,7 @@ flux get kustomizations -A
 Nextcloud or Forgejo later is just one more Ingress — the tunnel config never
 changes.
 
-### D1. Create `infra/k8s/infrastructure/sources/traefik.yaml`
+### D1. Create `infra/clusters/k8s/infrastructure/sources/traefik.yaml`
 
 ```yaml
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -393,7 +393,7 @@ spec:
   url: https://traefik.github.io/charts
 ```
 
-### D2. Create `infra/k8s/infrastructure/traefik/namespace.yaml`
+### D2. Create `infra/clusters/k8s/infrastructure/traefik/namespace.yaml`
 
 ```yaml
 apiVersion: v1
@@ -402,7 +402,7 @@ metadata:
   name: traefik
 ```
 
-### D3. Create `infra/k8s/infrastructure/traefik/helmrelease.yaml`
+### D3. Create `infra/clusters/k8s/infrastructure/traefik/helmrelease.yaml`
 
 ```yaml
 apiVersion: helm.toolkit.fluxcd.io/v2
@@ -425,7 +425,7 @@ spec:
       type: LoadBalancer
 ```
 
-### D4. Create `infra/k8s/infrastructure/kustomization.yaml`
+### D4. Create `infra/clusters/k8s/infrastructure/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -438,7 +438,7 @@ resources:
 
 ### D5. Create the Flux sync for infrastructure
 
-`infra/k8s/clusters/node-one/infrastructure.yaml`:
+`infra/clusters/k8s/infrastructure.yaml`:
 
 ```yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -448,7 +448,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/k8s/infrastructure
+  path: ./infra/clusters/k8s/infrastructure
   prune: true
   wait: true
   sourceRef:
@@ -459,7 +459,7 @@ spec:
 ### D6. Push and verify
 
 ```bash
-git add infra/k8s
+git add infra/clusters/k8s
 git commit -m "Add Traefik via Flux"
 git push
 flux get kustomizations -A
@@ -473,7 +473,7 @@ kubectl -n traefik get pods,svc
 
 ## Part E — nginx (the website)
 
-### E1. Create `infra/k8s/apps/namespace.yaml`
+### E1. Create `infra/clusters/k8s/apps/namespace.yaml`
 
 ```yaml
 apiVersion: v1
@@ -482,7 +482,7 @@ metadata:
   name: homelab
 ```
 
-### E2. Create `infra/k8s/apps/nginx/deployment.yaml`
+### E2. Create `infra/clusters/k8s/apps/nginx/deployment.yaml`
 
 Replace `sha-XXXX` and `sha256:YYYY` with the tag and digest from Part A.
 
@@ -519,7 +519,7 @@ spec:
               memory: 64Mi
 ```
 
-### E3. Create `infra/k8s/apps/nginx/service.yaml`
+### E3. Create `infra/clusters/k8s/apps/nginx/service.yaml`
 
 ```yaml
 apiVersion: v1
@@ -535,7 +535,7 @@ spec:
       targetPort: 80
 ```
 
-### E4. Create `infra/k8s/apps/nginx/ingress.yaml`
+### E4. Create `infra/clusters/k8s/apps/nginx/ingress.yaml`
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -558,7 +558,7 @@ spec:
                   number: 80
 ```
 
-### E5. Create `infra/k8s/apps/nginx/kustomization.yaml`
+### E5. Create `infra/clusters/k8s/apps/nginx/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -569,7 +569,7 @@ resources:
   - ingress.yaml
 ```
 
-### E6. Create `infra/k8s/apps/kustomization.yaml`
+### E6. Create `infra/clusters/k8s/apps/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -585,7 +585,7 @@ leave it out for now.)
 
 ### E7. Create the Flux sync for apps
 
-`infra/k8s/clusters/node-one/apps.yaml`:
+`infra/clusters/k8s/apps.yaml`:
 
 ```yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -595,7 +595,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  path: ./infra/k8s/apps
+  path: ./infra/clusters/k8s/apps
   prune: true
   dependsOn:
     - name: infrastructure
@@ -607,7 +607,7 @@ spec:
 ### E8. Push and verify (internal only)
 
 ```bash
-git add infra/k8s
+git add infra/clusters/k8s
 git commit -m "Run nginx on k3s via Flux"
 git push
 kubectl -n homelab get pods,svc,ingress
@@ -648,7 +648,7 @@ cloudflared tunnel route dns nginxtest '*.otakeessen.com'
 This makes every `*.otakeessen.com` hostname enter the tunnel. Keep the existing
 `homelab.otakeessen.com` record; it still points at the same tunnel.
 
-### F2. Create `infra/k8s/apps/cloudflared/configmap.yaml`
+### F2. Create `infra/clusters/k8s/apps/cloudflared/configmap.yaml`
 
 Replace `<TUNNEL-UUID>` with your tunnel's UUID (the file name in
 `~/.cloudflared/`).
@@ -674,7 +674,7 @@ data:
 > you are bridging with `hostNetwork` (Option A), use explicit rules pointing at
 > `localhost` ports instead - see Part G.
 
-### F3. Create `infra/k8s/apps/cloudflared/deployment.yaml`
+### F3. Create `infra/clusters/k8s/apps/cloudflared/deployment.yaml`
 
 ```yaml
 apiVersion: apps/v1
@@ -758,7 +758,7 @@ spec:
             secretName: cloudflared-credentials
 ```
 
-### F4. Create `infra/k8s/apps/cloudflared/kustomization.yaml`
+### F4. Create `infra/clusters/k8s/apps/cloudflared/kustomization.yaml`
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -782,7 +782,7 @@ kubectl -n homelab create secret generic cloudflared-credentials \
 ### F6. Push and verify
 
 ```bash
-git add infra/k8s
+git add infra/clusters/k8s
 git commit -m "Run cloudflared on k3s via Flux"
 git push
 kubectl -n homelab get pods
@@ -817,7 +817,7 @@ Start with the parts that touch nothing:
 2. **Part B** - install k3s with Traefik disabled; it binds no host ports, so the
    running site is untouched.
 3. **Part C** - `flux bootstrap`.
-4. Write and commit the `infra/k8s/**` manifests (Parts D and E).
+4. Write and commit the `infra/clusters/k8s/**` manifests (Parts D and E).
 
 ### The one disruptive moment: swapping the web server on port 80
 
@@ -827,7 +827,7 @@ which the current nginx container is using. The swap:
 ```bash
 # 1. Traefik + nginx manifests are committed and Flux is ready to reconcile.
 # 2. Free ports 80/443 by stopping the old stack.
-cd ~/Source/homelab/infra/nginx && docker compose down
+cd ~/Source/homelab/infra/phase1/nginx && docker compose down
 # 3. Let Flux install Traefik and start the nginx Pod.
 flux reconcile kustomization infrastructure --with-source
 flux reconcile kustomization apps --with-source
@@ -914,7 +914,7 @@ convert to Option B as each service is migrated into the cluster.
 
 ```bash
 cd ~/Source/homelab
-git rm infra/nginx/docker-compose.yml
+git rm infra/phase1/nginx/docker-compose.yml
 git commit -m "Retire nginx Compose stack"
 git push
 docker rm -f nginx    # only after the cutover is confirmed
@@ -936,11 +936,11 @@ flux suspend kustomization apps             # stop Flux changing the apps
 
 A normal content change now flows like this:
 
-1. Edit `infra/nginx/html/` (or asset files).
+1. Edit `infra/images/nginx/html/` (or asset files).
 2. Commit and push to `main`.
 3. The GitHub Action in Part A builds a new image and prints a new digest.
 4. Merge the pin PR (or paste the new digest into
-   `infra/k8s/apps/nginx/deployment.yaml` and push).
+   `infra/clusters/k8s/apps/nginx/deployment.yaml` and push).
 5. Flux rolls out a new nginx Pod automatically (watch it with
    `flux get kustomizations -A` and `kubectl -n homelab get pods -w`).
 
@@ -968,17 +968,17 @@ Flux)]]).
 
 ## Why this prepares phase 3 (Talos + k8s)
 
-Everything under `infra/k8s/infrastructure/` and `infra/k8s/apps/` is plain
+Everything under `infra/clusters/k8s/infrastructure/` and `infra/clusters/k8s/apps/` is plain
 Kubernetes + Kustomize + Helm — it does not care which distribution runs it.
 When the Talos cluster arrives you will:
 
 1. `flux bootstrap` against the new cluster with a new `--path`
-   (for example `infra/k8s/clusters/talos`).
+   (for example `infra/clusters/talos`).
 2. Reuse the same `infrastructure/` and `apps/` folders.
 
 Only the cluster-level bits differ (storage, node addresses, seeding the
 tunnel secret). Adding the next service — Nextcloud, Forgejo — is now just
-another folder under `infra/k8s/apps/` with a Deployment, a Service, and an
+another folder under `infra/clusters/k8s/apps/` with a Deployment, a Service, and an
 Ingress.
 
 ## Go-live checklist
@@ -991,4 +991,4 @@ Ingress.
 - [ ] Part F: cloudflared logs `Registered tunnel connection`
 - [ ] Part F: `https://homelab.otakeessen.com` works
 - [ ] Part G: host `cloudflared` service disabled
-- [ ] Part G: `infra/nginx/docker-compose.yml` removed
+- [ ] Part G: `infra/phase1/nginx/docker-compose.yml` removed

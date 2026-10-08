@@ -6,7 +6,7 @@ source_count: 0
 
 # Nextcloud major upgrade on k3s (31 → 32 → 33)
 
-How the custom Nextcloud image in `infra/nextcloud` is moved up one major
+How the custom Nextcloud image in `infra/images/nextcloud` is moved up one major
 version at a time. Done for **31.0.14 → 32.0.15 → 33.0.9** to satisfy the
 Euro-Office app (see [[Euro-Office on k3s]]), which needs Nextcloud 33–35.
 
@@ -45,9 +45,9 @@ Everything happens inside the existing Pod on rollout; the PVC keeps
    kubectl -n homelab exec postgresql-0 -- env PGPASSWORD="$PGPASS" pg_dump -Fc -U nextcloud -d nextcloud \
      > nextcloud-preupgrade.dump
    ```
-2. **Bump the base image** in `infra/nextcloud/versions.env`
+2. **Bump the base image** in `infra/images/nextcloud/versions.env`
    (e.g. `NEXTCLOUD_VERSION=32-apache`), commit and push. For the duration of an
-   upgrade, pin `infra/k8s/apps/nextcloud/helmrelease.yaml`'s chart version
+   upgrade, pin `infra/clusters/k8s/apps/nextcloud/helmrelease.yaml`'s chart version
    (`version: "9.3.0"`) so only the image changes.
 3. **CI builds** `k3s/nextcloud 2/3 Build Nextcloud image` →
    `ghcr.io/rykhalskyi/homelab-nextcloud:sha-<commit>`.

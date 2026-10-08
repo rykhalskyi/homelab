@@ -69,7 +69,7 @@ jobs:
           [ -n "$digest" ] || { echo "::error::could not resolve digest for ${IMAGE}:${tag}"; exit 1; }
 
           new="${tag}@${digest}"
-          file=infra/k8s/apps/nextcloud/helmrelease.yaml
+          file=infra/clusters/k8s/apps/nextcloud/helmrelease.yaml
           current="$(grep -oE 'sha-[0-9a-f]{40}(@sha256:[0-9a-f]{64})?' "$file" | head -n1 || true)"
 
           {
@@ -93,7 +93,7 @@ jobs:
           PIN: ${{ steps.resolve.outputs.pin }}
         run: |
           set -euo pipefail
-          file=infra/k8s/apps/nextcloud/helmrelease.yaml
+          file=infra/clusters/k8s/apps/nextcloud/helmrelease.yaml
           # Replace every pinned reference (the chart image tag and the seed
           # init container image) with the freshly built tag@digest.
           sed -i -E "s|sha-[0-9a-f]{40}(@sha256:[0-9a-f]{64})?|${PIN}|g" "$file"

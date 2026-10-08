@@ -13,7 +13,7 @@ with the **image digest** playing the role of `BYML_SHA256`.
 
 - App repo: `rykhalskyi/laya-api` (public)
 - Image: `ghcr.io/rykhalskyi/laya-api`
-- Homelab stack: `infra/laya-api/` (Compose, `versions.env`, `deploy.sh`)
+- Homelab stack: `infra/phase1/laya-api/` (Compose, `versions.env`, `deploy.sh`)
 - Host port: `8001` (container listens on `8000`)
 
 ## Order (happy path)
@@ -30,7 +30,7 @@ with the **image digest** playing the role of `BYML_SHA256`.
 
 2. **Pin it in the homelab repo** (on the workstation), either:
    - **manual:** `make laya-api-pin VERSION=X.Y.Z` writes `LAYA_API_VERSION` +
-     `LAYA_API_SHA256` into `infra/laya-api/versions.env`; or
+     `LAYA_API_SHA256` into `infra/phase1/laya-api/versions.env`; or
    - **bot:** `update-laya-api-pin.yml` does the same and opens a pull request.
 
 3. **Land it on `main`.** Commit/push the manual change, or review and merge the
@@ -94,10 +94,10 @@ the image to roughly 1.5 GB.
 
 | File | Role |
 |------|------|
-| `infra/laya-api/versions.env` | Pinned `LAYA_API_VERSION` + `LAYA_API_SHA256` (image digest). Committed, no secrets. |
-| `infra/laya-api/docker-compose.yml` | Compose stack; image is `<repo>:<version>@<digest>`. |
-| `infra/laya-api/deploy.sh` | Pin from a release, then pull + (re)create the stack. `--pin` writes version + digest. |
-| `infra/laya-api/README.md` | Build/deploy/update/rollback runbook beside the stack. |
+| `infra/phase1/laya-api/versions.env` | Pinned `LAYA_API_VERSION` + `LAYA_API_SHA256` (image digest). Committed, no secrets. |
+| `infra/phase1/laya-api/docker-compose.yml` | Compose stack; image is `<repo>:<version>@<digest>`. |
+| `infra/phase1/laya-api/deploy.sh` | Pin from a release, then pull + (re)create the stack. `--pin` writes version + digest. |
+| `infra/phase1/laya-api/README.md` | Build/deploy/update/rollback runbook beside the stack. |
 | `Makefile` (`laya-api-deploy`, `laya-api-pin`, `laya-api-status`) | Convenience wrappers. |
 
 Mapping to the Nextcloud app flow:
@@ -124,7 +124,7 @@ and requires a PAT there; the daily poll works without it.
 
 ### Deploy (node-one)
 
-`infra/laya-api/deploy.sh`:
+`infra/phase1/laya-api/deploy.sh`:
 
 1. reads `LAYA_API_VERSION` from `versions.env`;
 2. `--pin` downloads `laya-api-<version>.digest` and writes **both**
@@ -148,13 +148,13 @@ volumes:
 
 ### Secrets (`.env`)
 
-`infra/laya-api/.env` is **git-ignored** and required. Create it from the
+`infra/phase1/laya-api/.env` is **git-ignored** and required. Create it from the
 example and set the admin key:
 
 ```bash
-cp infra/laya-api/.env.example infra/laya-api/.env
+cp infra/phase1/laya-api/.env.example infra/phase1/laya-api/.env
 python3 -c 'import secrets; print(secrets.token_urlsafe(32))'   # paste as LAYA_ADMIN_KEY
-chmod 600 infra/laya-api/.env
+chmod 600 infra/phase1/laya-api/.env
 ```
 
 The API-key store is SQLite in the persistent `laya_api_data` volume (no DB
@@ -178,7 +178,7 @@ public once at *Packages → laya-api → Package settings → Change visibility
 ```bash
 make laya-api-status
 curl -s http://127.0.0.1:8001/health          # {"status":"ok"}
-source infra/laya-api/.env
+source infra/phase1/laya-api/.env
 curl -s -X POST http://127.0.0.1:8001/admin/keys \
   -H "X-API-Key: $LAYA_ADMIN_KEY" -H 'Content-Type: application/json' \
   -d '{"name":"my-client"}'                    # returns a client key once

@@ -6,7 +6,7 @@ source_count: 0
 
 # k3s config graph: entrypoint, Kustomizations, and leaves
 
-A map of every YAML manifest under `infra/k8s/`, the **entrypoint** Flux
+A map of every YAML manifest under `infra/clusters/k8s/`, the **entrypoint** Flux
 reconciles from, and how the configs reference each other down to the
 **leaves** (external charts, images, Secrets, storage, the tunnel edge).
 
@@ -22,12 +22,12 @@ flowchart TD
 
   subgraph FLUXNS["namespace: flux-system"]
     GR["GitRepository/flux-system<br/>ssh + secretRef: flux-system"]
-    FSK["Kustomization/flux-system<br/>path: ./infra/k8s/clusters/node-one"]
+    FSK["Kustomization/flux-system<br/>path: ./infra/clusters/k8s"]
     GH -->|poll 1m| GR
     GR -->|sourceRef| FSK
   end
 
-  ROOT["clusters/node-one/kustomization.yaml<br/>ENTRYPOINT — resources:"]
+  ROOT["clusters/k8s/kustomization.yaml<br/>ENTRYPOINT — resources:"]
   FSK -->|kustomize build| ROOT
 
   ROOT --> GOTK["flux-system/kustomization.yaml"]
@@ -35,8 +35,8 @@ flowchart TD
   GOTK --> SYNC["gotk-sync.yaml<br/>defines GR + FSK"]
   SYNC -. "self-managed, must stay listed" .-> FSK
 
-  ROOT --> INFRAK["Kustomization/infrastructure<br/>path: ./infra/k8s/infrastructure<br/>wait: true · prune: true"]
-  ROOT --> APPSK["Kustomization/apps<br/>path: ./infra/k8s/apps<br/>dependsOn: infrastructure"]
+  ROOT --> INFRAK["Kustomization/infrastructure<br/>path: ./infra/clusters/k8s/infrastructure<br/>wait: true · prune: true"]
+  ROOT --> APPSK["Kustomization/apps<br/>path: ./infra/clusters/k8s/apps<br/>dependsOn: infrastructure"]
 
   INFRAK --> INFRA["infrastructure/kustomization.yaml"]
   APPSK --> APPS["apps/kustomization.yaml"]
@@ -177,10 +177,10 @@ flowchart LR
 
 | From | Relationship | To | File |
 | --- | --- | --- | --- |
-| `flux-system` Kustomization | `path` | `clusters/node-one/` | `gotk-sync.yaml` |
-| root kustomization | `resources` | `apps.yaml`, `infrastructure.yaml`, `flux-system` | `clusters/node-one/kustomization.yaml` |
-| `apps` Kustomization | `dependsOn` | `infrastructure` | `clusters/node-one/apps.yaml` |
-| `infrastructure` Kustomization | `wait: true` | infra add-ons | `clusters/node-one/infrastructure.yaml` |
+| `flux-system` Kustomization | `path` | `clusters/k8s/` | `gotk-sync.yaml` |
+| root kustomization | `resources` | `apps.yaml`, `infrastructure.yaml`, `flux-system` | `clusters/k8s/kustomization.yaml` |
+| `apps` Kustomization | `dependsOn` | `infrastructure` | `clusters/k8s/apps.yaml` |
+| `infrastructure` Kustomization | `wait: true` | infra add-ons | `clusters/k8s/infrastructure.yaml` |
 | `HelmRelease/traefik` | `sourceRef` | `HelmRepository/traefik` | `infrastructure/traefik/helmrelease.yaml` |
 | `HelmRelease/nextcloud` | chart `sourceRef` | `HelmRepository/nextcloud` | `apps/nextcloud/helmrelease.yaml` |
 | `HelmRelease/postgresql` | `chartRef` | `OCIRepository/bitnami-postgresql` | `apps/postgresql/helmrelease.yaml` |
@@ -194,8 +194,8 @@ flowchart LR
 ## Gotchas captured here
 
 - **`apps/secrets/` is not in `apps/kustomization.yaml`.** The `*.sops.yaml`
-  files are gitignored (`.gitignore`: `/infra/k8s/apps/secrets/`) and applied
-  out of band with `bash infra/k8s/apps/secrets/apply.sh` (SOPS + age). Flux
+  files are gitignored (`.gitignore`: `/infra/clusters/k8s/apps/secrets/`) and applied
+  out of band with `bash infra/clusters/k8s/apps/secrets/apply.sh` (SOPS + age). Flux
   never sees them, so the Secret boxes above are **leaves** — required *before*
   a rollout, but not reconciled.
 - **`flux-system` must stay in the root `resources:` list** or Flux prunes its

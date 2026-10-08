@@ -1,6 +1,6 @@
 name: k3s/pullini 1/1 Pin pullini image
 
-# Keeps `infra/k8s/apps/pullini/deployment.yaml` pinned to the image built by
+# Keeps `infra/clusters/k8s/apps/pullini/deployment.yaml` pinned to the image built by
 # the pullini repo's CI (ghcr.io/rykhalskyi/pullini:sha-<commit>). It resolves
 # the digest from GHCR and opens a PR that rewrites both the web and scheduler
 # image references to `sha-<commit>@sha256:<digest>`.
@@ -64,7 +64,7 @@ jobs:
           [ -n "$digest" ] || { echo "::error::could not resolve digest for ${IMAGE}:${tag}"; exit 1; }
 
           image="${IMAGE}:${tag}@${digest}"
-          file=infra/k8s/apps/pullini/deployment.yaml
+          file=infra/clusters/k8s/apps/pullini/deployment.yaml
           current="$(grep -oE 'rykhalskyi/pullini:[^[:space:]]+' "$file" | head -n1 || true)"
 
           {
@@ -88,7 +88,7 @@ jobs:
           IMAGE: ${{ steps.resolve.outputs.image }}
         run: |
           set -euo pipefail
-          file=infra/k8s/apps/pullini/deployment.yaml
+          file=infra/clusters/k8s/apps/pullini/deployment.yaml
           sed -i -E "s|^(\s*image: ).*rykhalskyi/pullini.*$|\1${IMAGE}|" "$file"
 
       - name: Show diff
