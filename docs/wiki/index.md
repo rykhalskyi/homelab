@@ -24,6 +24,7 @@ Home-server DevOps notes and runnable how-tos (server `node-one`).
 
 - [[Talos CLI: common commands (dashboard, status, shutdown)]] — [open](pages/talos-common-commands.md) — (2026-10-08, 0 sources) — everyday `talosctl` for the Talos cluster (`node-two`): config/context, the live `talosctl dashboard`, status/health/logs, reboot/shutdown, etcd/bootstrap, and machine-config commands. Notes the Talos gRPC API (mTLS, port 50000) and that `talosctl` acts on the machine, not on Kubernetes objects.
 - [[kubectl contexts: switching between clusters]] — [open](pages/kubectl-context-switching.md) — (2026-10-08, 0 sources) — drive the k3s (`k8s`) and Talos (`talos`) clusters from one kubeconfig: list/switch contexts, per-command `--context`, rename, merge kubeconfigs with `$KUBECONFIG` + `view --flatten`, per-context namespace, and one k9s for both (`:ctx`, `k9s --context`).
+- [[Cilium on Talos (Helm, kube-proxy-free)]] — [open](pages/cilium-on-talos.md) — (2026-10-08, 0 sources) — how the `talos` cluster runs Cilium instead of flannel, with kube-proxy disabled (eBPF services via KubePrism) and Hubble. Covers the three layers (machine config vs Helm release vs Flux), the Helm install/`install.sh` and why certs stay stable, the machine patch (flannel/kube-proxy off, static network, control-plane taint removal) and its two-step generation, adding nodes (worker/control-plane, secrets/endpoint caveats), upgrades/rollback, and the `cilium`/`cilium-dbg`/`hubble` command set. Includes the stale-`secrets.yaml` CA-mismatch gotcha and recovery.
 
 ## Operations
 
