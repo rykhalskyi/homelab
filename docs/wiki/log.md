@@ -1,5 +1,22 @@
 # DevOps Wiki — Log
 
+## [2026-10-08] ingest | Cilium on Talos (Helm, kube-proxy-free)
+
+Added [[Cilium on Talos (Helm, kube-proxy-free)]] after rebuilding `node-two`
+with Cilium instead of flannel: the three layers (machine config vs Helm release
+vs Flux), why Cilium is Helm-managed rather than an inline manifest or
+Flux-managed (stable CA/certs across upgrades), the `cilium/values.yaml` +
+`install.sh` files, the machine patch (delete `KubeFlannelCNIConfig`, disable
+`KubeProxyConfig`, static network on `eno1`, remove the single-node CP taint)
+and the two-step `gen config` + `machineconfig patch` generation (the taint
+`$patch: delete` fails under `--config-patch`), how to add worker/control-plane
+nodes (cluster-wide Cilium + per-node network; note that Cilium lands on new
+nodes automatically), upgrading/rolling back Cilium via Helm, and the
+`cilium` / `cilium-dbg` / `hubble` command set with fallbacks. Also records the
+stale-`secrets.yaml` CA-mismatch lockout and its no-reset recovery (mint a
+client cert from the embedded CA key), the single-node operator replica and CP
+taint issues, and the `forwardKubeDNSToHost` vs `bpf.masquerade` caveat.
+
 ## [2026-10-08] ingest | Secrets with SOPS + age
 
 Added [[Secrets with SOPS + age (local, out-of-band)]]: documents that secrets

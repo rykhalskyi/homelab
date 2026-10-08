@@ -36,9 +36,12 @@ embed the cluster secrets plus node-specific network/hostname):
 ```
 nodes/
 └── node-two/
-    ├── controlplane.yaml   # static IP 192.168.2.234, hostname node-two, install disk
-    └── worker.yaml
+    ├── controlplane.yaml   # generated; gitignored (static IP, hostname, install disk)
+    └── patch.yaml          # committed: static network + CNI switch + CP taint removal
 ```
+
+`node-two` is a control plane, so there is no `worker.yaml` here — generate one
+only if/when a worker node is added (see the Cilium section).
 
 Generate a node's config (from this directory). Two steps: generate the base,
 then apply `patch.yaml` with `machineconfig patch` — the taint deletion in the
