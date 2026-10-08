@@ -32,7 +32,7 @@ spec:
     image:
       registry: ghcr.io
       repository: rykhalskyi/homelab-nextcloud
-      tag: "sha-e76992bef5926494a195b835182881cd2da45688@sha256:cf829570cbdca9804c190720383c894976eafe433f2828ae82caac27765e36ef"
+      tag: "sha-dbe0b56afdd9654de6f86385a3929195d2fa0a7c@sha256:00447b467322373909d6ab903e1bdf82adbc497e8c60021ea614b4f0d12de92d"
     replicaCount: 1
     nextcloud:
       host: cloud.otakeessen.com
