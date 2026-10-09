@@ -1,5 +1,20 @@
 # DevOps Wiki — Log
 
+## [2026-10-09] change | Observability rollout fixes (PSA, Prometheus subPath, Telegram chat_id)
+
+Rolled [[Observability on Talos (Prometheus + Grafana + Alertmanager)]] out to
+the live `talos` cluster and fixed three issues the manifests didn't anticipate:
+(1) the cluster defaults namespaces to `baseline` PSA, which forbids `hostPort`
+and host namespaces — so the `traefik` (hostPort 80/443) and `monitoring`
+(node-exporter) namespaces needed `pod-security.kubernetes.io/enforce:
+privileged`; (2) the Prometheus Operator mounts its data volume with
+`subPath: prometheus-db` and the kubelet creates that subdir root-owned (fsGroup
+is not applied to subPath), so Prometheus crashlooped on
+`/prometheus/queries.active: permission denied` — fixed with an `init-chown-data`
+initContainer; (3) Alertmanager rejects `chat_id: 0` as missing, so the
+out-of-band Secret needs a real non-zero chat id. All pods now Running; docs and
+gotchas updated.
+
 ## [2026-10-09] ingest | Observability on Talos (Prometheus + Grafana + Alertmanager)
 
 Added [[Observability on Talos (Prometheus + Grafana + Alertmanager)]]: brings
