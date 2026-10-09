@@ -39,10 +39,47 @@ hubble:
   enabled: true
   relay:
     enabled: true
+    # Relay metrics + ServiceMonitor (scraped by kube-prometheus-stack).
+    prometheus:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+        labels:
+          release: kube-prometheus-stack
   ui:
     enabled: true
+  # Flow-aware L7/L4 metrics exposed by the agent, e.g. drops, TCP flags,
+  # HTTP request rate/latency, DNS. Empty/null would disable metrics entirely.
+  metrics:
+    enabled:
+      - dns:query;ignoreAAAA
+      - drop
+      - tcp
+      - flow
+      - icmp
+      - http
+    serviceMonitor:
+      enabled: true
+      labels:
+        release: kube-prometheus-stack
+# --- Prometheus integration (kube-prometheus-stack) ---
+# Each ServiceMonitor carries the `release: kube-prometheus-stack` label so the
+# Prometheus CR's serviceMonitorSelector (which matches the Helm release name)
+# picks it up. Requires the ServiceMonitor CRD to exist first, so kube-prometheus-stack
+# must be installed before `cilium/install.sh` is (re)run with these values.
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
 # Single-node cluster: the default 2 operator replicas cannot both schedule
 # (they request the same host ports). One replica is plenty; raise this again
 # once the cluster has multiple nodes.
 operator:
   replicas: 1
+  prometheus:
+    serviceMonitor:
+      enabled: true
+      labels:
+        release: kube-prometheus-stack

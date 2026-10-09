@@ -1,5 +1,21 @@
 # DevOps Wiki — Log
 
+## [2026-10-09] ingest | Observability on Talos (Prometheus + Grafana + Alertmanager)
+
+Added [[Observability on Talos (Prometheus + Grafana + Alertmanager)]]: brings
+the `talos` cluster a Flux-managed (`infrastructure` layer) metrics/alerting
+stack — `kube-prometheus-stack` in namespace `monitoring` — plus the two
+prerequisites Talos lacks, `local-path-provisioner` (no storage provisioner;
+host path moved to `/var` because the rootfs is read-only) and Traefik bound to
+**host ports** (no LoadBalancer on kube-proxy-free Cilium; LB-IPAM/L2 not
+enabled). Grafana is **LAN-only** at `grafana.homelab.local` (mirrors the pgAdmin
+pattern), Prometheus/Alertmanager stay ClusterIP, and Cilium/Hubble flow metrics
+are scraped via labelled ServiceMonitors. Documents the out-of-band SOPS secrets
+(`grafana-admin`, `alertmanager-config` with a Telegram receiver), generalizing
+`apps/secrets/apply.sh` to read each manifest's namespace, the
+ServiceMonitor-CRD ordering handled in `cilium/install.sh`, verify commands, and
+the Talos gotchas (`/var` host paths, Retain reclaim, no LB).
+
 ## [2026-10-08] ingest | Cilium on Talos (Helm, kube-proxy-free)
 
 Added [[Cilium on Talos (Helm, kube-proxy-free)]] after rebuilding `node-two`

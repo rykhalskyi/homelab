@@ -1,0 +1,114 @@
+# kube-prometheus-stack bundles the whole observability stack in one release:
+#   Prometheus + Prometheus Operator, Grafana, Alertmanager,
+#   node-exporter (per-node host metrics), kube-state-metrics (object state).
+#
+# Release name is `kube-prometheus-stack`, so the Services are
+# kube-prometheus-stack-{grafana,prometheus,alertmanager} in `monitoring`.
+#
+# Talos tuning below: Talos runs etcd/controller-manager/scheduler as static
+# pods bound to localhost, and Cilium replaces kube-proxy, so those four
+# ServiceMonitors are disabled (they would scrape nothing and just add noise).
+# Everything else (apiserver, kubelet, node-exporter, kube-state-metrics) works.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+  namespace: monitoring
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      version: "92.2.0"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-community
+        namespace: flux-system
+  install:
+    crds: Create
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    # --- Talos: disable unscrapeable control-plane / proxy targets ---
+    kubeEtcd:
+      enabled: false
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeProxy:
+      enabled: false
+
+    # --- Prometheus: 7d of history on a 10Gi local-path volume ---
+    prometheus:
+      prometheusSpec:
+        retention: 7d
+        retentionSize: 9GB
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            memory: 2Gi
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: local-path
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 10Gi
+
+    # --- Alertmanager: config comes from the out-of-band SOPS Secret ---
+    # `configSecret` must contain a key `alertmanager.yaml`; it is created by
+    # apps/secrets/apply.sh (namespace monitoring), not committed.
+    alertmanager:
+      alertmanagerSpec:
+        configSecret: alertmanager-config
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: local-path
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 1Gi
+
+    # --- Grafana: admin password from the out-of-band SOPS Secret ---
+    grafana:
+      admin:
+        existingSecret: grafana-admin
+      persistence:
+        enabled: true
+        type: sts
+        storageClassName: local-path
+        accessModes: ["ReadWriteOnce"]
+        size: 2Gi
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+      # The Ingress is a standalone manifest (grafana-ingress.yaml) to match the
+      # repo's convention of keeping Ingress objects explicit.
+      ingress:
+        enabled: false
+
+    prometheusOperator:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
