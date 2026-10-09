@@ -1,0 +1,20 @@
+# local-path-provisioner's Helm chart is not published to a Helm index; it
+# ships inside the upstream git repo under `deploy/chart/`. Flux can consume a
+# chart directly from a pinned git ref, so we track the repo at tag v0.0.37 and
+# let the HelmRelease reference ./deploy/chart/local-path-provisioner.
+#
+# Talos has no built-in storage provisioner; this gives the cluster a default
+# `local-path` StorageClass (the same primitive k3s ships built in).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: local-path-provisioner
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://github.com/rancher/local-path-provisioner
+  ref:
+    tag: v0.0.37 # chart version 0.0.37
+  ignore: |
+    /*
+    !/deploy

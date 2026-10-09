@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Cluster add-ons for the talos cluster, reconciled by the `infrastructure`
+# Flux Kustomization (infra/clusters/talos/infrastructure.yaml).
+#
+# Ordering is not positional here: every HelmRelease waits for its source, and
+# the whole set is applied together. local-path must exist before the
+# monitoring PVCs can bind, and Traefik before the Grafana Ingress serves.
+resources:
+  # chart sources (live in flux-system)
+  - sources/local-path-provisioner.yaml
+  - sources/traefik.yaml
+  - sources/kube-prometheus-stack.yaml
+  # add-ons
+  - local-path
+  - traefik
+  - monitoring

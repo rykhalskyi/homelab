@@ -1,0 +1,27 @@
+# LAN-only on purpose: the host is `*.homelab.local`, NOT under
+# `*.otakeessen.com`, so it is never reachable from outside the LAN. Traefik
+# listens on node-two's :80 (see infrastructure/traefik) and routes by host.
+#
+# Reach it by adding this to your client /etc/hosts:
+#
+#   192.168.2.234 grafana.homelab.local
+#
+# then open http://grafana.homelab.local/.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: grafana.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-grafana
+                port:
+                  number: 80

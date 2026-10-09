@@ -1,0 +1,47 @@
+# Rancher local-path-provisioner: dynamically provisions hostPath volumes and
+# creates a `local-path` StorageClass. This is the storage backend for every
+# PVC on the talos cluster (Prometheus, Grafana, Alertmanager, ...).
+#
+# Talos notes:
+# - The default host data path /opt/local-path-provisioner is NOT writable on
+#   Talos (immutable rootfs). /var IS writable, so nodePathMap is overridden.
+# - defaultClass: true means PVCs that omit storageClassName bind here.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: local-path-provisioner
+  namespace: local-path-storage
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: ./deploy/chart/local-path-provisioner
+      sourceRef:
+        kind: GitRepository
+        name: local-path-provisioner
+        namespace: flux-system
+  values:
+    # Release is named `local-path-provisioner`; without this the chart would
+    # prefix resources as `local-path-provisioner-local-path-provisioner`.
+    fullnameOverride: local-path-provisioner
+    storageClass:
+      create: true
+      name: local-path
+      defaultClass: true
+      # Retain so deleting a PVC/PV does not wipe the underlying data directory.
+      reclaimPolicy: Retain
+      volumeBindingMode: WaitForFirstConsumer
+    image:
+      repository: docker.io/rancher/local-path-provisioner
+      tag: v0.0.37
+    # Data lives under /var (writable) instead of the default /opt (read-only).
+    nodePathMap:
+      - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+        paths:
+          - /var/local-path-provisioner
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi

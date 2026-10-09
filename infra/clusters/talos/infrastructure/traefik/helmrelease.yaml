@@ -1,0 +1,42 @@
+# Traefik ingress controller for the talos cluster.
+#
+# Talos has no LoadBalancer implementation (Cilium runs kube-proxy-free and
+# LB-IPAM/L2 is not enabled), so instead of a LoadBalancer Service we bind
+# Traefik directly to the node's host ports: it listens on node-two's :80/:443
+# and routes by Ingress host. `service.type: ClusterIP` keeps an in-cluster
+# Service for other components without leaving a pending LoadBalancer.
+#
+# Ingresses use `ingressClassName: traefik` (the chart creates that class).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: traefik
+  namespace: traefik
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: traefik
+      version: "41.7.1"
+      sourceRef:
+        kind: HelmRepository
+        name: traefik
+        namespace: flux-system
+  values:
+    service:
+      spec:
+        # Chart 41.x nests this under service.spec (not service.type).
+        type: ClusterIP
+    ports:
+      web:
+        # Bind :80 on whichever node runs Traefik (node-two).
+        hostPort: 80
+      websecure:
+        # :443 is reserved for future TLS; nothing terminates TLS here yet.
+        hostPort: 443
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi

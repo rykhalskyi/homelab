@@ -154,6 +154,25 @@ kube-proxy), never for a Cilium version bump.
 > manifests are create-only and re-render a fresh CA each time, which is how a
 > partial certificate rotation (and outage) happens. Helm avoids this.
 
+## Metrics (Prometheus / kube-prometheus-stack)
+
+`cilium/values.yaml` enables the agent, operator, Hubble and relay metrics and
+their `ServiceMonitor`s, each labelled `release: kube-prometheus-stack` so the
+kube-prometheus-stack Prometheus CR scrapes them. Hubble adds flow metrics
+(`drop`, `tcp`, `flow`, `http`, `dns`, `icmp`) — see
+[[Observability on Talos (Prometheus + Grafana + Alertmanager)]].
+
+```bash
+# after kube-prometheus-stack is installed (it provides the ServiceMonitor CRD):
+bash infra/clusters/talos/cilium/install.sh
+kubectl --context talos -n monitoring get servicemonitors.monitoring.coreos.com | grep -i cilium
+```
+
+ServiceMonitors need the `monitoring.coreos.com/v1` CRD. On a **fresh** cluster
+Cilium is installed before kube-prometheus-stack, so `install.sh` detects the
+missing CRD and installs without ServiceMonitors; re-run it later to enable
+them. (Grafana/Prometheus live in `monitoring`, not `kube-system`.)
+
 ## Commands
 
 Install the `cilium` CLI (not in the repo):

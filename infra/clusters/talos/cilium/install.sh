@@ -21,11 +21,29 @@ CTX="${CTX:-talos}"
 helm repo add cilium https://helm.cilium.io/ >/dev/null 2>&1 || true
 helm repo update cilium >/dev/null
 
+# values.yaml enables ServiceMonitors for the kube-prometheus-stack Prometheus.
+# On a brand-new cluster Cilium is installed *before* Flux/kube-prometheus-stack,
+# so the ServiceMonitor CRD does not exist yet and Helm would fail. Detect that
+# and fall back to installing without ServiceMonitors; re-run this script after
+# kube-prometheus-stack is up to add them.
+SM_ARGS=()
+if ! kubectl --context "$CTX" get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1; then
+  echo "note: ServiceMonitor CRD not present -> installing Cilium without ServiceMonitors."
+  echo "      Re-run this script after kube-prometheus-stack to enable Cilium/Hubble metrics."
+  SM_ARGS=(
+    --set prometheus.serviceMonitor.enabled=false
+    --set operator.prometheus.serviceMonitor.enabled=false
+    --set hubble.metrics.serviceMonitor.enabled=false
+    --set hubble.relay.prometheus.serviceMonitor.enabled=false
+  )
+fi
+
 helm upgrade --install cilium cilium/cilium \
   --version "$CILIUM_VERSION" \
   --namespace kube-system \
   --kube-context "$CTX" \
-  -f "$DIR/values.yaml"
+  -f "$DIR/values.yaml" \
+  "${SM_ARGS[@]}"
 
 echo
 echo "Cilium $CILIUM_VERSION applied. Verify with:"
