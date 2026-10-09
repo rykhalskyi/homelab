@@ -48,6 +48,26 @@ spec:
       prometheusSpec:
         retention: 7d
         retentionSize: 9GB
+        # The Prometheus Operator mounts the data volume with `subPath:
+        # prometheus-db`, and the kubelet creates that subdirectory as
+        # root:root 0755 — Kubernetes does NOT apply fsGroup to subPath mounts.
+        # Prometheus runs as uid 1000, so it cannot write its data dir
+        # (`/prometheus/queries.active: permission denied`) and crashloops.
+        # This init container (root) creates and chowns the subPath dir first.
+        initContainers:
+          - name: init-chown-data
+            image: busybox:1.36
+            command:
+              - sh
+              - -c
+              - mkdir -p /prometheus && chown -R 1000:2000 /prometheus
+            securityContext:
+              runAsUser: 0
+              runAsNonRoot: false
+            volumeMounts:
+              - name: prometheus-kube-prometheus-stack-prometheus-db
+                mountPath: /prometheus
+                subPath: prometheus-db
         resources:
           requests:
             cpu: 100m

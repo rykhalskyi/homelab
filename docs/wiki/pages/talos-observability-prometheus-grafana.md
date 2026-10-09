@@ -60,7 +60,9 @@ no `LoadBalancer` implementation. Instead Traefik binds the node's host ports:
 
 ```yaml
 # infrastructure/traefik/helmrelease.yaml
-service: { type: ClusterIP }
+service:
+  spec:
+    type: ClusterIP        # chart 41.x nests type under service.spec
 ports:
   web:       { hostPort: 80 }
   websecure: { hostPort: 443 }   # reserved; no TLS terminates here yet
@@ -68,6 +70,11 @@ ports:
 
 The chart creates the `traefik` IngressClass, so Ingresses use
 `ingressClassName: traefik`.
+
+> **PSA:** the cluster defaults namespaces to the `baseline` PodSecurity level,
+> which forbids `hostPort`. The `traefik` namespace must be
+> `pod-security.kubernetes.io/enforce: privileged` or the Deployment never
+> schedules.
 
 ### The stack — `kube-prometheus-stack`
 Disabled for Talos (`kubeEtcd`/`kubeControllerManager`/`kubeScheduler` run as
@@ -81,6 +88,19 @@ Prometheus in-cluster; Prometheus/Alertmanager UIs have no Ingress.
 - Grafana: admin from the out-of-band Secret `grafana-admin`, 2Gi PVC.
 - Release name `kube-prometheus-stack` => Services
   `kube-prometheus-stack-{grafana,prometheus,alertmanager}`.
+
+Two non-obvious requirements (both bit us on the first rollout):
+
+1. **`monitoring` namespace must be privileged.** node-exporter uses
+   `hostNetwork`/`hostPID`/hostPath/`hostPort: 9100`, and the cluster's default
+   `baseline` PSA forbids all of those. Without the label the DaemonSet is stuck
+   `FailedCreate`, which makes the Helm install time out and uninstall.
+2. **Prometheus data volume uses `subPath: prometheus-db`.** The kubelet creates
+   that subdirectory as root:root 0755 and does **not** apply `fsGroup` to
+   subPath mounts, so Prometheus (uid 1000) crashloops with
+   `/prometheus/queries.active: permission denied`. Fixed with an
+   `init-chown-data` initContainer (root) that creates/chowns the dir before the
+   main container starts.
 
 ### Cilium + Hubble metrics
 `cilium/values.yaml` enables the agent, operator, Hubble and relay metrics and
@@ -154,6 +174,16 @@ kubectl --context talos -n monitoring port-forward svc/kube-prometheus-stack-ale
 
 ## Gotchas
 
+- **Default PSA is `baseline`.** The cluster forbids `hostPort`/`hostNetwork`/
+  `hostPID`/hostPath by default, so the `traefik` (hostPort) and `monitoring`
+  (node-exporter) namespaces are labelled
+  `pod-security.kubernetes.io/enforce: privileged`. `local-path-storage` is too
+  (its helper pods mount the host).
+- **Prometheus subPath permissions.** See above — the `init-chown-data` init
+  container exists solely to chown the kubelet-created `subPath` dir.
+- **Alertmanager rejects `chat_id: 0`.** The operator treats the zero value as
+  "missing" and refuses to build the StatefulSet; use a real (non-zero) Telegram
+  chat id in `alertmanager-config`.
 - **Talos + host paths.** Anything using a hostPath must live under a writable
   mount (`/var/...`). `local-path-provisioner` defaults to `/opt`, which fails
   on Talos — hence `nodePathMap`.
