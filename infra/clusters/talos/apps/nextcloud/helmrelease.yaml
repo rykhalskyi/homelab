@@ -136,6 +136,18 @@ spec:
       auth:
         existingSecret: nextcloud-redis
         existingSecretPasswordKey: redis-password
+      # Nextcloud uses Redis for file locking and distributed cache. The chart
+      # default CPU limit (150m) throttles this single-threaded server ~45% of
+      # the time under load, which intermittently stalls logins/navigation.
+      # Give it headroom (observed usage ~0.07 cores but bursty).
+      master:
+        resources:
+          requests:
+            cpu: 200m
+            memory: 128Mi
+          limits:
+            cpu: "1"
+            memory: 192Mi
     ingress:
       enabled: true
       className: traefik
