@@ -6,12 +6,15 @@ name: kustomize prune guard
 # destroys cluster state on the next reconcile (this is what wiped the homelab
 # namespace once). Non-protected removals are reported but allowed.
 #
+# Covers every cluster under infra/clusters/ (k8s and talos).
+#
 # See docs/wiki/pages/k3s-gitops-nginx-cloudflared.md for context.
 
 on:
   pull_request:
     paths:
       - 'infra/clusters/k8s/**'
+      - 'infra/clusters/talos/**'
       - '.github/workflows/kustomize-prune-guard.yml'
 
 permissions:
@@ -54,7 +57,13 @@ jobs:
               | LC_ALL=C sort -u
           }
 
-          paths=(infra/clusters/k8s infra/clusters/k8s/apps infra/clusters/k8s/infrastructure)
+          paths=(
+            infra/clusters/k8s
+            infra/clusters/k8s/apps
+            infra/clusters/k8s/infrastructure
+            infra/clusters/talos
+            infra/clusters/talos/infrastructure
+          )
           for p in "${paths[@]}"; do
             key="${p//\//_}"
             ids "$p"           > "/tmp/head_$key.txt"
@@ -65,7 +74,13 @@ jobs:
       - name: Reject protected removals
         run: |
           set -euo pipefail
-          paths=(infra/clusters/k8s infra/clusters/k8s/apps infra/clusters/k8s/infrastructure)
+          paths=(
+            infra/clusters/k8s
+            infra/clusters/k8s/apps
+            infra/clusters/k8s/infrastructure
+            infra/clusters/talos
+            infra/clusters/talos/infrastructure
+          )
           fail=0
           for p in "${paths[@]}"; do
             key="${p//\//_}"
