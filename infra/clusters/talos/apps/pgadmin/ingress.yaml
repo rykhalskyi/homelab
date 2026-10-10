@@ -1,0 +1,28 @@
+# LAN-only on purpose: the host is `*.homelab.local`, NOT under
+# `*.otakeessen.com`, so Traefik serves it on node-two's :80 and it is never
+# exposed beyond the LAN. The host is distinct from the k8s cluster's pgAdmin
+# (`pgadmin.homelab.local`, node-one) so the two never collide.
+#
+# Reach it by adding this to your client /etc/hosts:
+#
+#   192.168.2.234 pgadmin-db.homelab.local
+#
+# then open http://pgadmin-db.homelab.local/.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pgadmin
+  namespace: databases
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: pgadmin-db.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pgadmin
+                port:
+                  number: 80

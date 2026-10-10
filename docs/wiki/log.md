@@ -1,5 +1,16 @@
 # DevOps Wiki — Log
 
+## [2026-10-10] ingest | pgAdmin for the talos cluster (LAN-only)
+
+Added [[pgAdmin for the talos cluster (LAN-only)]]: a `dpage/pgadmin4`
+(digest-pinned) Deployment + 2Gi `local-path` PVC + Service + a Traefik Ingress
+serving `pgadmin-db.homelab.local` on node-two (`192.168.2.234`), so it is
+reachable only from the LAN (the Cloudflare tunnel routes only
+`*.otakeessen.com`). Reconciled by Flux in the `apps` layer alongside the CNPG
+`postgres` Cluster; the login is the same out-of-band SOPS `pgadmin-auth` Secret
+as the k8s cluster (`databases` namespace). Documents registering the server
+(`postgres-rw:5432`, user `app`), verify commands, and the distinct hostname
+that avoids colliding with the k8s `pgadmin.homelab.local`.
 ## [2026-10-10] fix | CNPG backups: MinIO policy must not prefix-scope ListBucket
 
 First backup of the talos `postgres` Cluster hung in `running` and WAL archiving
