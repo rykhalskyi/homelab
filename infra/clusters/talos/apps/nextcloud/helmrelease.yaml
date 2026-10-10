@@ -23,6 +23,16 @@ metadata:
   namespace: nextcloud
 spec:
   interval: 1h
+  # First boot does maintenance:install and can exceed the 5m install timeout
+  # while the image is still pulling or the DB is warming up; without
+  # remediation helm-controller marks the release Stalled/RetriesExceeded and
+  # refuses to retry. Let it self-heal (same pattern as the cnpg HelmRelease).
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
   chart:
     spec:
       chart: nextcloud
