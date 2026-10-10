@@ -43,11 +43,21 @@ spec:
     kubeProxy:
       enabled: false
 
-    # --- Prometheus: 7d of history on a 10Gi local-path volume ---
+    # --- Single-node: scrape the two heaviest jobs every 60s instead of 30s.
+    # Halves ingestion (~441 -> ~220 samples/s) with no loss of scraped metrics.
+    kubeApiServer:
+      serviceMonitor:
+        interval: 60s
+    kubelet:
+      serviceMonitor:
+        interval: 60s
+
+    # --- Prometheus: 3d of history; right-sized for a single node ---
     prometheus:
       prometheusSpec:
-        retention: 7d
-        retentionSize: 9GB
+        retention: 3d
+        retentionSize: 4GB
+        scrapeInterval: 60s
         # The Prometheus Operator mounts the data volume with `subPath:
         # prometheus-db`, and the kubelet creates that subdirectory as
         # root:root 0755 — Kubernetes does NOT apply fsGroup to subPath mounts.
@@ -71,9 +81,9 @@ spec:
         resources:
           requests:
             cpu: 100m
-            memory: 512Mi
+            memory: 256Mi
           limits:
-            memory: 2Gi
+            memory: 512Mi
         storageSpec:
           volumeClaimTemplate:
             spec:
@@ -81,7 +91,9 @@ spec:
               accessModes: ["ReadWriteOnce"]
               resources:
                 requests:
-                  storage: 10Gi
+                  # retentionSize is 4GB; 5Gi leaves headroom. NB: PVCs cannot be
+                  # shrunk, so an existing 10Gi volume stays 10Gi until recreated.
+                  storage: 5Gi
 
     # --- Alertmanager: config comes from the out-of-band SOPS Secret ---
     # `configSecret` must contain a key `alertmanager.yaml`; it is created by
@@ -105,7 +117,14 @@ spec:
                   storage: 1Gi
 
     # --- Grafana: admin password from the out-of-band SOPS Secret ---
+    # `defaultDashboardsEnabled: false` drops the 25 bundled kube-prometheus-stack
+    # dashboards to cut Grafana + dashboard-sidecar memory. The curated set we
+    # actually use (Alertmanager/CoreDNS/Grafana/API-server/Compute-Resources
+    # Cluster+Multi-Cluster) is re-added declaratively via grafana-dashboards.yaml,
+    # which carries the sidecar's `grafana_dashboard: "1"` label. Manually
+    # imported dashboards (e.g. Cilium) live in Grafana's PV and are unaffected.
     grafana:
+      defaultDashboardsEnabled: false
       admin:
         existingSecret: grafana-admin
       persistence:
@@ -132,3 +151,19 @@ spec:
           memory: 128Mi
         limits:
           memory: 512Mi
+
+    # --- Bound the subcharts that ship with no resources set ---
+    kube-state-metrics:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 48Mi
+        limits:
+          memory: 128Mi
+    prometheus-node-exporter:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 24Mi
+        limits:
+          memory: 96Mi
