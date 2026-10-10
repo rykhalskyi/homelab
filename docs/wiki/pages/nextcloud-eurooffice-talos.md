@@ -19,6 +19,11 @@ dedicated CloudNativePG `Cluster` (not Bitnami), storage is the dynamic
 > `Cluster nextcloud` healthy; NAS mounted at `/nas` and registered as a Local
 > external storage. Public via Cloudflare (Phase B); the k8s cluster is
 > inactive and its tunnel connector has been moved to talos.
+> **Status (2026-10-10): deployed and working on `node-two`.** Nextcloud
+> **35.0.1**, `byebyemoneylist` **1.1.0**, `eurooffice` app **11.0.6**,
+> DocumentServer **9.3.4.37**; CNPG `Cluster nextcloud` healthy; NAS mounted at
+> `/nas` and registered as a Local external storage. Phase A is LAN-only; Phase B
+> (public via Cloudflare) is a later change.
 
 ## Differences from k8s (and why)
 

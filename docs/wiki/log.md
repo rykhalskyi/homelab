@@ -16,6 +16,22 @@ made the readiness probe (Host = the new host) get HTTP 400 and the Helm upgrade
 time out — fixed with `occ config:system:set trusted_domains`. Verified
 `https://cloud.otakeessen.com/status.php` and
 `https://office.otakeessen.com/healthcheck` both `200`.
+## [2026-10-10] change | Nextcloud + Euro-Office on Talos: applied and working
+
+Took [[Nextcloud + Euro-Office on Talos (LAN-only)]] live on `node-two` and
+resolved three rollout issues: (1) the five out-of-band Secrets were unapplied,
+so pods hit `CreateContainerConfigError` — fixed with
+`infra/clusters/talos/apps/secrets/apply.sh`; (2) the Synology
+`/volume1/nextcloud` NFS export only allowed node-one (`192.168.2.233`), so
+node-two failed `mount.nfs: access denied` — the NAS ACL now includes
+`192.168.2.234`; (3) the first Helm install timed out mid-mount and, with no
+remediation, went `Stalled/RetriesExceeded` (`cannot remediate failed release`)
+— added `install/upgrade.remediation.retries: 3` (PR #87). Wired the post-install
+DB-stored config: `eurooffice` app 11.0.6 (`DocumentServerUrl`,
+`DocumentServerInternalUrl`, `StorageUrl`, JWT, `sameTab`), `overwrite.cli.url`,
+extra trusted domains, and the NAS as a Local external storage (`files_external`,
+`datadir=/nas`). Working versions: Nextcloud 35.0.1 / byebyemoneylist 1.1.0 /
+eurooffice 11.0.6 / DocumentServer 9.3.4.37.
 
 ## [2026-10-10] ingest | Nextcloud + Euro-Office on Talos (LAN-only)
 
