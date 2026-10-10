@@ -12,6 +12,13 @@ How one workstation drives two clusters — the old k3s cluster `k8s`
 machine-level (OS) view of Talos, see
 [[Talos CLI: common commands (dashboard, status, shutdown)]].
 
+> **Update (2026-10-10): the `k8s`/k3s cluster is retired.** Its host, `node-one`,
+> was wiped and re-joined the **`talos`** cluster as a second control plane
+> (`192.168.2.233`) — see
+> [[Adding node-one to the Talos cluster (control-plane IP gotcha)]]. The `k8s`
+> context/kubeconfig and the two-cluster comparison below are kept for history;
+> `talos` is now the only cluster, with nodes `node-one` and `node-two`.
+
 ## What a context is
 
 A kubeconfig file holds `clusters` + `users` + `contexts`. A **context** binds

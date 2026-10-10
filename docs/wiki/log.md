@@ -1,5 +1,43 @@
 # DevOps Wiki — Log
 
+## [2026-10-10] change | Nextcloud CNPG backups (MinIO)
+
+Enabled backups for the `nextcloud` CloudNativePG `Cluster`: added the
+`barmanObjectStore` stanza (destination `s3://cnpg-backups/nextcloud`, same LAN
+MinIO) and `ScheduledBackup nextcloud-daily` (03:00, 30d retention) under
+`infra/clusters/talos/apps/nextcloud/`. A CNPG backup is physical (base + WAL of
+the whole instance), so it covers every Nextcloud table — there is no per-table
+option. Two namespacing details: Secrets are per-namespace, so a second
+`cnpg-minio` Secret is needed in `nextcloud`
+(`apps/secrets/nextcloud-minio.sops.yaml`), and the MinIO `cnpg` policy must be
+widened to `s3://cnpg-backups/nextcloud/*`. Updated
+[[Nextcloud + Euro-Office on Talos (LAN-only)]] (secrets table, pieces, gotcha)
+and [[CloudNativePG on Talos (PostgreSQL + MinIO backups)]] (policy, credentials
+note).
+
+## [2026-10-10] change + ingest | node-one added to the Talos cluster (control-plane IP gotcha)
+
+Repurposed the old Ubuntu/k3s host as a second Talos **control-plane + workload**
+node: `node-one` (`192.168.2.233`, NIC `enp1s0`, disk `/dev/sda`), using
+`nodes/node-one/patch.yaml` (static `.233/24`, CP taint removed, flannel deleted,
+kube-proxy off) and the two-step `talosctl gen config` + `machineconfig patch`.
+No `bootstrap` (node-two already bootstrapped etcd). Initial mistake: the config
+was applied **un-patched**, so the node booted on DHCP `.117` with flannel +
+kube-proxy and joined etcd at `.117`; moving it to `.233` left the etcd membership
+peer URL pointing at the dead `.117`, so the 2-member cluster lost quorum and the
+whole API went down (`etcdserver: no leader`, kube-apiserver `connection refused`,
+`rafthttp ... dial tcp 192.168.2.117:2380`). Recovered **without wiping node-two**
+(and its `local-path` PVCs): backed up node-two's etcd DB via `talosctl cp`, then
+aligned `node-one`'s address with the membership's current value (`.233`) to
+restore quorum, deleted the bad-boot flannel/kube-proxy DaemonSets + RBAC/ConfigMap
+leftovers, and rebooted `node-one` to clear `flannel.1`. Both nodes now `Ready`;
+only `cilium`/`cilium-envoy` run. Also updated `README.md` (node is up + the IP
+gotcha), added `.233` to the `talosconfig`/`~/.talos/config` endpoints for
+failover, and documented everything in the new instruction page
+[[Adding node-one to the Talos cluster (control-plane IP gotcha)]]. Recorded that a
+2-member etcd has no HA: powering off either node takes the API down until
+`node-three` joins.
+
 ## [2026-10-10] change | Nextcloud + Euro-Office on Talos: public via Cloudflare (k8s retired)
 
 The k8s cluster went down (`cloud.otakeessen.com` returned Cloudflare **530**),

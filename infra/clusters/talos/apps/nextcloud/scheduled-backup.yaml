@@ -1,0 +1,14 @@
+# Daily physical base backup of the Nextcloud CNPG Cluster to MinIO, plus the
+# continuous WAL archiving the operator runs once the backup stanza exists.
+# Mirrors apps/cnpg/scheduled-backup.yaml; six-field cron (seconds first):
+# 03:00:00 every day. Retention (30d) is set on the Cluster.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: nextcloud-daily
+  namespace: nextcloud
+spec:
+  schedule: "0 0 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: nextcloud

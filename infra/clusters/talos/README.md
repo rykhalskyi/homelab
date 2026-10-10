@@ -1,7 +1,9 @@
 # talos — the Talos cluster
 
-Three-node Talos/Kubernetes cluster (planned). Only **`node-two`**
-(`192.168.2.234`) is up today; `node-one` and `node-three` will join later.
+Three-node Talos/Kubernetes cluster (planned). Two control planes are up today:
+**`node-two`** (`192.168.2.234`) and **`node-one`** (`192.168.2.233`);
+`node-three` will join later. (2-member etcd quorum means either node going down
+takes the API down — add `node-three` for real HA.)
 
 This directory holds two separate layers — keep them distinct:
 
@@ -42,9 +44,12 @@ embed the cluster secrets plus node-specific network/hostname):
 
 ```
 nodes/
-└── node-two/
-    ├── controlplane.yaml   # generated; gitignored (static IP, hostname, install disk)
-    └── patch.yaml          # committed: static network + CNI switch + CP taint removal
+├── node-two/               # 192.168.2.234
+│   ├── controlplane.yaml   # generated; gitignored (static IP, hostname, install disk)
+│   └── patch.yaml          # committed: static network + CNI switch + CP taint removal
+└── node-one/               # 192.168.2.233
+    ├── controlplane.yaml   # generated; gitignored
+    └── patch.yaml          # committed (interface = enp1s0 on this box)
 ```
 
 `node-two` is a control plane, so there is no `worker.yaml` here — generate one
@@ -81,6 +86,22 @@ talosctl apply-config --insecure -n <dhcp-ip> --file nodes/<node>/controlplane.y
 > The running cluster's admin access is configured in `~/.talos/config`
 > (context `talos`) and `~/.kube/config` (context `talos`) — see the wiki pages
 > on Talos commands and kubectl contexts. Files here are the source/backup.
+
+### Gotcha: never change a joined control plane's IP
+
+A control-plane node joins etcd with the peer URL derived from the address it had
+at join time. Moving it to a different static IP **after** it has joined (as
+happened booting `node-one` first on DHCP `.117`, then to `.233`) leaves the etcd
+membership pointing at the old address: peers can't reach each other, quorum is
+lost, and the whole API goes down (`etcdserver: no leader`, kube-apiserver
+`connection refused`). Symptom in the logs:
+`rafthttp/probing_status.go ... dial tcp <OLD-IP>:2380: no route to host`.
+
+Fix: apply the config with the node's **final** static IP on the very first
+`apply-config` (the static `machine.network` block in `patch.yaml` makes it come
+up on that address immediately, before it joins). If you do have to move it,
+bring the node back to its join-time IP to restore quorum first, then
+`talosctl -n <ip> etcd leave`, change the IP, and re-join.
 
 ## Cilium (CNI) — replaces flannel
 
