@@ -187,8 +187,19 @@ When the talos instance should be reachable from outside the LAN:
 - **NAS over NFS.** The `nas-nextcloud` inline `nfs` volume (server
   `192.168.2.112`, path `/volume1/nextcloud`) is mounted by the node's kubelet
   and presented at `/nas`; Talos supports NFS through inline pod volumes. The
-  NAS export must allow the node's IP (`192.168.2.234`). Register the share in
-  Nextcloud as a *Local* external storage pointing at `/nas`.
+  NAS export must allow the node's IP — the Synology export was scoped to
+  `192.168.2.233` (node-one/k8s) only, so node-two failed the mount with:
+
+  ```
+  MountVolume.SetUp failed for volume "nas-nextcloud" : mount failed: exit status 32
+  Output: mount.nfs: access denied by server while mounting 192.168.2.112:/volume1/nextcloud
+  ```
+
+  Fix on the NAS (DSM → Control Panel → Shared Folder → `nextcloud` → Edit →
+  NFS Permissions): add a client `192.168.2.234` (or widen the existing entry to
+  the subnet `192.168.2.0/24`) with the same Read/Write + Squash + sys security
+  settings as the node-one entry. Register the share in Nextcloud as a *Local*
+  external storage pointing at `/nas`.
 - **Backups** are not configured for the `nextcloud` CNPG `Cluster` yet — add a
   `barmanObjectStore` + `ScheduledBackup` like [[CloudNativePG on Talos
   (PostgreSQL + MinIO backups)]] when it matters.
