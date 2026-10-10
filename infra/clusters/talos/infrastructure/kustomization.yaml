@@ -12,6 +12,7 @@ resources:
   - sources/traefik.yaml
   - sources/kube-prometheus-stack.yaml
   - sources/cloudnative-pg.yaml
+  - sources/nextcloud.yaml
   # add-ons
   - local-path
   - traefik

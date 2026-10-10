@@ -69,8 +69,18 @@ jobs:
           [ -n "$digest" ] || { echo "::error::could not resolve digest for ${IMAGE}:${tag}"; exit 1; }
 
           new="${tag}@${digest}"
-          file=infra/clusters/k8s/apps/nextcloud/helmrelease.yaml
-          current="$(grep -oE 'sha-[0-9a-f]{40}(@sha256:[0-9a-f]{64})?' "$file" | head -n1 || true)"
+          # Keep every Nextcloud HelmRelease in lockstep: the k8s cluster
+          # (node-one) and the talos cluster both run this image.
+          files=(
+            infra/clusters/k8s/apps/nextcloud/helmrelease.yaml
+            infra/clusters/talos/apps/nextcloud/helmrelease.yaml
+          )
+          changed=false
+          for file in "${files[@]}"; do
+            current="$(grep -oE 'sha-[0-9a-f]{40}(@sha256:[0-9a-f]{64})?' "$file" | head -n1 || true)"
+            echo "Pinned in ${file}: ${current:-none}"
+            [ "$current" = "$new" ] || changed=true
+          done
 
           {
             echo "sha=${sha}"
@@ -79,8 +89,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
           echo "Resolved: ${new}"
-          echo "Pinned:   ${current:-none}"
-          if [ "$new" = "$current" ]; then
+          if [ "$changed" = "false" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Already pinned to this digest - nothing to do."
           else
@@ -93,10 +102,15 @@ jobs:
           PIN: ${{ steps.resolve.outputs.pin }}
         run: |
           set -euo pipefail
-          file=infra/clusters/k8s/apps/nextcloud/helmrelease.yaml
-          # Replace every pinned reference (the chart image tag and the seed
-          # init container image) with the freshly built tag@digest.
-          sed -i -E "s|sha-[0-9a-f]{40}(@sha256:[0-9a-f]{64})?|${PIN}|g" "$file"
+          # Replace every pinned reference (the chart image tag and any seed
+          # init container image) in both clusters' HelmReleases.
+          files=(
+            infra/clusters/k8s/apps/nextcloud/helmrelease.yaml
+            infra/clusters/talos/apps/nextcloud/helmrelease.yaml
+          )
+          for file in "${files[@]}"; do
+            sed -i -E "s|sha-[0-9a-f]{40}(@sha256:[0-9a-f]{64})?|${PIN}|g" "$file"
+          done
 
       - name: Show diff
         if: steps.resolve.outputs.changed == 'true'

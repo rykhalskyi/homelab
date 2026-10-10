@@ -1,0 +1,32 @@
+# Storage for the in-cluster Nextcloud on talos.
+#
+# Unlike k8s there is no static local PV and no AIO data to reuse: this is a
+# clean install, so both volumes are dynamically provisioned from the
+# `local-path` StorageClass (host data under /var/local-path-provisioner).
+#
+# `nextcloud-data` holds user files (`/var/www/html/data`); resize to taste.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-html
+  namespace: nextcloud
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-data
+  namespace: nextcloud
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi

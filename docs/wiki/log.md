@@ -1,5 +1,24 @@
 # DevOps Wiki — Log
 
+## [2026-10-10] ingest | Nextcloud + Euro-Office on Talos (LAN-only)
+
+Added [[Nextcloud + Euro-Office on Talos (LAN-only)]]: a clean-install Nextcloud
+plus the Euro-Office DocumentServer on the `talos` cluster, in a new `nextcloud`
+namespace, reconciled by Flux (`infrastructure` gains the `nextcloud`
+`HelmRepository`; `apps` gains the `nextcloud` and `eurooffice` bundles). Mirrors
+the k8s stack but swaps the parts Talos does differently: a dedicated
+CloudNativePG `Cluster nextcloud` (PG 18.4, `local-path`) whose owner/password
+come from the shared out-of-band `nextcloud-db` Secret via
+`bootstrap.initdb.secret`, dynamic `local-path` PVCs instead of a static PV, no
+NAS/NFS external storage, no DB `dependsOn` (the CR is not a HelmRelease, so the
+Pod retries behind the startup probe), `TRUSTED_PROXIES: 10.244.0.0/16`
+(Cilium/Talos pod CIDR), and a LAN-only host pair
+`cloud-talos.`/`office-talos.homelab.local` on node-two `:80`. Documents the five
+SOPS Secrets (four generated, `byebyemoneylist` reused from the k8s bundle), the
+`occ` connector wiring, verify commands, the phase-B Cloudflare path, and
+gotchas. Also extended `.github/workflows/update-nextcloud-image-pin.yml` to pin
+the image digest in **both** clusters' HelmReleases.
+
 ## [2026-10-10] ingest | pgAdmin for the talos cluster (LAN-only)
 
 Added [[pgAdmin for the talos cluster (LAN-only)]]: a `dpage/pgadmin4`
