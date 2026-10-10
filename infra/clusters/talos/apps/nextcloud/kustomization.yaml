@@ -4,5 +4,6 @@ resources:
   - namespace.yaml
   - storage.yaml
   - db-cluster.yaml
+  - scheduled-backup.yaml
   - helmrelease.yaml
   - ingress-lan.yaml

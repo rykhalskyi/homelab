@@ -51,7 +51,8 @@ first-boot `occ maintenance:install` a full window.
 | `infra/clusters/talos/infrastructure/sources/nextcloud.yaml` | `HelmRepository` → `https://nextcloud.github.io/helm/` |
 | `infra/clusters/talos/apps/nextcloud/namespace.yaml` | `Namespace: nextcloud` |
 | `infra/clusters/talos/apps/nextcloud/storage.yaml` | `nextcloud-html` (20Gi) + `nextcloud-data` (100Gi) `local-path` PVCs |
-| `infra/clusters/talos/apps/nextcloud/db-cluster.yaml` | CNPG `Cluster nextcloud` (PG 18.4, 1 instance) |
+| `infra/clusters/talos/apps/nextcloud/db-cluster.yaml` | CNPG `Cluster nextcloud` (PG 18.4, 1 instance, MinIO backups) |
+| `infra/clusters/talos/apps/nextcloud/scheduled-backup.yaml` | daily `ScheduledBackup nextcloud-daily` |
 | `infra/clusters/talos/apps/nextcloud/helmrelease.yaml` | the Nextcloud `HelmRelease` (+ Redis subchart, custom image) |
 | `infra/clusters/talos/apps/nextcloud/kustomization.yaml` | bundles the Nextcloud layer |
 | `infra/clusters/talos/apps/eurooffice/*` | DocumentServer Deployment/Service/PVC/Middleware/Ingress |
@@ -70,7 +71,7 @@ in lockstep. See [[Releasing a new Nextcloud image (byebyemoneylist app)]].
 
 ## Secrets (out of band, never in Git)
 
-The `nextcloud` namespace needs five Secrets, stored SOPS-encrypted under
+The `nextcloud` namespace needs six Secrets, stored SOPS-encrypted under
 `infra/clusters/talos/apps/secrets/` (gitignored — see [[Secrets with SOPS + age
 (local, out-of-band)]]):
 
@@ -81,6 +82,16 @@ The `nextcloud` namespace needs five Secrets, stored SOPS-encrypted under
 | `nextcloud-redis` | `redis-password` |
 | `eurooffice-jwt` | `JWT_SECRET` |
 | `byebyemoneylist` | `SILICONFLOW_API_KEY` |
+| `cnpg-minio` | `ACCESS_KEY_ID`, `ACCESS_SECRET_KEY` (backups — see below) |
+
+> **`cnpg-minio` is namespace-scoped.** The `databases` cluster already has a
+> Secret of that name, but Kubernetes Secrets are per-namespace, so the
+> `nextcloud` CNPG Cluster cannot see it. A second copy lives in `nextcloud`
+> under `apps/secrets/nextcloud-minio.sops.yaml` (same keys) and is applied out of
+> band. The MinIO `cnpg` user's policy is likewise scoped to
+> `s3://cnpg-backups/talos/*`, so its policy must also allow
+> `s3://cnpg-backups/nextcloud/*` or the backup fails with **403**. See
+> [[CloudNativePG on Talos (PostgreSQL + MinIO backups)]].
 
 The `cloudflared` namespace needs two more (copied from the k8s SOPS bundle):
 
@@ -234,8 +245,11 @@ $NC config:app:set eurooffice DocumentServerUrl --value="https://office.otakeess
   the subnet `192.168.2.0/24`) with the same Read/Write + Squash + sys security
   settings as the node-one entry. Register the share in Nextcloud as a *Local*
   external storage pointing at `/nas`.
-- **Backups** are not configured for the `nextcloud` CNPG `Cluster` yet — add a
-  `barmanObjectStore` + `ScheduledBackup` like [[CloudNativePG on Talos
-  (PostgreSQL + MinIO backups)]] when it matters.
+- **Backups.** The `nextcloud` CNPG `Cluster` has `barmanObjectStore` +
+  `ScheduledBackup nextcloud-daily` (03:00, 30d retention) writing to
+  `s3://cnpg-backups/nextcloud` on the LAN MinIO — a physical base+WAL backup of
+  the whole instance, covering every Nextcloud table. Same pattern as
+  [[CloudNativePG on Talos (PostgreSQL + MinIO backups)]]; remember the extra
+  namespaced `cnpg-minio` Secret and the widened MinIO policy.
 - **Image pin sync** is automated for both clusters by
   `update-nextcloud-image-pin.yml`; a manual pin must update both files.

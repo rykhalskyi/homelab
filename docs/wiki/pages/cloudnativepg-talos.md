@@ -94,7 +94,7 @@ key") that CNPG uses:
 ./mc mb local/cnpg-backups
 ./mc admin user add local cnpg '<strong-password>'
 
-# /volume1/docker/cnpg-policy.json — read bucket metadata, write under talos/
+# /volume1/docker/cnpg-policy.json — read bucket metadata, write under talos/ and nextcloud/
 cat > /volume1/docker/cnpg-policy.json <<'EOF'
 {
   "Version": "2012-10-17",
@@ -104,7 +104,8 @@ cat > /volume1/docker/cnpg-policy.json <<'EOF'
     { "Effect": "Allow",
       "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject",
                  "s3:ListMultipartUploadParts","s3:AbortMultipartUpload"],
-      "Resource": ["arn:aws:s3:::cnpg-backups/talos/*"] }
+      "Resource": ["arn:aws:s3:::cnpg-backups/talos/*",
+                   "arn:aws:s3:::cnpg-backups/nextcloud/*"] }
   ]
 }
 EOF
@@ -140,6 +141,12 @@ kubectl --context talos -n databases get secret cnpg-minio
 ```
 
 The `Cluster` references it via `s3Credentials` — no secrets in Git.
+
+> **Second cluster.** The `nextcloud` Cluster (see [[Nextcloud + Euro-Office on
+> Talos (LAN-only)]]) backs up to `s3://cnpg-backups/nextcloud` using the same
+> MinIO user. Because Secrets are namespaced it needs its **own**
+> `cnpg-minio` Secret in `nextcloud` (`apps/secrets/nextcloud-minio.sops.yaml`),
+> and the MinIO policy above must include the `nextcloud/*` prefix.
 
 ## Deploy
 

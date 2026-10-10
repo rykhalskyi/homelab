@@ -6,7 +6,9 @@ source_count: 0
 
 # Cilium on Talos (Helm, kube-proxy-free)
 
-The `talos` cluster (`node-two`, `192.168.2.234`) runs **Cilium** as its CNI
+The `talos` cluster (`node-two` `192.168.2.234` and, since 2026-10-10, `node-one`
+`192.168.2.233` — see [[Adding node-one to the Talos cluster (control-plane IP gotcha)]])
+runs **Cilium** as its CNI
 instead of Talos's default flannel, with **kube-proxy disabled**
 (kube-proxy-free / eBPF service load-balancing via KubePrism). Hubble is
 enabled. This page records how it is installed, how to add nodes, how to
@@ -126,6 +128,10 @@ control-plane node auto-joins etcd for quorum; use `-t controlplane`.
 Caveats:
 - **Use the real `secrets.yaml`** — a mismatched one gives the node the wrong
   machine CA and locks you out of its Talos API (see Gotchas).
+- **Join on the node's final static IP.** A control-plane node's etcd peer URL is
+  fixed when it joins; booting on DHCP and moving the IP afterwards loses etcd
+  quorum and downs the API. Full story + recovery in
+  [[Adding node-one to the Talos cluster (control-plane IP gotcha)]].
 - Today `patch.yaml` mixes node-two's static IP and the shared CNI switch.
   Cleaner: split into a shared `patch-cni.yaml` plus a tiny per-node
   `patch.yaml` (network [+ taint]).

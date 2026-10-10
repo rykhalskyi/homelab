@@ -9,8 +9,14 @@
 # Secret.
 #
 # `databases`-style conventions kept from the shared cluster: operand image
-# pinned by digest, single instance on the `local-path` StorageClass. Backups
-# (barmanObjectStore to MinIO) are a later addition — see the wiki page.
+# pinned by digest, single instance on the `local-path` StorageClass.
+#
+# Backups: continuous WAL archiving + a daily base backup (ScheduledBackup
+# `nextcloud-daily`) to the same LAN MinIO as the shared cluster, under a
+# separate prefix. Because secrets are namespaced, the S3 credentials live in
+# the out-of-band `cnpg-minio` Secret in *this* namespace (the `databases` one
+# is not visible here). The backup is a physical base+WAL of the whole
+# PostgreSQL instance, so it covers every table in the `nextcloud` database.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -34,3 +40,19 @@ spec:
       owner: nextcloud
       secret:
         name: nextcloud-db
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://cnpg-backups/nextcloud
+      endpointURL: http://192.168.2.112:9000
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-minio
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-minio
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "30d"
