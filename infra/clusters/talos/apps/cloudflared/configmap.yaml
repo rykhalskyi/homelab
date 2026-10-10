@@ -17,6 +17,11 @@ data:
   config.yml: |
     credentials-file: /etc/cloudflared/creds/credentials.json
     no-autoupdate: true
+    # Use http2 (TCP) instead of the default QUIC/UDP. On this LAN the QUIC
+    # tunnel connections go stale over time (NAT/UDP), which surfaced as
+    # intermittent Cloudflare 524s and hung requests until cloudflared was
+    # restarted. TCP keeps the four HA connections healthy.
+    protocol: http2
     ingress:
       - hostname: cloud.otakeessen.com
         service: http://traefik.traefik.svc.cluster.local:80
