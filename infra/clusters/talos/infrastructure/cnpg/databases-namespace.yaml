@@ -1,0 +1,8 @@
+# Namespace for the PostgreSQL workload(s) managed by CloudNativePG. Kept
+# separate from `cnpg-system` (the operator) so the database lives with its
+# app-level Secret (`cnpg-minio`, created out of band) rather than with the
+# controller.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: databases

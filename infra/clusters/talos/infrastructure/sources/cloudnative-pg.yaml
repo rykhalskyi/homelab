@@ -1,0 +1,11 @@
+# CloudNativePG publishes its Helm charts on GitHub Pages. Flux tracks the
+# index here; the HelmRelease pins the exact chart version (0.29.1, which maps
+# to operator 1.30.1).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: cloudnative-pg
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://cloudnative-pg.github.io/charts
