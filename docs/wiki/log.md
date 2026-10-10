@@ -9,8 +9,9 @@ namespace, reconciled by Flux (`infrastructure` gains the `nextcloud`
 the k8s stack but swaps the parts Talos does differently: a dedicated
 CloudNativePG `Cluster nextcloud` (PG 18.4, `local-path`) whose owner/password
 come from the shared out-of-band `nextcloud-db` Secret via
-`bootstrap.initdb.secret`, dynamic `local-path` PVCs instead of a static PV, no
-NAS/NFS external storage, no DB `dependsOn` (the CR is not a HelmRelease, so the
+`bootstrap.initdb.secret`, dynamic `local-path` PVCs instead of a static PV, the
+same NAS-over-NFS share mounted at `/nas` (inline pod volume, supported on
+Talos), no DB `dependsOn` (the CR is not a HelmRelease, so the
 Pod retries behind the startup probe), `TRUSTED_PROXIES: 10.244.0.0/16`
 (Cilium/Talos pod CIDR), and a LAN-only host pair
 `cloud-talos.`/`office-talos.homelab.local` on node-two `:80`. Documents the five

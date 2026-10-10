@@ -4,7 +4,7 @@
 #   - external database is the dedicated CloudNativePG `nextcloud` Cluster
 #     (`nextcloud-rw.nextcloud.svc.cluster.local`), not a Bitnami subchart;
 #   - storage is the dynamic `local-path` StorageClass (see storage.yaml);
-#   - no NAS/NFS external storage;
+#   - mounts the same Synology NAS share over NFS at /nas (see below);
 #   - no `dependsOn: postgresql` (the DB is a CNPG CR, not a HelmRelease), so
 #     the Pod retries until `nextcloud-rw` accepts connections — the startup
 #     probe below gives `maintenance:install` its full window on first boot.
@@ -79,6 +79,19 @@ spec:
             php /var/www/html/occ app:disable byebyemoneylist >/dev/null 2>&1 || true
             php /var/www/html/occ app:enable byebyemoneylist
           fi
+      # Synology NAS share mounted over NFS and exposed to Nextcloud as a
+      # "Local" external storage (same as the k8s cluster). Kubelet on the
+      # node running the Pod performs the NFS mount and presents it at /nas.
+      # Talos supports NFS via inline pod volumes; the mount points at the LAN
+      # NAS (192.168.2.112), reachable from the cluster.
+      extraVolumes:
+        - name: nas-nextcloud
+          nfs:
+            server: 192.168.2.112
+            path: /volume1/nextcloud
+      extraVolumeMounts:
+        - name: nas-nextcloud
+          mountPath: /nas
     phpClientHttpsFix:
       enabled: true
       protocol: https

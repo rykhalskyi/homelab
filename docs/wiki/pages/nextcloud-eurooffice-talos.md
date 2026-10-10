@@ -24,7 +24,7 @@ dedicated CloudNativePG `Cluster` (not Bitnami), storage is the dynamic
 | Database | standalone Bitnami Postgres `HelmRelease` | dedicated CNPG `Cluster nextcloud` |
 | DB credentials | out-of-band `nextcloud-db` Secret | same Secret, also used as CNPG `bootstrap.initdb.secret` |
 | Storage | static local PV for data + `nextcloud-html` PVC | both dynamic `local-path` PVCs |
-| External storage | NAS over NFS | none |
+| External storage | NAS over NFS (`/nas`) | same: NAS over NFS (`/nas`) |
 | Exposure | Cloudflare wildcard tunnel → Traefik | LAN-only Traefik on node-two `:80` |
 | Hosts | `cloud./office.otakeessen.com` | `cloud-talos./office-talos.homelab.local` |
 | `TRUSTED_PROXIES` | `10.42.0.0/16` (k3s) | `10.244.0.0/16` (Talos/Cilium pod CIDR) |
@@ -126,6 +126,25 @@ $NC config:system:set trusted_domains 3 --value=nextcloud
 These app/system settings live in the database / `config.php`, not Git, so
 re-run them after a rebuild from scratch.
 
+## NAS external storage
+
+The HelmRelease mounts the Synology share at `/nas` (the `nas-nextcloud` inline
+NFS volume, same as k8s). Register it as a **Local** external storage so it
+shows up in the Files app:
+
+```bash
+$NC app:enable files_external
+$NC files_external:create NAS local null::null -c datadir=/nas
+$NC files_external:list                         # note the numeric mount id
+$NC files_external:applicable --add-user admin <id>
+$NC files:scan --all
+```
+
+(Equivalently: **Settings → Administration → External storage → Add storage →
+Local**, path `/nas`.) The backend config key is `datadir`; if the mount does
+not appear, create it via the admin UI instead. Configure it **before** the
+external storage is used by desktop/mobile clients.
+
 ## Verify
 
 ```bash
@@ -165,6 +184,11 @@ When the talos instance should be reachable from outside the LAN:
   Talos/Cilium).
 - **Node capacity.** `node-two` is a single control-plane node; the Euro-Office
   DocumentServer wants ~2–4 GB RAM (`limits.memory: 3Gi`).
+- **NAS over NFS.** The `nas-nextcloud` inline `nfs` volume (server
+  `192.168.2.112`, path `/volume1/nextcloud`) is mounted by the node's kubelet
+  and presented at `/nas`; Talos supports NFS through inline pod volumes. The
+  NAS export must allow the node's IP (`192.168.2.234`). Register the share in
+  Nextcloud as a *Local* external storage pointing at `/nas`.
 - **Backups** are not configured for the `nextcloud` CNPG `Cluster` yet — add a
   `barmanObjectStore` + `ScheduledBackup` like [[CloudNativePG on Talos
   (PostgreSQL + MinIO backups)]] when it matters.
