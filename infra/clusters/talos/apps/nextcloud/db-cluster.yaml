@@ -1,0 +1,36 @@
+# Dedicated PostgreSQL for Nextcloud, managed by CloudNativePG.
+#
+# Clean install: the cluster is created empty and Nextcloud's entrypoint runs
+# `occ maintenance:install` against it. Credentials are NOT operator-generated
+# (`-app` secret); instead `bootstrap.initdb.secret` points at the out-of-band
+# `nextcloud-db` Secret (keys `username` / `password`), which the Nextcloud
+# HelmRelease also consumes as `externalDatabase.existingSecret`. That keeps a
+# single source of truth and removes any ordering dependency on a generated
+# Secret.
+#
+# `databases`-style conventions kept from the shared cluster: operand image
+# pinned by digest, single instance on the `local-path` StorageClass. Backups
+# (barmanObjectStore to MinIO) are a later addition — see the wiki page.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: nextcloud
+  namespace: nextcloud
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie@sha256:42708a75345b7a48fdd9257b071830783a97fd228529196b6313187a7198e185
+  storage:
+    storageClass: local-path
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  bootstrap:
+    initdb:
+      database: nextcloud
+      owner: nextcloud
+      secret:
+        name: nextcloud-db

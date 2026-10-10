@@ -1,0 +1,70 @@
+# Euro-Office DocumentServer (all-in-one community image; embeds its own
+# Postgres/RabbitMQ/Redis). It is the document-editing backend for the
+# Nextcloud `eurooffice` app. Needs ~2-4 GB RAM.
+#
+# Mirrors infra/clusters/k8s/apps/eurooffice/deployment.yaml, namespace
+# `nextcloud`. JWT is mandatory: the secret must match the Nextcloud app's
+# `jwt_secret` (see docs/wiki/pages/eurooffice.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eurooffice
+  namespace: nextcloud
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: eurooffice
+  template:
+    metadata:
+      labels:
+        app: eurooffice
+    spec:
+      containers:
+        - name: documentserver
+          # Upstream publishes only `latest`/`main` (no semver tags); pinned by
+          # digest for immutability. Update deliberately by bumping the digest.
+          image: ghcr.io/euro-office/documentserver:latest@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: JWT_ENABLED
+              value: "true"
+            - name: JWT_HEADER
+              value: "Authorization"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: eurooffice-jwt
+                  key: JWT_SECRET
+            - name: ALLOW_PRIVATE_IP_ADDRESS
+              value: "true"
+          volumeMounts:
+            - name: data
+              mountPath: /var/www/onlyoffice/Data
+            - name: dshm
+              mountPath: /dev/shm
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 3Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: eurooffice-data
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi

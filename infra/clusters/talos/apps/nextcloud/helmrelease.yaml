@@ -1,0 +1,149 @@
+# Nextcloud on the talos cluster (LAN-only for now).
+#
+# Mirrors infra/clusters/k8s/apps/nextcloud/helmrelease.yaml, adapted to Talos:
+#   - external database is the dedicated CloudNativePG `nextcloud` Cluster
+#     (`nextcloud-rw.nextcloud.svc.cluster.local`), not a Bitnami subchart;
+#   - storage is the dynamic `local-path` StorageClass (see storage.yaml);
+#   - mounts the same Synology NAS share over NFS at /nas (see below);
+#   - no `dependsOn: postgresql` (the DB is a CNPG CR, not a HelmRelease), so
+#     the Pod retries until `nextcloud-rw` accepts connections — the startup
+#     probe below gives `maintenance:install` its full window on first boot.
+#
+# Clean install: on first boot the official entrypoint runs
+# `occ maintenance:install` using the NEXTCLOUD_ADMIN_* env from the
+# `nextcloud-admin` Secret. The byebyemoneylist app is baked into the image at
+# /opt and copied into custom_apps by the `before-starting` hook.
+#
+# The image tag is built by .github/workflows/build-nextcloud-image.yml and kept
+# in sync by .github/workflows/update-nextcloud-image-pin.yml.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nextcloud
+  namespace: nextcloud
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: nextcloud
+      version: "9.3.0"
+      sourceRef:
+        kind: HelmRepository
+        name: nextcloud
+        namespace: flux-system
+  values:
+    image:
+      registry: ghcr.io
+      repository: rykhalskyi/homelab-nextcloud
+      tag: "sha-e76992bef5926494a195b835182881cd2da45688@sha256:cf829570cbdca9804c190720383c894976eafe433f2828ae82caac27765e36ef"
+    replicaCount: 1
+    nextcloud:
+      host: cloud-talos.homelab.local
+      trustedDomains:
+        - cloud-talos.homelab.local
+      datadir: /var/www/html/data
+      existingSecret:
+        enabled: true
+        secretName: nextcloud-admin
+        usernameKey: nextcloud-username
+        passwordKey: nextcloud-password
+      extraEnv:
+        # Cilium uses the Kubernetes IPAM (Talos's default pod CIDR is
+        # 10.244.0.0/16); this makes the client IP survive the ingress hop.
+        - name: TRUSTED_PROXIES
+          value: "10.244.0.0/16"
+        - name: APACHE_DISABLE_REWRITE_IP
+          value: "1"
+        - name: FORWARDED_FOR_HEADERS
+          value: "HTTP_X_FORWARDED_FOR"
+        - name: SILICONFLOW_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: byebyemoneylist
+              key: SILICONFLOW_API_KEY
+      hooks:
+        before-starting: |
+          #!/bin/sh
+          set -e
+          SRC=/opt/byebyemoneylist
+          APP=/var/www/html/custom_apps/byebyemoneylist
+          mkdir -p /var/www/html/custom_apps
+          [ -d "$SRC" ] && { rm -rf "$APP"; cp -a "$SRC" "$APP"; }
+          [ -n "${SILICONFLOW_API_KEY:-}" ] && {
+            printf 'SILICONFLOW_API_KEY=%s\n' "$SILICONFLOW_API_KEY" > "$APP/.env"
+            chmod 640 "$APP/.env"
+          }
+          code="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$APP/appinfo/info.xml")"
+          inst="$(php /var/www/html/occ config:app:get byebyemoneylist installed_version 2>/dev/null || true)"
+          if [ "$inst" != "$code" ]; then
+            php /var/www/html/occ app:disable byebyemoneylist >/dev/null 2>&1 || true
+            php /var/www/html/occ app:enable byebyemoneylist
+          fi
+      # Synology NAS share mounted over NFS and exposed to Nextcloud as a
+      # "Local" external storage (same as the k8s cluster). Kubelet on the
+      # node running the Pod performs the NFS mount and presents it at /nas.
+      # Talos supports NFS via inline pod volumes; the mount points at the LAN
+      # NAS (192.168.2.112), reachable from the cluster.
+      extraVolumes:
+        - name: nas-nextcloud
+          nfs:
+            server: 192.168.2.112
+            path: /volume1/nextcloud
+      extraVolumeMounts:
+        - name: nas-nextcloud
+          mountPath: /nas
+    phpClientHttpsFix:
+      enabled: true
+      protocol: https
+    persistence:
+      enabled: true
+      existingClaim: nextcloud-html
+      nextcloudData:
+        enabled: true
+        existingClaim: nextcloud-data
+    internalDatabase:
+      enabled: false
+    externalDatabase:
+      enabled: true
+      type: postgresql
+      host: nextcloud-rw.nextcloud.svc.cluster.local
+      existingSecret:
+        enabled: true
+        secretName: nextcloud-db
+        usernameKey: username
+        passwordKey: password
+    postgresql:
+      enabled: false
+    redis:
+      enabled: true
+      architecture: standalone
+      auth:
+        existingSecret: nextcloud-redis
+        existingSecretPasswordKey: redis-password
+    ingress:
+      enabled: true
+      className: traefik
+    cronjob:
+      enabled: true
+      type: cronjob
+      cronjob:
+        securityContext:
+          runAsUser: 33
+          runAsGroup: 33
+          runAsNonRoot: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+    # On first boot the entrypoint runs `occ maintenance:install` before Apache
+    # listens. The startup probe gates liveness/readiness until Apache answers,
+    # so the install gets its full 10m budget.
+    startupProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 60
+      successThreshold: 1

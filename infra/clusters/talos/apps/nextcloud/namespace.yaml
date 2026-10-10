@@ -1,0 +1,9 @@
+# Nextcloud + Euro-Office workloads on the talos cluster.
+#
+# Mirrors the k8s cluster's `homelab` namespace layout, but named `nextcloud`
+# so the whole stack (Nextcloud, its CNPG database and the Euro-Office
+# DocumentServer) is self-contained in one namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nextcloud
