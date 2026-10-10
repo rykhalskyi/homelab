@@ -1,0 +1,42 @@
+# Single-instance PostgreSQL cluster managed by CloudNativePG, with continuous
+# WAL archiving and a daily base backup to the MinIO bucket.
+#
+# - `databases` namespace; PVC on the local-path StorageClass.
+# - Operand image pinned by digest (repo convention). The `system` variant
+#   carries the barman-cloud binaries used by the in-tree barmanObjectStore
+#   backend.
+# - Backups: s3://cnpg-backups/talos on the LAN MinIO. Credentials come from
+#   the out-of-band `cnpg-minio` Secret (ACCESS_KEY_ID / ACCESS_SECRET_KEY).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres
+  namespace: databases
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie@sha256:42708a75345b7a48fdd9257b071830783a97fd228529196b6313187a7198e185
+  storage:
+    storageClass: local-path
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://cnpg-backups/talos
+      endpointURL: http://192.168.2.112:9000
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-minio
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-minio
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "30d"

@@ -11,7 +11,9 @@ resources:
   - sources/local-path-provisioner.yaml
   - sources/traefik.yaml
   - sources/kube-prometheus-stack.yaml
+  - sources/cloudnative-pg.yaml
   # add-ons
   - local-path
   - traefik
   - monitoring
+  - cnpg

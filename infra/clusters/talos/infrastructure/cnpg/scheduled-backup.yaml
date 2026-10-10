@@ -1,0 +1,14 @@
+# Daily physical base backup to the MinIO object store configured on the
+# Cluster (barmanObjectStore), plus continuous WAL archiving that the operator
+# already runs once the backup stanza exists. Six-field cron (seconds first):
+# 03:00:00 every day. Retention is set on the Cluster (30d).
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: postgres-daily
+  namespace: databases
+spec:
+  schedule: "0 0 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: postgres

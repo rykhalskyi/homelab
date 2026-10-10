@@ -1,5 +1,21 @@
 # DevOps Wiki — Log
 
+## [2026-10-10] ingest | CloudNativePG on Talos (PostgreSQL + MinIO backups)
+
+Added [[CloudNativePG on Talos (PostgreSQL + MinIO backups)]]: runs PostgreSQL
+on the `talos` cluster with the CloudNativePG operator (Flux `infrastructure`
+layer) and backs it up to the LAN MinIO bucket. The operator (`cloudnative-pg`
+chart 0.29.1 → operator 1.30.1) lives in `cnpg-system` and the single-instance
+`postgres` `Cluster` (PostgreSQL 18.4, digest-pinned `system` operand,
+`local-path` PVC) in `databases`; WAL archiving + a daily `ScheduledBackup` go to
+`s3://cnpg-backups/talos` on `192.168.2.112:9000` via the in-tree
+`barmanObjectStore` (deprecated since CNPG 1.26). Documents the out-of-band MinIO
+bootstrap — including that MinIO removed its Docker Hub images so `mc` must come
+from the GitHub release, and that `s3:prefix` is only valid on `s3:ListBucket` —
+the prefix-scoped user/policy + service account, the local SOPS `cnpg-minio`
+Secret, verify commands, a restore sketch, and gotchas (single-node = no HA,
+node-local PVCs, CRD-ordering retry).
+
 ## [2026-10-09] change | Observability rollout fixes (PSA, Prometheus subPath, Telegram chat_id)
 
 Rolled [[Observability on Talos (Prometheus + Grafana + Alertmanager)]] out to
