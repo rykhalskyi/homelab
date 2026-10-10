@@ -1,24 +1,20 @@
-# LAN-only on purpose: the host is `office-talos.homelab.local`, NOT under
-# `*.otakeessen.com`, so Traefik serves it on node-two's :80 and it is never
-# exposed beyond the LAN (until Phase B adds a Cloudflare tunnel). The host is
-# distinct from the k8s cluster's `office.otakeessen.com`.
+# Public ingress for the Euro-Office DocumentServer. TLS terminates at
+# Cloudflare, so the DS is served over HTTPS to the browser while Traefik speaks
+# plain HTTP — hence the `forwarded-proto` middleware (mixed-content fix).
 #
-# Reach it by adding this to your client /etc/hosts:
-#
-#   192.168.2.234 office-talos.homelab.local
-#
-# The browser and the Nextcloud server both load the editor from here.
+# Public on purpose: the browser loads the editor from here, and the
+# `*.otakeessen.com` tunnel forwards it to the talos Traefik.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: eurooffice
   namespace: nextcloud
   annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: nextcloud-eurooffice-hide-welcome@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: nextcloud-eurooffice-forwarded-proto@kubernetescrd,nextcloud-eurooffice-hide-welcome@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
-    - host: office-talos.homelab.local
+    - host: office.otakeessen.com
       http:
         paths:
           - path: /

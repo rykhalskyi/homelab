@@ -1,0 +1,22 @@
+# LAN fallback for Nextcloud. The HelmRelease ingress serves the public
+# `cloud.otakeessen.com`; this adds the on-LAN `cloud-talos.homelab.local` on
+# node-two's :80 (add a client /etc/hosts entry: 192.168.2.234
+# cloud-talos.homelab.local).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nextcloud-lan
+  namespace: nextcloud
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: cloud-talos.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nextcloud
+                port:
+                  number: 8080

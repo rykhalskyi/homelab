@@ -48,9 +48,15 @@ spec:
       tag: "sha-e76992bef5926494a195b835182881cd2da45688@sha256:cf829570cbdca9804c190720383c894976eafe433f2828ae82caac27765e36ef"
     replicaCount: 1
     nextcloud:
-      host: cloud-talos.homelab.local
+      # Canonical public hostname (k8s is inactive; talos is now the only
+      # cluster). LAN + in-cluster names are also trusted (LAN ingress and the
+      # EuroOffice server-to-server calls).
+      host: cloud.otakeessen.com
       trustedDomains:
+        - cloud.otakeessen.com
         - cloud-talos.homelab.local
+        - nextcloud.nextcloud.svc.cluster.local
+        - nextcloud
       datadir: /var/www/html/data
       existingSecret:
         enabled: true
@@ -65,7 +71,7 @@ spec:
         - name: APACHE_DISABLE_REWRITE_IP
           value: "1"
         - name: FORWARDED_FOR_HEADERS
-          value: "HTTP_X_FORWARDED_FOR"
+          value: "HTTP_X_FORWARDED_FOR HTTP_CF_CONNECTING_IP"
         - name: SILICONFLOW_API_KEY
           valueFrom:
             secretKeyRef:
