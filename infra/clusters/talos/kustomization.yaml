@@ -10,5 +10,5 @@ kind: Kustomization
 # Flux itself.
 resources:
   - flux-system
-  #- apps.yaml
+  - apps.yaml
   - infrastructure.yaml

@@ -1,5 +1,18 @@
 # DevOps Wiki — Log
 
+## [2026-10-10] fix | CloudNativePG CRD-ordering (split into the apps layer)
+
+The initial [[CloudNativePG on Talos (PostgreSQL + MinIO backups)]] change put
+the operator and the `Cluster`/`ScheduledBackup` CRs in the same
+`infrastructure` Flux Kustomization. Because kustomize-controller dry-runs the
+whole set, a `ScheduledBackup` whose CRD did not exist yet failed with
+`no matches for kind "ScheduledBackup" in version "postgresql.cnpg.io/v1"` —
+aborting the entire apply and preventing the operator from ever installing (a
+chicken-and-egg). Fixed by moving the CRs into a new `apps` Flux Kustomization
+(`infra/clusters/talos/apps/`, `wait: true`, `dependsOn: infrastructure`) and
+enabling `apps.yaml` in the talos root, leaving only the operator + CRDs in
+`infrastructure`. Page updated with the two-layer explanation and gotcha.
+
 ## [2026-10-10] ingest | CloudNativePG on Talos (PostgreSQL + MinIO backups)
 
 Added [[CloudNativePG on Talos (PostgreSQL + MinIO backups)]]: runs PostgreSQL

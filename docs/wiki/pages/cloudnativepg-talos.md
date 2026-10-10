@@ -41,9 +41,11 @@ MinIO 192.168.2.112:9000   s3://cnpg-backups/talos/           (LAN, not in clust
 | `infra/clusters/talos/infrastructure/cnpg/namespace.yaml` | `Namespace: cnpg-system` (operator) |
 | `infra/clusters/talos/infrastructure/cnpg/databases-namespace.yaml` | `Namespace: databases` (workload) |
 | `infra/clusters/talos/infrastructure/cnpg/helmrelease.yaml` | operator `HelmRelease`, chart pinned |
-| `infra/clusters/talos/infrastructure/cnpg/cluster.yaml` | the `Cluster` CR + `barmanObjectStore` |
-| `infra/clusters/talos/infrastructure/cnpg/scheduled-backup.yaml` | daily `ScheduledBackup` |
-| `infra/clusters/talos/infrastructure/cnpg/kustomization.yaml` | bundles the above |
+| `infra/clusters/talos/infrastructure/cnpg/kustomization.yaml` | operator layer (`infrastructure`) |
+| `infra/clusters/talos/apps.yaml` | Flux Kustomization for workloads (`dependsOn: infrastructure`) |
+| `infra/clusters/talos/apps/cnpg/cluster.yaml` | the `Cluster` CR + `barmanObjectStore` |
+| `infra/clusters/talos/apps/cnpg/scheduled-backup.yaml` | daily `ScheduledBackup` |
+| `infra/clusters/talos/apps/cnpg/kustomization.yaml` | bundles the CNPG workload |
 | `infra/clusters/talos/apps/secrets/cnpg-minio.sops.yaml` | **local only**, MinIO keys |
 
 Pinned versions:
@@ -54,14 +56,20 @@ Pinned versions:
 - The `system` image variant is required because the **in-tree**
   `barmanObjectStore` backend uses the bundled `barman-cloud` binaries.
 
-## Two layers, two namespaces
+## Two layers (infrastructure + apps)
 
-- **`cnpg-system`** — the operator (owns the `postgresql.cnpg.io` CRDs and
-  watches all namespaces). It must be Ready before the `Cluster` CR can be
-  reconciled; on a fresh install Flux retries the `Cluster` apply until the
-  CRDs are established.
-- **`databases`** — the actual PostgreSQL `Cluster`, kept separate from the
-  controller and co-located with its `cnpg-minio` Secret.
+- **`infrastructure`** → namespace **`cnpg-system`**: the operator, which owns
+  the `postgresql.cnpg.io` CRDs and watches all namespaces. It also creates the
+  `databases` namespace.
+- **`apps`** → namespace **`databases`**: the `Cluster` and `ScheduledBackup`
+  CRs.
+
+Why split: a CR cannot live in the same Flux Kustomization that installs its
+CRD. kustomize-controller server-side **dry-runs** the whole set, and a
+`ScheduledBackup`/`Cluster` whose CRD doesn't exist yet fails with
+`no matches for kind ...`, which aborts the entire apply — so the operator never
+installs and nothing converges. Putting the CRs in a separate `apps`
+Kustomization that `dependsOn: infrastructure` guarantees the CRDs exist first.
 
 ## MinIO setup (out of band, on the NAS)
 
@@ -137,6 +145,7 @@ Commit and let Flux reconcile, or force it:
 ```bash
 flux reconcile kustomization infrastructure -n flux-system --with-source
 kubectl -n cnpg-system get pods -w          # cnpg-controller-manager
+flux reconcile kustomization apps -n flux-system --with-source
 ```
 
 Operator pods land in `cnpg-system`; the database pods (`postgres-1`) in
@@ -200,9 +209,10 @@ Point-in-time recovery adds `recoveryTarget.targetTime`. Always test a restore
 
 ## Gotchas
 
-- **Ordering.** The operator (and its CRDs) and the `Cluster` share the
-  `infrastructure` Kustomization; the first apply of the `Cluster` may race the
-  CRD creation and be retried by Flux. It converges on its own.
+- **Ordering.** The `Cluster`/`ScheduledBackup` CRs are in the `apps`
+  Kustomization, which `dependsOn` `infrastructure`. Do **not** move them back
+  into `infrastructure`: the same-Kustomization CR-before-CRD dry-run failure
+  blocks the operator from ever installing.
 - **Not HA yet.** One instance = no failover. Raising `spec.instances` to 3
   needs the other Talos nodes and (ideally) anti-affinity.
 - **`local-path` volumes** are node-local; a `Cluster` instance is pinned to the
@@ -213,7 +223,9 @@ Point-in-time recovery adds `recoveryTarget.targetTime`. Always test a restore
 
 ## Rollback
 
-Delete the `cnpg` entry from
-`infra/clusters/talos/infrastructure/kustomization.yaml`, commit, and let Flux
-prune the operator + `Cluster`. Remove the `databases` namespace/Secret and the
-MinIO objects separately (Flux does not own the out-of-band Secret).
+Delete the `cnpg` entries from
+`infra/clusters/talos/infrastructure/kustomization.yaml` (operator) and
+`infra/clusters/talos/apps/kustomization.yaml` (workload), commit, and let Flux
+prune them (drop `apps.yaml` from the root Kustomization too if the whole apps
+layer is going away). Remove the `databases` namespace/Secret and the MinIO
+objects separately (Flux does not own the out-of-band Secret).

@@ -1,0 +1,19 @@
+# Workloads for the talos cluster, reconciled by Flux from ./apps.
+#
+# Mirrors the k8s cluster's apps.yaml: it `dependsOn` the `infrastructure`
+# Kustomization (so CRDs/add-ons are ready) and is applied after it.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/clusters/talos/apps
+  prune: true
+  wait: true
+  dependsOn:
+    - name: infrastructure
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

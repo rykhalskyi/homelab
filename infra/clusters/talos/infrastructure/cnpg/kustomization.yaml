@@ -1,11 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# CloudNativePG operator + a single PostgreSQL cluster with MinIO backups.
-# The operator must be running before the `Cluster` CR can be reconciled;
-# Flux retries the apply until the postgresql.cnpg.io CRDs are established.
+# CloudNativePG operator only. The `Cluster` and `ScheduledBackup` CRs live in
+# the `apps` layer (infra/clusters/talos/apps/cnpg) as their own Flux
+# Kustomization that dependsOn `infrastructure`: a CR cannot be applied in the
+# same Kustomization that installs its CRD (the server-side dry-run fails with
+# "no matches for kind ...", which aborts the whole apply).
 resources:
   - namespace.yaml
   - databases-namespace.yaml
   - helmrelease.yaml
-  - cluster.yaml
-  - scheduled-backup.yaml
