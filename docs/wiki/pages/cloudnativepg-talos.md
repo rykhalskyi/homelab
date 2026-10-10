@@ -87,22 +87,19 @@ export MC_CONFIG_DIR=/volume1/docker/mc
 ./mc admin info local
 ```
 
-Create the bucket + a **prefix-scoped** user and a service account (the "API
+Create the bucket + a least-privilege user and a service account (the "API
 key") that CNPG uses:
 
 ```bash
 ./mc mb local/cnpg-backups
 ./mc admin user add local cnpg '<strong-password>'
 
-# /volume1/docker/cnpg-policy.json — least privilege under cnpg-backups/talos/
+# /volume1/docker/cnpg-policy.json — read bucket metadata, write under talos/
 cat > /volume1/docker/cnpg-policy.json <<'EOF'
 {
   "Version": "2012-10-17",
   "Statement": [
-    { "Effect": "Allow", "Action": ["s3:ListBucket"],
-      "Resource": ["arn:aws:s3:::cnpg-backups"],
-      "Condition": { "StringLike": { "s3:prefix": ["talos/*"] } } },
-    { "Effect": "Allow", "Action": ["s3:GetBucketLocation"],
+    { "Effect": "Allow", "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
       "Resource": ["arn:aws:s3:::cnpg-backups"] },
     { "Effect": "Allow",
       "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject",
@@ -119,8 +116,14 @@ EOF
 
 Two MinIO gotchas hit while building this:
 
-- `s3:prefix` is a valid condition key **only** for `s3:ListBucket`; combining
-  it with `s3:GetBucketLocation` is rejected — hence the separate statements.
+- **`s3:ListBucket` must be unconditional.** Prefix-scoping it with an
+  `s3:prefix` condition looks tighter, but barman-cloud calls `HeadBucket`
+  first (which needs `s3:ListBucket` with **no** prefix) and gets
+  **403 Forbidden** — the backup then hangs in `running` while WAL archiving
+  fails with `403 ... HeadBucket operation: Forbidden`. Keep object writes
+  scoped to `talos/*`, but grant `s3:ListBucket`/`s3:GetBucketLocation` on the
+  whole bucket. (`s3:prefix` is also valid *only* for `s3:ListBucket`; attaching
+  it to `s3:GetBucketLocation` is rejected outright.)
 - MinIO images are **not on Docker Hub** anymore; `docker run minio/mc` fails
   with `pull access denied`. Use the GitHub-release binary above.
 

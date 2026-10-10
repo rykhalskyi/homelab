@@ -11,6 +11,15 @@ reachable only from the LAN (the Cloudflare tunnel routes only
 as the k8s cluster (`databases` namespace). Documents registering the server
 (`postgres-rw:5432`, user `app`), verify commands, and the distinct hostname
 that avoids colliding with the k8s `pgadmin.homelab.local`.
+## [2026-10-10] fix | CNPG backups: MinIO policy must not prefix-scope ListBucket
+
+First backup of the talos `postgres` Cluster hung in `running` and WAL archiving
+failed with `403 ... HeadBucket operation: Forbidden`. Cause: the MinIO policy
+granted `s3:ListBucket` only under an `s3:prefix` condition, but barman-cloud's
+`HeadBucket` preflight has no prefix, so it was denied. Corrected
+[[CloudNativePG on Talos (PostgreSQL + MinIO backups)]]: grant
+`s3:ListBucket`/`s3:GetBucketLocation` on the whole bucket, keep only the object
+actions scoped to `talos/*`.
 
 ## [2026-10-10] fix | CloudNativePG CRD-ordering (split into the apps layer)
 
