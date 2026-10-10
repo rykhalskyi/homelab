@@ -1,0 +1,27 @@
+# Cloudflare tunnel connector for the talos cluster.
+#
+# Reuses the existing (locally-managed) tunnel that used to run in the k8s
+# cluster — same TUNNEL_ID / credentials.json — but with ingress pointing at the
+# talos Traefik instead of the k8s one. Run on talos so the tunnel survives the
+# k8s decommission.
+#
+# k8s is inactive, so talos now serves the canonical hostnames: `cloud.` and
+# `office.otakeessen.com`, plus the `*.otakeessen.com` wildcard, all to the talos
+# Traefik.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: cloudflared
+data:
+  config.yml: |
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    no-autoupdate: true
+    ingress:
+      - hostname: cloud.otakeessen.com
+        service: http://traefik.traefik.svc.cluster.local:80
+      - hostname: office.otakeessen.com
+        service: http://traefik.traefik.svc.cluster.local:80
+      - hostname: "*.otakeessen.com"
+        service: http://traefik.traefik.svc.cluster.local:80
+      - service: http_status:404

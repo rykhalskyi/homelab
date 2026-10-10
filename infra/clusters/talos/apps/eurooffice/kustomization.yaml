@@ -6,3 +6,4 @@ resources:
   - service.yaml
   - middleware.yaml
   - ingress.yaml
+  - ingress-lan.yaml

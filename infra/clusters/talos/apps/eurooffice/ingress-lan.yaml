@@ -1,0 +1,25 @@
+# LAN ingress for the Euro-Office DocumentServer. Plain HTTP on node-two's :80;
+# no `forwarded-proto` middleware here (the DS should build `http://` URLs for
+# the LAN). Reach it with a client /etc/hosts entry:
+#
+#   192.168.2.234 office-talos.homelab.local
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eurooffice-lan
+  namespace: nextcloud
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: nextcloud-eurooffice-hide-welcome@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: office-talos.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: eurooffice
+                port:
+                  number: 80

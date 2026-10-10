@@ -13,6 +13,12 @@ dedicated CloudNativePG `Cluster` (not Bitnami), storage is the dynamic
 `local-path` StorageClass (not a static PV), and it is **LAN-only** for now
 (the k8s cluster already owns `cloud.otakeessen.com` / `office.otakeessen.com`).
 
+> **Status (2026-10-10): live at `https://cloud.otakeessen.com` /
+> `https://office.otakeessen.com`.** Nextcloud **35.0.1**, `byebyemoneylist`
+> **1.1.0**, `eurooffice` app **11.0.6**, DocumentServer **9.3.4.37**; CNPG
+> `Cluster nextcloud` healthy; NAS mounted at `/nas` and registered as a Local
+> external storage. Public via Cloudflare (Phase B); the k8s cluster is
+> inactive and its tunnel connector has been moved to talos.
 > **Status (2026-10-10): deployed and working on `node-two`.** Nextcloud
 > **35.0.1**, `byebyemoneylist` **1.1.0**, `eurooffice` app **11.0.6**,
 > DocumentServer **9.3.4.37**; CNPG `Cluster nextcloud` healthy; NAS mounted at
@@ -28,7 +34,7 @@ dedicated CloudNativePG `Cluster` (not Bitnami), storage is the dynamic
 | DB credentials | out-of-band `nextcloud-db` Secret | same Secret, also used as CNPG `bootstrap.initdb.secret` |
 | Storage | static local PV for data + `nextcloud-html` PVC | both dynamic `local-path` PVCs |
 | External storage | NAS over NFS (`/nas`) | same: NAS over NFS (`/nas`) |
-| Exposure | Cloudflare wildcard tunnel → Traefik | LAN-only Traefik on node-two `:80` |
+| Exposure | Cloudflare wildcard tunnel → Traefik | same tunnel, connector moved to talos → Traefik |
 | Hosts | `cloud./office.otakeessen.com` | `cloud-talos./office-talos.homelab.local` |
 | `TRUSTED_PROXIES` | `10.42.0.0/16` (k3s) | `10.244.0.0/16` (Talos/Cilium pod CIDR) |
 | Scheme middleware | force `X-Forwarded-Proto: https` | omitted (plain HTTP on LAN) |
@@ -49,6 +55,7 @@ first-boot `occ maintenance:install` a full window.
 | `infra/clusters/talos/apps/nextcloud/helmrelease.yaml` | the Nextcloud `HelmRelease` (+ Redis subchart, custom image) |
 | `infra/clusters/talos/apps/nextcloud/kustomization.yaml` | bundles the Nextcloud layer |
 | `infra/clusters/talos/apps/eurooffice/*` | DocumentServer Deployment/Service/PVC/Middleware/Ingress |
+| `infra/clusters/talos/apps/cloudflared/*` | tunnel connector (reused k8s tunnel → talos Traefik) |
 | `infra/clusters/talos/apps/secrets/*.sops.yaml` | **local only**, out-of-band Secrets |
 | `.github/workflows/update-nextcloud-image-pin.yml` | pins the image digest in **both** clusters' HelmReleases |
 
@@ -74,6 +81,13 @@ The `nextcloud` namespace needs five Secrets, stored SOPS-encrypted under
 | `nextcloud-redis` | `redis-password` |
 | `eurooffice-jwt` | `JWT_SECRET` |
 | `byebyemoneylist` | `SILICONFLOW_API_KEY` |
+
+The `cloudflared` namespace needs two more (copied from the k8s SOPS bundle):
+
+| Secret | Keys |
+|--------|------|
+| `cloudflared-tunnel` | `TUNNEL_ID` |
+| `cloudflared-credentials` | `credentials.json` (base64) |
 
 Create/edit and apply:
 
@@ -160,19 +174,36 @@ curl -s http://office-talos.homelab.local/healthcheck        # true (from the LA
 
 Then create/open a `.docx`/`.xlsx`/`.pptx` in the browser and edit it.
 
-## Phase B — public via Cloudflare (later)
+## Phase B — public via Cloudflare (done)
 
-When the talos instance should be reachable from outside the LAN:
+The k8s cluster is inactive, so the **existing tunnel is reused**: the same
+(locally-managed) tunnel credentials now run as a `cloudflared` Deployment in the
+talos `cloudflared` namespace (`apps/cloudflared/`), with ingress routing
+`cloud.`/`office.otakeessen.com` and the `*.otakeessen.com` wildcard to the
+**talos** Traefik. The `cloudflared-tunnel` (TUNNEL_ID) and
+`cloudflared-credentials` (credentials.json) Secrets are copied from the k8s
+SOPS bundle and applied out of band. The `*.otakeessen.com` DNS CNAME already
+resolves to Cloudflare via the wildcard record.
 
-1. Deploy `cloudflared` to the talos cluster (Deployment + tunnel/credentials
-   Secret) and add new public hostnames — `cloud.`/`office.otakeessen.com`
-   already belong to k8s, so use distinct ones (e.g. `cloud2.`/`office2.`).
-2. Add an `eurooffice-forwarded-proto` Middleware (force `X-Forwarded-Proto:
-   https`) and reference it from the Ingress — the mixed-content gotcha in
-   [[Euro-Office on k3s]] applies once TLS terminates at the edge.
-3. Switch the Nextcloud `host`/`trustedDomains`, the ingress host, and
-   `overwrite.cli.url` to the public URL, and re-run the connector `occ`
-   settings.
+Because TLS terminates at the edge, `office.otakeessen.com` carries the
+`eurooffice-forwarded-proto` Middleware (forces `X-Forwarded-Proto: https`) — the
+mixed-content gotcha from [[Euro-Office on k3s]]. The LAN hostnames
+(`cloud-talos.`/`office-talos.homelab.local`) stay on plain-HTTP Ingresses with
+no force-https middleware, so both schemes work.
+
+Runtime `occ` settings for the public URLs (DB-stored, re-run after a rebuild):
+
+```bash
+$NC config:system:set overwrite.cli.url --value=https://cloud.otakeessen.com
+$NC config:app:set eurooffice DocumentServerUrl --value="https://office.otakeessen.com/"
+```
+
+> **Gotcha — `trusted_domains` is not updated on upgrade.** The chart only writes
+> `trusted_domains` on first install, so after changing `nextcloud.host` the readiness
+> probe (which sends `Host: <nextcloud.host>`) got HTTP **400** ("untrusted
+> domain") and the Pod never became Ready (Helm upgrade timed out). Fix:
+> `occ config:system:set trusted_domains 1 --value=cloud.otakeessen.com` (and
+> re-add the LAN name). Do the same whenever `nextcloud.host` changes.
 
 ## Gotchas
 

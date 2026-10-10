@@ -1,5 +1,21 @@
 # DevOps Wiki — Log
 
+## [2026-10-10] change | Nextcloud + Euro-Office on Talos: public via Cloudflare (k8s retired)
+
+The k8s cluster went down (`cloud.otakeessen.com` returned Cloudflare **530**),
+so [[Nextcloud + Euro-Office on Talos (LAN-only)]] took over the canonical
+hostnames: a `cloudflared` Deployment now runs in the talos `cloudflared`
+namespace, reusing the existing tunnel (same `TUNNEL_ID`/`credentials.json`,
+copied into local SOPS Secrets), with ingress routing `cloud.`/`office.` and the
+`*.otakeessen.com` wildcard to the talos Traefik. Added the
+`eurooffice-forwarded-proto` middleware (mixed-content fix) on
+`office.otakeessen.com`, kept LAN Ingresses, and set `overwrite.cli.url` /
+`DocumentServerUrl` to the public https URLs. Gotcha recorded: the Nextcloud
+chart does not update `trusted_domains` on upgrade, so changing `nextcloud.host`
+made the readiness probe (Host = the new host) get HTTP 400 and the Helm upgrade
+time out — fixed with `occ config:system:set trusted_domains`. Verified
+`https://cloud.otakeessen.com/status.php` and
+`https://office.otakeessen.com/healthcheck` both `200`.
 ## [2026-10-10] change | Nextcloud + Euro-Office on Talos: applied and working
 
 Took [[Nextcloud + Euro-Office on Talos (LAN-only)]] live on `node-two` and
