@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# CloudNativePG workload objects. Reconciled by the `apps` Flux Kustomization,
+# which dependsOn `infrastructure` so the operator (and its CRDs) are installed
+# first. The `databases` namespace and the `cnpg-minio` Secret are created by
+# the infrastructure layer / out of band.
+resources:
+  - cluster.yaml
+  - scheduled-backup.yaml
