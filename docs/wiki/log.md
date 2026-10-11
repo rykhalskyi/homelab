@@ -4,10 +4,11 @@
 
 Narrowed `.github/workflows/kustomize-prune-guard.yml` to guard
 `infra/clusters/talos` only: dropped the `infra/clusters/k8s*` entries from the
-trigger `paths` and from both build/reject path arrays. The k3s cluster is being
-decommissioned, so removing its resources (e.g. the `homelab/pullini-data` PVC as
-part of the Pullini move) must not fail the guard. Updated [[Backups: what to
-save and how to restore]] to note the talos-only scope.
+trigger `paths` and from both build/reject path arrays, and added
+`infra/clusters/talos/apps` so every talos app is covered. The k3s cluster is
+being decommissioned, so removing its resources (e.g. the `homelab/pullini-data`
+PVC as part of the Pullini move) must not fail the guard. Updated [[Backups:
+what to save and how to restore]] to note the talos-only scope.
 
 ## [2026-10-11] change + ingest | Pullini moved from k3s to Talos (CloudNativePG)
 
