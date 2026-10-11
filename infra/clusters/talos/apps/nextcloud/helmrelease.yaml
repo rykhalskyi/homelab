@@ -41,6 +41,80 @@ spec:
         kind: HelmRepository
         name: nextcloud
         namespace: flux-system
+  # The Nextcloud chart hardcodes `subPath` on every persistent mount, and there
+  # is no value to turn it off. On containerd 2.x a local-path (hostPath) volume
+  # mounted with `subPath` is silently backed by the container overlay instead of
+  # the volume, so writes are lost on node reboot (containerd/containerd#13710).
+  # Override the rendered mounts to use WHOLE volumes (no subPath): mount the
+  # html PVC at /var/www/html (config/, custom_apps/, themes/ then live *inside*
+  # it as ordinary subdirectories), the data PVC at /var/www/html/data, and make
+  # /var/www/tmp an emptyDir. The CronJob mounts the same volumes.
+  #
+  # NOTE: if the chart is upgraded, re-check that these volume/mount names and
+  # paths still match the rendered Deployment/CronJob.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: nextcloud
+            patch: |
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: nextcloud
+              spec:
+                template:
+                  spec:
+                    volumes:
+                      - name: nextcloud-tmp
+                        emptyDir: {}
+                    containers:
+                      - name: nextcloud
+                        volumeMounts:
+                          - $patch: replace
+                          - name: nextcloud-main
+                            mountPath: /var/www/html
+                          - name: nextcloud-data
+                            mountPath: /var/www/html/data
+                          - name: nextcloud-tmp
+                            mountPath: /var/www/tmp
+                          - name: php-confd
+                            mountPath: /usr/local/etc/php/conf.d
+                          - name: nextcloud-hooks
+                            mountPath: /docker-entrypoint-hooks.d/before-starting/helm.sh
+                            subPath: before-starting.sh
+                            readOnly: true
+                          - name: nas-nextcloud
+                            mountPath: /nas
+          - target:
+              kind: CronJob
+              name: nextcloud-cron
+            patch: |
+              apiVersion: batch/v1
+              kind: CronJob
+              metadata:
+                name: nextcloud-cron
+              spec:
+                jobTemplate:
+                  spec:
+                    template:
+                      spec:
+                        volumes:
+                          - name: nextcloud-tmp
+                            emptyDir: {}
+                        containers:
+                          - name: nextcloud-cron
+                            volumeMounts:
+                              - $patch: replace
+                              - name: nextcloud-main
+                                mountPath: /var/www/html
+                              - name: nextcloud-data
+                                mountPath: /var/www/html/data
+                              - name: nextcloud-tmp
+                                mountPath: /var/www/tmp
+                              - name: nas-nextcloud
+                                mountPath: /nas
   values:
     image:
       registry: ghcr.io
@@ -108,6 +182,18 @@ spec:
             php /var/www/html/occ app:enable byebyemoneylist || \
               echo "byebyemoneylist: app:enable failed, will retry on next boot"
           fi
+      extraInitContainers:
+        # The database is a CloudNativePG Cluster, not a HelmRelease, so there is
+        # no `dependsOn`. Wait for it before the entrypoint runs
+        # `occ maintenance:install` — otherwise a first boot can race the DB and
+        # leave a half-installed instance.
+        - name: wait-for-db
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - "until nc -z nextcloud-rw.nextcloud.svc.cluster.local 5432; do echo waiting for nextcloud-rw; sleep 2; done"
       # Synology NAS share mounted over NFS and exposed to Nextcloud as a
       # "Local" external storage (same as the k8s cluster). Kubelet on the
       # node running the Pod performs the NFS mount and presents it at /nas.

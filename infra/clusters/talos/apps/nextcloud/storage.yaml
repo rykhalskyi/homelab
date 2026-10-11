@@ -1,10 +1,10 @@
 # Storage for the in-cluster Nextcloud on talos.
 #
-# These use the `nfs` StorageClass (Synology NAS) rather than `local-path`:
-# the Nextcloud chart mounts its volumes with `subPath`, and on containerd 2.x a
-# hostPath (local-path) volume mounted with `subPath` is silently backed by the
-# container overlay, so writes are lost on node reboot
-# (containerd/containerd#13710). NFS volumes bind `subPath` correctly.
+# `local-path` (node disk). These are mounted WITHOUT `subPath` — see the
+# `postRenderers` mount override in helmrelease.yaml. That matters: on
+# containerd 2.x a local-path (hostPath) volume mounted with `subPath` is
+# silently backed by the container overlay, so writes are lost on node reboot
+# (containerd/containerd#13710). Whole-volume mounts do not have that problem.
 #
 # `nextcloud-data` holds user files (`/var/www/html/data`); resize to taste.
 apiVersion: v1
@@ -13,7 +13,7 @@ metadata:
   name: nextcloud-html
   namespace: nextcloud
 spec:
-  storageClassName: nfs
+  storageClassName: local-path
   accessModes:
     - ReadWriteOnce
   resources:
@@ -26,7 +26,7 @@ metadata:
   name: nextcloud-data
   namespace: nextcloud
 spec:
-  storageClassName: nfs
+  storageClassName: local-path
   accessModes:
     - ReadWriteOnce
   resources:
