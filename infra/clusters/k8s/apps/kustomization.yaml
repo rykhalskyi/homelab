@@ -7,5 +7,4 @@ resources:
   - postgresql
   - pgadmin
   - eurooffice
-  - pullini
   - cloudflared

@@ -1,11 +1,12 @@
-# Public: covered by the wildcard *.otakeessen.com Cloudflare tunnel to Traefik.
+# Public: covered by the wildcard *.otakeessen.com Cloudflare tunnel to the
+# talos Traefik (see apps/cloudflared/configmap.yaml).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: pullini
-  namespace: homelab
+  namespace: pullini
   annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: homelab-pullini-forwarded-proto@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: pullini-pullini-forwarded-proto@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

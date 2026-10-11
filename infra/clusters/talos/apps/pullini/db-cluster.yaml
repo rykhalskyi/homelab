@@ -1,0 +1,53 @@
+# Dedicated PostgreSQL for Pullini, managed by CloudNativePG (mirrors the
+# `nextcloud` Cluster).
+#
+# Clean install: the cluster is created with the `pullini` database owned by
+# `pullini`; credentials come from the out-of-band `pullini-secrets` Secret
+# (keys `username` / `password`), which the Deployment also consumes as
+# `DATABASE_URL`. That keeps a single source of truth for the DB password.
+#
+# - `pullini` namespace; PVC on the local-path StorageClass.
+# - Operand image pinned by digest (repo convention).
+# - Backups: continuous WAL archiving + a daily base backup (ScheduledBackup
+#   `pullini-daily`) to the LAN MinIO under `s3://cnpg-backups/pullini`. Because
+#   Secrets are namespaced, the S3 credentials live in the out-of-band
+#   `cnpg-minio` Secret in *this* namespace.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pullini
+  namespace: pullini
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie@sha256:42708a75345b7a48fdd9257b071830783a97fd228529196b6313187a7198e185
+  storage:
+    storageClass: local-path
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  bootstrap:
+    initdb:
+      database: pullini
+      owner: pullini
+      secret:
+        name: pullini-secrets
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://cnpg-backups/pullini
+      endpointURL: http://192.168.2.112:9000
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-minio
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-minio
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "30d"

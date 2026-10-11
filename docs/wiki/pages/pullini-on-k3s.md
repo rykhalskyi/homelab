@@ -6,6 +6,12 @@ source_count: 0
 
 # Pullini on k3s (postgresql + Flux)
 
+> **Superseded (2026-10-11).** Pullini was moved to the `talos` cluster — see
+> [[Pullini on Talos (CloudNativePG + Flux)]]. The manifests under
+> `infra/clusters/k8s/apps/pullini/` were removed and the pin workflow now
+> targets `infra/clusters/talos/apps/pullini/deployment.yaml`. This page is kept
+> as historical context for the k3s setup.
+
 **Pullini** is a read-only, Git-backed wiki browser (Django + HTMX, SQLite *or*
 PostgreSQL). It runs on `node-one`'s k3s cluster as a `Deployment` reconciled by
 Flux, stores its data in the existing standalone **PostgreSQL**, and is published

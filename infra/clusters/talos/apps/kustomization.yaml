@@ -5,4 +5,5 @@ resources:
   - pgadmin
   - nextcloud
   - eurooffice
+  - pullini
   - cloudflared

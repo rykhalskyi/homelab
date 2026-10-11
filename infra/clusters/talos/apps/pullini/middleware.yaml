@@ -6,7 +6,7 @@ apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: pullini-forwarded-proto
-  namespace: homelab
+  namespace: pullini
 spec:
   headers:
     customRequestHeaders:

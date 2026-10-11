@@ -39,13 +39,6 @@ out. Creation commands and full context are in the wiki pages listed below.
 | `cloudflared-credentials` | `credentials.json` (file) | cloudflared | `k3s-gitops-nginx-cloudflared.md` |
 | `eurooffice-jwt` | `JWT_SECRET` | eurooffice | `eurooffice.md` |
 | `pgadmin-auth` | `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD` | pgadmin | `postgresql-pgadmin.md` |
-| `pullini-secrets` | `DJANGO_SECRET_KEY`, `DATABASE_URL`, `DJANGO_SUPERUSER_*` | pullini | `pullini-on-k3s.md` |
-
-After creating `pullini-secrets`, provision its database role with:
-
-```bash
-bash infra/clusters/k8s/apps/pullini/provision-db.sh
-```
 
 ## Conventions
 
