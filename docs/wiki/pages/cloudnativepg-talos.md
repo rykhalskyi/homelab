@@ -94,7 +94,7 @@ key") that CNPG uses:
 ./mc mb local/cnpg-backups
 ./mc admin user add local cnpg '<strong-password>'
 
-# /volume1/docker/cnpg-policy.json — read bucket metadata, write under talos/ and nextcloud/
+# /volume1/docker/cnpg-policy.json — read bucket metadata, write under talos/, nextcloud/ and pullini/
 cat > /volume1/docker/cnpg-policy.json <<'EOF'
 {
   "Version": "2012-10-17",
@@ -105,7 +105,8 @@ cat > /volume1/docker/cnpg-policy.json <<'EOF'
       "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject",
                  "s3:ListMultipartUploadParts","s3:AbortMultipartUpload"],
       "Resource": ["arn:aws:s3:::cnpg-backups/talos/*",
-                   "arn:aws:s3:::cnpg-backups/nextcloud/*"] }
+                   "arn:aws:s3:::cnpg-backups/nextcloud/*",
+                   "arn:aws:s3:::cnpg-backups/pullini/*"] }
   ]
 }
 EOF

@@ -1,5 +1,14 @@
 # DevOps Wiki — Log
 
+## [2026-10-11] change | MinIO cnpg policy: allow pullini/* (backups)
+
+Widened the MinIO `cnpg-rw` policy's object `Resource` list with
+`arn:aws:s3:::cnpg-backups/pullini/*` on the NAS so the talos `pullini` CNPG
+Cluster can archive WAL + base backups (`s3://cnpg-backups/pullini`). Verified:
+`ContinuousArchiving=True` and objects present under
+`pullini/pullini/wals/…`. Updated the policy snippet in
+[[CloudNativePG on Talos (PostgreSQL + MinIO backups)]].
+
 ## [2026-10-11] change | kustomize prune guard scoped to talos only
 
 Narrowed `.github/workflows/kustomize-prune-guard.yml` to guard
