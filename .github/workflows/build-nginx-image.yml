@@ -6,7 +6,7 @@ name: k3s/nginx 1/2 Build nginx site image
 # Pin nginx site image" workflow bumps that pin (via PR) after this one succeeds.
 #
 # The wiki is no longer built into this image; it is served by Pullini at
-# wiki.otakeessen.com (see docs/wiki/pages/pullini-on-k3s.md).
+# wiki.otakeessen.com (see docs/wiki/pages/pullini-on-talos.md).
 
 on:
   push:

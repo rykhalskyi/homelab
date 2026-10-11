@@ -92,7 +92,9 @@ Copy `~/.cloudflared/<UUID>.json` (and `cert.pem`) to your password manager.
    ```
 4. Restore `/home/jaro/ncdata` if needed, then
    `occ files:scan --all`.
-5. Provision pullini: `bash infra/clusters/k8s/apps/pullini/provision-db.sh`.
+5. Pullini moved to the `talos` cluster (CloudNativePG) and is no longer
+   provisioned by `provision-db.sh` — see
+   [[Pullini on Talos (CloudNativePG + Flux)]].
 
 With a current dump this restores accounts/shares/calendars too — i.e. the
 *exact* prior state, in tens of minutes.

@@ -2,6 +2,8 @@
 # volume with the web container (a separate CronJob could not mount it) and runs
 # `manage.py sync_projects` in a loop; both share the same database.
 #
+# Mirrors infra/clusters/k8s/apps/pullini/deployment.yaml, namespace `pullini`.
+#
 # The image is built on demand by the pullini repo's "Build image" workflow and
 # pinned here as sha-<commit>@sha256:<digest>;
 # .github/workflows/update-pullini-image-pin.yml opens the PR that bumps it.
@@ -9,7 +11,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pullini
-  namespace: homelab
+  namespace: pullini
   labels:
     app: pullini
 spec:
@@ -28,6 +30,17 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         fsGroup: 10001
+      # The database is a CloudNativePG Cluster, not a HelmRelease, so there is
+      # no `dependsOn`. Wait for it before the entrypoint runs `migrate` —
+      # otherwise a first boot can race the DB and crash-loop.
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - "until nc -z pullini-rw.pullini.svc.cluster.local 5432; do echo waiting for pullini-rw; sleep 2; done"
       containers:
         - name: web
           image: ghcr.io/rykhalskyi/pullini:sha-34f8643660b11614b61ecc37f27be411404830bf@sha256:5d108a8762bee1c2e8304e1f9f8b5e1891c519e079de001cd4fcc634dd9c6026

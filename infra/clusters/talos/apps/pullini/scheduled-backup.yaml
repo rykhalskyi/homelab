@@ -1,0 +1,14 @@
+# Daily physical base backup of the Pullini CNPG Cluster to MinIO, plus the
+# continuous WAL archiving the operator runs once the backup stanza exists.
+# Mirrors apps/nextcloud/scheduled-backup.yaml; six-field cron (seconds first):
+# 03:00:00 every day. Retention (30d) is set on the Cluster.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: pullini-daily
+  namespace: pullini
+spec:
+  schedule: "0 0 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: pullini

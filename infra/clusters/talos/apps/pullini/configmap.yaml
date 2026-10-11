@@ -5,7 +5,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: pullini-config
-  namespace: homelab
+  namespace: pullini
 data:
   DJANGO_DEBUG: "false"
   DJANGO_ALLOWED_HOSTS: "wiki.otakeessen.com"

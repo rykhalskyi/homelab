@@ -1,5 +1,25 @@
 # DevOps Wiki — Log
 
+## [2026-10-11] change + ingest | Pullini moved from k3s to Talos (CloudNativePG)
+
+Moved **Pullini** off the k3s (`node-one`) cluster onto `talos`. New manifests
+under `infra/clusters/talos/apps/pullini/` (namespace `pullini`): web +
+scheduler `Deployment` (pinned image, `wait-for-db` initContainer on
+`pullini-rw`), `ConfigMap`, `Service`, `Ingress` (`wiki.otakeessen.com`),
+`forwarded-proto` `Middleware`, a 2Gi `local-path` PVC, a dedicated CloudNativePG
+`Cluster pullini` (`bootstrap.initdb` db/owner `pullini`, credentials from the
+SOPS `pullini-secrets`), and a daily `ScheduledBackup pullini-daily` to
+`s3://cnpg-backups/pullini` on MinIO. Added `- pullini` to
+`infra/clusters/talos/apps/kustomization.yaml`. Two new local SOPS Secrets
+(`pullini-secrets.sops.yaml`, `pullini-minio.sops.yaml` — the latter the
+namespaced `cnpg-minio` copy) and the MinIO `cnpg` policy must be widened to
+`pullini/*`. Repointed `.github/workflows/update-pullini-image-pin.yml` to the
+talos path and renamed it `talos/pullini`. Removed
+`infra/clusters/k8s/apps/pullini/` + its kustomization entry and the k8s README
+rows. Added [[Pullini on Talos (CloudNativePG + Flux)]] and marked
+[[Pullini on k3s (postgresql + Flux)]] superseded (fresh install; no DB data
+migrated).
+
 ## [2026-10-10] change | Nextcloud CNPG backups (MinIO)
 
 Enabled backups for the `nextcloud` CloudNativePG `Cluster`: added the

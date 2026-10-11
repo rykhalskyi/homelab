@@ -1,0 +1,9 @@
+# Pullini (a read-only, Git-backed wiki browser) on the talos cluster.
+#
+# Mirrors the k8s cluster's `homelab` namespace layout, but named `pullini` so
+# the whole stack (the Deployment, its CNPG database and the backups) is
+# self-contained in one namespace.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pullini
