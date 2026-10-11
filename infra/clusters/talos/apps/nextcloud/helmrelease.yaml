@@ -84,16 +84,29 @@ spec:
           SRC=/opt/byebyemoneylist
           APP=/var/www/html/custom_apps/byebyemoneylist
           mkdir -p /var/www/html/custom_apps
-          [ -d "$SRC" ] && { rm -rf "$APP"; cp -a "$SRC" "$APP"; }
-          [ -n "${SILICONFLOW_API_KEY:-}" ] && {
+          if [ -d "$SRC" ]; then
+            rm -rf "$APP"
+            cp -a "$SRC" "$APP"
+          fi
+          if [ -n "${SILICONFLOW_API_KEY:-}" ] && [ -d "$APP" ]; then
             printf 'SILICONFLOW_API_KEY=%s\n' "$SILICONFLOW_API_KEY" > "$APP/.env"
             chmod 640 "$APP/.env"
-          }
-          code="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$APP/appinfo/info.xml")"
+          fi
+          # The entrypoint runs `occ maintenance:install` before this hook, but a
+          # fresh app volume paired with a pre-existing DB (or an interrupted
+          # first boot) can leave Nextcloud without `installed => true`. Never
+          # let that crash the container: Apache must still come up so the
+          # instance is reachable and the next boot can recover.
+          if ! php /var/www/html/occ status 2>/dev/null | grep -q 'installed: true'; then
+            echo "byebyemoneylist: Nextcloud not installed yet, skipping app enable"
+            exit 0
+          fi
+          code="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$APP/appinfo/info.xml" 2>/dev/null || true)"
           inst="$(php /var/www/html/occ config:app:get byebyemoneylist installed_version 2>/dev/null || true)"
           if [ "$inst" != "$code" ]; then
             php /var/www/html/occ app:disable byebyemoneylist >/dev/null 2>&1 || true
-            php /var/www/html/occ app:enable byebyemoneylist
+            php /var/www/html/occ app:enable byebyemoneylist || \
+              echo "byebyemoneylist: app:enable failed, will retry on next boot"
           fi
       # Synology NAS share mounted over NFS and exposed to Nextcloud as a
       # "Local" external storage (same as the k8s cluster). Kubelet on the
