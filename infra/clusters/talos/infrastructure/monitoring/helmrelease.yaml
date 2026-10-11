@@ -83,7 +83,8 @@ spec:
             cpu: 100m
             memory: 256Mi
           limits:
-            memory: 512Mi
+            # Peaks ~520Mi with this many scrape targets; 1Gi leaves headroom.
+            memory: 1Gi
         storageSpec:
           volumeClaimTemplate:
             spec:
@@ -136,9 +137,13 @@ spec:
       resources:
         requests:
           cpu: 50m
-          memory: 128Mi
+          memory: 256Mi
         limits:
-          memory: 512Mi
+          # Grafana 13 runs each bundled datasource as its own gpx_* backend
+          # process; peak working set is ~536Mi, which OOM-killed the old 512Mi
+          # limit (health probe then flapped / panels showed no data). 700Mi
+          # leaves headroom for the plugin backends plus concurrent queries.
+          memory: 700Mi
       # The Ingress is a standalone manifest (grafana-ingress.yaml) to match the
       # repo's convention of keeping Ingress objects explicit.
       ingress:
