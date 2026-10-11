@@ -1,8 +1,10 @@
 # Storage for the in-cluster Nextcloud on talos.
 #
-# Unlike k8s there is no static local PV and no AIO data to reuse: this is a
-# clean install, so both volumes are dynamically provisioned from the
-# `local-path` StorageClass (host data under /var/local-path-provisioner).
+# These use the `nfs` StorageClass (Synology NAS) rather than `local-path`:
+# the Nextcloud chart mounts its volumes with `subPath`, and on containerd 2.x a
+# hostPath (local-path) volume mounted with `subPath` is silently backed by the
+# container overlay, so writes are lost on node reboot
+# (containerd/containerd#13710). NFS volumes bind `subPath` correctly.
 #
 # `nextcloud-data` holds user files (`/var/www/html/data`); resize to taste.
 apiVersion: v1
@@ -11,7 +13,7 @@ metadata:
   name: nextcloud-html
   namespace: nextcloud
 spec:
-  storageClassName: local-path
+  storageClassName: nfs
   accessModes:
     - ReadWriteOnce
   resources:
@@ -24,7 +26,7 @@ metadata:
   name: nextcloud-data
   namespace: nextcloud
 spec:
-  storageClassName: local-path
+  storageClassName: nfs
   accessModes:
     - ReadWriteOnce
   resources:
