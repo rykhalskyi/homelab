@@ -1,5 +1,14 @@
 # DevOps Wiki — Log
 
+## [2026-10-11] change | kustomize prune guard scoped to talos only
+
+Narrowed `.github/workflows/kustomize-prune-guard.yml` to guard
+`infra/clusters/talos` only: dropped the `infra/clusters/k8s*` entries from the
+trigger `paths` and from both build/reject path arrays. The k3s cluster is being
+decommissioned, so removing its resources (e.g. the `homelab/pullini-data` PVC as
+part of the Pullini move) must not fail the guard. Updated [[Backups: what to
+save and how to restore]] to note the talos-only scope.
+
 ## [2026-10-11] change + ingest | Pullini moved from k3s to Talos (CloudNativePG)
 
 Moved **Pullini** off the k3s (`node-one`) cluster onto `talos`. New manifests

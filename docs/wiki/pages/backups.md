@@ -114,5 +114,6 @@ With a current dump this restores accounts/shares/calendars too — i.e. the
   explicitly (the missing entry is what let Flux prune itself).
 - `.github/workflows/kustomize-prune-guard.yml` fails a PR that removes a
   `Namespace`/`CustomResourceDefinition`/`PersistentVolumeClaim` or anything in
-  `flux-system` from the build.
+  `flux-system` from the build. It now guards `infra/clusters/talos` only — the
+  k3s (`infra/clusters/k8s`) tree is exempt while it is decommissioned.
 - Backups cover everything those two miss.
