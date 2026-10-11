@@ -1,0 +1,44 @@
+# nfs-subdir-external-provisioner: gives the cluster an `nfs` StorageClass
+# backed by the Synology NFS export. See
+# sources/nfs-subdir-external-provisioner.yaml for why this is needed (the
+# containerd 2.x hostPath+subPath data-loss bug).
+#
+# The base path must already exist on the NAS and be inside an export that
+# allows the node IPs; per-PVC directories are created under it.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nfs-subdir-external-provisioner
+  namespace: nfs-provisioner
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: nfs-subdir-external-provisioner
+      version: "4.0.18"
+      sourceRef:
+        kind: HelmRepository
+        name: nfs-subdir-external-provisioner
+        namespace: flux-system
+  values:
+    nfs:
+      server: 192.168.2.112
+      path: /volume1/nextcloud/k8s
+      mountOptions:
+        - nfsvers=4.0
+    storageClass:
+      create: true
+      name: nfs
+      defaultClass: false
+      reclaimPolicy: Retain
+      # Do not rename volume dirs to "archived-*" when a PVC is deleted; the
+      # Retain policy already keeps the data.
+      archiveOnDelete: false
+      # Deterministic directory per PVC: <base>/<namespace>/<pvc-name>.
+      pathPattern: "${.PVC.namespace}/${.PVC.name}"
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi

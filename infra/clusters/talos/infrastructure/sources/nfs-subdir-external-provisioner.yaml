@@ -1,0 +1,19 @@
+# NFS subdir external provisioner: dynamically provisions `nfs` PersistentVolumes
+# on top of an existing NFS export (the LAN Synology NAS).
+#
+# Why this exists: the default `local-path` StorageClass creates *hostPath*
+# volumes, and on containerd 2.x a hostPath volume mounted with `subPath` is
+# silently backed by the container overlay instead of the volume
+# (containerd/containerd#13710). Workloads then write into an ephemeral
+# containerd snapshot that is garbage-collected on node reboot — silent data
+# loss. NFS volumes do not have this problem (`subPath` binds correctly), so
+# workloads that use `subPath` (Nextcloud, kube-prometheus-stack, ...) should
+# use this class instead of `local-path`.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: nfs-subdir-external-provisioner
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
