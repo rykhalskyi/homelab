@@ -79,8 +79,6 @@ spec:
                             mountPath: /var/www/html/data
                           - name: nextcloud-tmp
                             mountPath: /var/www/tmp
-                          - name: php-confd
-                            mountPath: /usr/local/etc/php/conf.d
                           - name: nextcloud-hooks
                             mountPath: /docker-entrypoint-hooks.d/before-starting/helm.sh
                             subPath: before-starting.sh
