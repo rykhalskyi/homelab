@@ -1,0 +1,14 @@
+# Intentional removals that the kustomize prune guard may prune.
+#
+# One resource identity per line: kind|namespace|name
+#   - namespace is "-" for cluster-scoped resources.
+#   - blank lines and lines starting with # are ignored.
+#
+# A matching removal is reported by the guard but does NOT fail it. Add an entry
+# in the same PR that removes the resource, so the intent is visible in review.
+#
+# nfs-subdir-external-provisioner: removed because the containerd 2.x
+# hostPath+subPath data-loss bug is mitigated by using distinct volume paths
+# instead of subPaths, so NAS-backed dynamic provisioning is no longer needed.
+Namespace|-|nfs-provisioner
+HelmRepository|flux-system|nfs-subdir-external-provisioner

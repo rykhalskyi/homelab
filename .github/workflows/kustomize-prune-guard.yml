@@ -10,12 +10,17 @@ name: kustomize prune guard
 # The k3s (`infra/clusters/k8s`) cluster is being decommissioned, so its tree is
 # intentionally exempt from the guard.
 #
+# Intentional removals: add the resource identity, one per line, to
+# `.github/prune-allowlist.txt` (format `kind|namespace|name`, namespace `-` for
+# cluster-scoped). Allowlisted removals are printed but do not fail the check.
+#
 # See docs/wiki/pages/k3s-gitops-nginx-cloudflared.md for context.
 
 on:
   pull_request:
     paths:
       - 'infra/clusters/talos/**'
+      - '.github/prune-allowlist.txt'
       - '.github/workflows/kustomize-prune-guard.yml'
 
 permissions:
@@ -84,6 +89,24 @@ jobs:
             removed="$(comm -23 "/tmp/base_$key.txt" "/tmp/head_$key.txt" || true)"
             [ -n "$removed" ] || continue
 
+            # Drop intentional removals explicitly listed in the allowlist file
+            # (format `kind|namespace|name`), but still report them.
+            allow_file=".github/prune-allowlist.txt"
+            if [ -f "$allow_file" ]; then
+              allowed="$(printf '%s\n' "$removed" \
+                | LC_ALL=C comm -12 - \
+                    <(grep -vE '^[[:space:]]*(#|$)' "$allow_file" | LC_ALL=C sort) || true)"
+            else
+              allowed=""
+            fi
+            if [ -n "$allowed" ]; then
+              echo "::notice::allowlisted (intentional) removals from $p:"
+              printf '%s\n' "$allowed"
+              removed="$(printf '%s\n' "$removed" \
+                | LC_ALL=C comm -23 - <(printf '%s\n' "$allowed") || true)"
+            fi
+            [ -n "$removed" ] || continue
+
             protected="$(printf '%s\n' "$removed" | grep -E '^(Namespace|CustomResourceDefinition|PersistentVolumeClaim)\|' || true)"
             fluxsys="$(printf '%s\n' "$removed" | grep -E '^[^|]*\|flux-system\|' || true)"
 
@@ -102,7 +125,7 @@ jobs:
             echo
             echo "Refusing: this PR removes Namespace/CRD/PVC or flux-system resources."
             echo "Flux 'prune: true' would DELETE them on the next reconcile."
-            echo "If this is intentional, remove it via a separate, reviewed change."
+            echo "If this is intentional, add the resource to .github/prune-allowlist.txt in the same PR."
             exit 1
           fi
           echo "OK: no protected resources removed."
