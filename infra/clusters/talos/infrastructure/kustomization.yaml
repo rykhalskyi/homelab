@@ -9,14 +9,12 @@ kind: Kustomization
 resources:
   # chart sources (live in flux-system)
   - sources/local-path-provisioner.yaml
-  - sources/nfs-subdir-external-provisioner.yaml
   - sources/traefik.yaml
   - sources/kube-prometheus-stack.yaml
   - sources/cloudnative-pg.yaml
   - sources/nextcloud.yaml
   # add-ons
   - local-path
-  - nfs-provisioner
   - traefik
   - monitoring
   - cnpg
