@@ -43,7 +43,7 @@ spec:
             - "until nc -z pullini-rw.pullini.svc.cluster.local 5432; do echo waiting for pullini-rw; sleep 2; done"
       containers:
         - name: web
-          image: ghcr.io/rykhalskyi/pullini:sha-d7dad1d551e5bfa2e924f361ad26ce486faf77b4@sha256:35b34fb7fff15f3ebc0bda7dfdd87e25d5fd25850e774d530fd9ec2aaa66e6c1
+          image: ghcr.io/rykhalskyi/pullini:sha-60d840049f3d1bb992075ed739b61a46ac496ba7@sha256:ab80c0c6b41a20d6235025c3f4162b6d49b418daee7a108cb1223f89318eb2dd
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -86,7 +86,7 @@ spec:
         # `args` (not `command`) keeps the image ENTRYPOINT, which with
         # PULLINI_SKIP_BOOTSTRAP=true skips migrations and execs the scheduler.
         - name: scheduler
-          image: ghcr.io/rykhalskyi/pullini:sha-d7dad1d551e5bfa2e924f361ad26ce486faf77b4@sha256:35b34fb7fff15f3ebc0bda7dfdd87e25d5fd25850e774d530fd9ec2aaa66e6c1
+          image: ghcr.io/rykhalskyi/pullini:sha-60d840049f3d1bb992075ed739b61a46ac496ba7@sha256:ab80c0c6b41a20d6235025c3f4162b6d49b418daee7a108cb1223f89318eb2dd
           imagePullPolicy: IfNotPresent
           args: ["/app/docker/scheduler.sh"]
           env:
