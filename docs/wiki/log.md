@@ -1,5 +1,19 @@
 # DevOps Wiki — Log
 
+## [2026-10-13] ingest | File-volume backups on Talos (restic → MinIO) — plan
+
+Added [[File-volume backups on Talos (restic → MinIO) — plan]] on branch
+`talos/restic-file-backups`: the agreed design for backing up app **data
+volumes** (which CloudNativePG does not cover), so the TODO in
+[[Backups: what to save and how to restore]] can be closed later. Decision:
+per-app **restic** CronJobs to a dedicated `restic-backups` MinIO bucket + a
+least-privilege `restic` user, one CronJob per data PVC (read-only mount),
+daily ~02:00 with 7d/4w/6m retention, credentials in a per-namespace SOPS
+`<app>-backup` Secret. First cut = Nextcloud `nextcloud-data`; **Forgejo
+deferred** (not deployed to Talos yet) and **off-site copy deferred**. The page
+records the MinIO prep, files to add, verification, a restore sketch, and risks.
+**No manifests implemented yet** — this is a plan only.
+
 ## [2026-10-11] change | MinIO cnpg policy: allow pullini/* (backups)
 
 Widened the MinIO `cnpg-rw` policy's object `Resource` list with
