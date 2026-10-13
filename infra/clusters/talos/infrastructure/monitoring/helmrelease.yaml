@@ -118,14 +118,12 @@ spec:
                   storage: 1Gi
 
     # --- Grafana: admin password from the out-of-band SOPS Secret ---
-    # `defaultDashboardsEnabled: false` drops the 25 bundled kube-prometheus-stack
-    # dashboards to cut Grafana + dashboard-sidecar memory. The curated set we
-    # actually use (Alertmanager/CoreDNS/Grafana/API-server/Compute-Resources
-    # Cluster+Multi-Cluster) is re-added declaratively via grafana-dashboards.yaml,
-    # which carries the sidecar's `grafana_dashboard: "1"` label. Manually
-    # imported dashboards (e.g. Cilium) live in Grafana's PV and are unaffected.
+    # `defaultDashboardsEnabled: true` provisions all 25 bundled
+    # kube-prometheus-stack dashboards (each as a `grafana_dashboard: "1"`
+    # ConfigMap the sidecar loads). Manually imported dashboards (e.g. Cilium)
+    # live in Grafana's PV and are unaffected.
     grafana:
-      defaultDashboardsEnabled: false
+      defaultDashboardsEnabled: true
       admin:
         existingSecret: grafana-admin
       persistence:
