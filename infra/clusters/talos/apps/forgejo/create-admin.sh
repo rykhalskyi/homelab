@@ -37,8 +37,11 @@ for k in username password email; do
 done
 
 echo "-> creating admin '$username' in $CTX/$NS"
+# The Forgejo CLI refuses to run as root ("Forgejo is not supposed to be run as
+# root"); the pod runs as root by default (image default), so drop to the `git`
+# user (uid 1000) with s6-setuidgid before invoking the binary.
 kubectl --context "$CTX" -n "$NS" exec deploy/forgejo -- \
-  forgejo admin user create --admin \
+  s6-setuidgid git forgejo admin user create --admin \
     --username "$username" \
     --password "$password" \
     --email "$email" \
