@@ -1,5 +1,18 @@
 # DevOps Wiki — Log
 
+## [2026-10-14] ingest | Forgejo on Talos (LAN-only)
+
+Added the Forgejo app to the `talos` cluster on branch `talos/forgejo`: new
+`infra/clusters/talos/apps/forgejo/` (namespace, 20Gi `local-path` PVC, CNPG
+`Cluster forgejo` + daily `ScheduledBackup`, digest-pinned
+`codeberg.org/forgejo/forgejo:16` Deployment configured via `FORGEJO__*` env,
+Service, LAN Ingress at `git.homelab.local`, daily `forgejo-restic` restic
+CronJob to `s3://restic-backups/forgejo`, and `create-admin.sh`). Wired into
+`apps/kustomization.yaml`. Four out-of-band SOPS Secrets
+(`forgejo-db`, `forgejo-minio`, `forgejo-backup`, `forgejo-admin`) — local only.
+Wrote [[Forgejo on Talos (self-hosted git forge, LAN-only)]]. **Not yet merged /
+deployed.** Requires the MinIO `cnpg` policy to be widened with `forgejo/*`.
+
 ## [2026-10-14] change | restic backups: Phase 0 + Phase 1 implemented
 
 Created the MinIO target out of band on the NAS: bucket `restic-backups`, user
