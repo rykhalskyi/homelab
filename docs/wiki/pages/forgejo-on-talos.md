@@ -121,3 +121,7 @@ curl -s -H 'Host: git.homelab.local' http://192.168.2.234/ | head -1
   bumps (`16` -> `17`) need the Forgejo upgrade guide and a manual digest change.
 - **PSA**: the namespace does not enforce `restricted`; Forgejo runs as root by
   default (dropping to the `git` user, uid 1000), as in the Compose stack.
+- **Admin CLI must not run as root.** The Forgejo CLI exits with
+  `Forgejo is not supposed to be run as root`, but the pod runs as root (image
+  default), so `create-admin.sh` drops to the `git` user first via
+  `s6-setuidgid git`.
