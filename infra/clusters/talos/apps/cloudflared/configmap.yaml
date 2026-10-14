@@ -27,6 +27,8 @@ data:
         service: http://traefik.traefik.svc.cluster.local:80
       - hostname: office.otakeessen.com
         service: http://traefik.traefik.svc.cluster.local:80
+      - hostname: git.otakeessen.com
+        service: http://traefik.traefik.svc.cluster.local:80
       - hostname: "*.otakeessen.com"
         service: http://traefik.traefik.svc.cluster.local:80
       - service: http_status:404

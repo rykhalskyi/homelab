@@ -1,0 +1,13 @@
+# TLS terminates at Cloudflare and Traefik's entrypoint is plain HTTP, so the
+# public ingress forces X-Forwarded-Proto: https -- otherwise Forgejo builds
+# `http://` asset/redirect URLs that the browser blocks as mixed content (same
+# fix as the Nextcloud / Euro-Office ingresses). The LAN ingress is plain HTTP.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: forgejo-forwarded-proto
+  namespace: forgejo
+spec:
+  headers:
+    customRequestHeaders:
+      X-Forwarded-Proto: https

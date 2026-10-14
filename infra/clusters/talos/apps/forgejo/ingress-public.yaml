@@ -1,0 +1,27 @@
+# Public ingress for Forgejo. TLS terminates at Cloudflare; the
+# `*.otakeessen.com` Cloudflare tunnel forwards git.otakeessen.com to the talos
+# Traefik. The forwarded-proto middleware makes Forgejo emit https URLs.
+#
+# **Put Cloudflare Access in front of this hostname** (Zero Trust -> Access ->
+# Applications) so the forge is not reachable anonymously; registration is
+# already disabled in the app. See the wiki page.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: forgejo
+  namespace: forgejo
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: forgejo-forgejo-forwarded-proto@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: git.otakeessen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: forgejo
+                port:
+                  number: 3000
