@@ -1,5 +1,13 @@
 # DevOps Wiki — Log
 
+## [2026-10-14] change | MinIO cnpg policy: allow forgejo/* (backups)
+
+Added `arn:aws:s3:::cnpg-backups/forgejo/*` to the MinIO `cnpg-rw` policy's
+object `Resource` list on the NAS so the new Forgejo CNPG `Cluster` can archive
+WAL + base backups (`s3://cnpg-backups/forgejo`). Updated the policy snippet in
+[[CloudNativePG on Talos (PostgreSQL + MinIO backups)]]. Motivated by the forgejo
+cluster reporting `ContinuousArchiving=False` until the prefix was allowed.
+
 ## [2026-10-14] ingest | Forgejo on Talos (LAN-only)
 
 Added the Forgejo app to the `talos` cluster on branch `talos/forgejo`: new
