@@ -1,0 +1,100 @@
+# Daily restic backup of the Nextcloud *data volume* to the LAN MinIO. CNPG
+# already backs up the database; this covers the files (user uploads + appdata)
+# that live in `nextcloud-data`.
+#
+# - Repo: s3://restic-backups/nextcloud on MinIO (192.168.2.112:9000), written
+#   by the least-privilege `restic` user -- a separate bucket/user from CNPG's
+#   `cnpg-backups`/`cnpg`.
+# - Credentials: the out-of-band SOPS Secret `nextcloud-backup`
+#   (keys RESTIC_PASSWORD, ACCESS_KEY_ID, ACCESS_SECRET_KEY).
+# - Reads `nextcloud-data` read-only. local-path is RWO + node-pinned; the job
+#   co-mounts the volume on the same node as Nextcloud.
+# - Runs 02:00, an hour before the CNPG base backups (03:00). Retention
+#   7 daily / 4 weekly / 6 monthly (`forget --prune` needs DeleteObject).
+#
+# The image is pinned by digest (repo convention). There is no pin-updater
+# workflow for third-party images -- bump the tag + digest by hand.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nextcloud-restic
+  namespace: nextcloud
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbidden
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          # Root is the simplest way to read the volume (files are owned by
+          # www-data, uid 33). The mount is read-only.
+          securityContext:
+            runAsUser: 0
+          containers:
+            - name: restic
+              image: restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510
+              imagePullPolicy: IfNotPresent
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  # Create the repo on the first run; later runs are a no-op.
+                  restic snapshots >/dev/null 2>&1 || restic init
+                  # restic exit 3 means some files changed while reading, which
+                  # is normal on a live Nextcloud -- treat it as success and
+                  # still prune. Any other non-zero is a real failure.
+                  set +e
+                  restic backup --host nextcloud --tag nextcloud-data /data
+                  rc=$?
+                  set -e
+                  if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+                    echo "restic backup failed with exit code $rc" >&2
+                    exit "$rc"
+                  fi
+                  restic forget --host nextcloud --prune \
+                    --keep-daily 7 --keep-weekly 4 --keep-monthly 6
+              env:
+                - name: RESTIC_REPOSITORY
+                  value: s3:http://192.168.2.112:9000/restic-backups/nextcloud
+                - name: RESTIC_CACHE_DIR
+                  value: /tmp/restic-cache
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+                - name: RESTIC_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: nextcloud-backup
+                      key: RESTIC_PASSWORD
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: nextcloud-backup
+                      key: ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: nextcloud-backup
+                      key: ACCESS_SECRET_KEY
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                  readOnly: true
+                - name: cache
+                  mountPath: /tmp/restic-cache
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: nextcloud-data
+            - name: cache
+              emptyDir: {}

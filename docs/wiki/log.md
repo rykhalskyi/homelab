@@ -1,5 +1,41 @@
 # DevOps Wiki — Log
 
+## [2026-10-14] change | restic backups: Phase 0 + Phase 1 implemented
+
+Created the MinIO target out of band on the NAS: bucket `restic-backups`, user
+`restic` with policy `restic-rw` (ListBucket/GetBucketLocation on the bucket +
+object RW/Delete under `restic-backups/*`), and a service account. Verified with
+`mc ls`/`mc admin user/policy entities`.
+
+Implemented Phase 1 of [[File-volume backups on Talos (restic → MinIO) — plan]]
+on branch `talos/restic-file-backups`:
+
+- `infra/clusters/talos/apps/nextcloud/restic-backup.yaml` — CronJob
+  `nextcloud-restic` (daily 02:00, reads `nextcloud-data` read-only, restic
+  `0.19.1` pinned by digest, repo `s3://restic-backups/nextcloud`, retention
+  7d/4w/6m).
+- `apps/nextcloud/kustomization.yaml` — reference it.
+- `apps/secrets/nextcloud-backup.sops.yaml` (local-only, gitignored) — the
+  `nextcloud-backup` Secret (`RESTIC_PASSWORD`, `ACCESS_KEY_ID`,
+  `ACCESS_SECRET_KEY`), added to the local `secrets/kustomization.yaml`.
+
+Validated with `kubectl kustomize` (apps + root build OK). **Not deployed** —
+pending merge → Flux reconcile — and **not yet restore-tested**.
+
+## [2026-10-13] ingest | File-volume backups on Talos (restic → MinIO) — plan
+
+Added [[File-volume backups on Talos (restic → MinIO) — plan]] on branch
+`talos/restic-file-backups`: the agreed design for backing up app **data
+volumes** (which CloudNativePG does not cover), so the TODO in
+[[Backups: what to save and how to restore]] can be closed later. Decision:
+per-app **restic** CronJobs to a dedicated `restic-backups` MinIO bucket + a
+least-privilege `restic` user, one CronJob per data PVC (read-only mount),
+daily ~02:00 with 7d/4w/6m retention, credentials in a per-namespace SOPS
+`<app>-backup` Secret. First cut = Nextcloud `nextcloud-data`; **Forgejo
+deferred** (not deployed to Talos yet) and **off-site copy deferred**. The page
+records the MinIO prep, files to add, verification, a restore sketch, and risks.
+**No manifests implemented yet** — this is a plan only.
+
 ## [2026-10-11] change | MinIO cnpg policy: allow pullini/* (backups)
 
 Widened the MinIO `cnpg-rw` policy's object `Resource` list with
