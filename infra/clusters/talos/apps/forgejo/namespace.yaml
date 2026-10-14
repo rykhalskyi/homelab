@@ -1,0 +1,7 @@
+# Forgejo (a self-hosted git forge, community fork of Gitea) on the talos
+# cluster. Self-contained namespace (mirrors the `pullini` layout): the
+# Deployment, its CloudNativePG database and the file/DB backups all live here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgejo

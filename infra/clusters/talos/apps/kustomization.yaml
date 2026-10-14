@@ -6,4 +6,5 @@ resources:
   - nextcloud
   - eurooffice
   - pullini
+  - forgejo
   - cloudflared

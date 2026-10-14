@@ -1,0 +1,18 @@
+# Forgejo's data volume: the bare git repositories (/data/git/repositories),
+# Git LFS objects (/data/git/lfs), and the app's own files + app.ini
+# (/data/gitea, /data/ssh). This is the authoritative "code"; the CNPG database
+# holds only metadata (users, issues, PRs).
+#
+# `local-path` (node disk, RWO) — same as the other app volumes on talos.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: forgejo-data
+  namespace: forgejo
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
