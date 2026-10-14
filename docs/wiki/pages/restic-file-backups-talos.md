@@ -6,10 +6,12 @@ source_count: 0
 
 # File-volume backups on Talos (restic → MinIO) — plan
 
-> **Status: planned — not implemented.** This is the agreed design for backing
-> up application **data volumes** (the files CloudNativePG does not cover). No
-> manifests exist yet; implementation is a separate follow-up branch. It will
-> supersede the manual items in [[Backups: what to save and how to restore]].
+> **Status: Phase 0 + Phase 1 implemented on this branch (not yet deployed).**
+> The MinIO bucket/user/policy are created (out of band), and the Nextcloud
+> restic CronJob + its SOPS Secret are added here. Still pending: commit/PR →
+> Flux reconcile, a smoke-test run, and a test restore. Forgejo and the off-site
+> copy remain deferred. This will supersede the manual items in
+> [[Backups: what to save and how to restore]].
 
 ## Why
 
@@ -72,6 +74,10 @@ Generate a `RESTIC_PASSWORD` and store it with the svcacct keys in SOPS (below).
 
 ## Phase 1 — Nextcloud (the buildable first cut)
 
+> **Implemented on `talos/restic-file-backups`.** The four files below exist; the
+> CronJob was validated with `kubectl kustomize` (client-side). Not yet deployed
+> (pending merge → Flux) and not yet restore-tested.
+
 | File | Change |
 |------|--------|
 | `infra/clusters/talos/apps/nextcloud/restic-backup.yaml` | **new** CronJob `nextcloud-restic` |
@@ -81,16 +87,18 @@ Generate a `RESTIC_PASSWORD` and store it with the svcacct keys in SOPS (below).
 
 CronJob shape (`nextcloud-restic`, namespace `nextcloud`):
 
-- **Image** `restic/restic:<ver>@sha256:<digest>` — digest-pinned per repo
-  convention. Unlike the app images there is no pin-updater workflow, so the
-  digest is bumped by hand.
+- **Image** `restic/restic:0.19.1@sha256:136600b6ff6843d61d355f7f71f460a166429f35de6fd11b568fece3c9a4d510`
+  (the multi-arch index digest) — digest-pinned per repo convention. Unlike the
+  app images there is no pin-updater workflow, so the digest is bumped by hand.
 - **Volume** `persistentVolumeClaim: nextcloud-data`, mounted at `/data`
   **read-only**. (The PVC root *is* the Nextcloud data dir; local-path RWO plus
   PV node-affinity lets the job co-mount it on the same node as the app.)
 - **Cache** `emptyDir` at `/tmp/restic-cache` with `RESTIC_CACHE_DIR` set.
 - **Run** init-if-missing → `restic backup --host nextcloud /data` →
   `restic forget --prune …`.
-- **Optional excludes** `*.log`, `updater-*`, `appdata_*/preview/*`.
+- **No excludes** in v1 (a faithful copy of the volume); excludes such as
+  `nextcloud.log`, `updater-*`, `appdata_*/preview/*` can be added later to trim
+  size.
 - `concurrencyPolicy: Forbidden`, `restartPolicy: OnFailure`, history limits,
   `securityContext.runAsUser: 0` (simplest read access to uid-33 files; a
   non-root + `fsGroup` alternative is possible).
