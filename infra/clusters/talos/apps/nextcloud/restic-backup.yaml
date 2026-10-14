@@ -21,7 +21,7 @@ metadata:
   namespace: nextcloud
 spec:
   schedule: "0 2 * * *"
-  concurrencyPolicy: Forbidden
+  concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
   jobTemplate:
