@@ -99,7 +99,7 @@ CronJob shape (`nextcloud-restic`, namespace `nextcloud`):
 - **No excludes** in v1 (a faithful copy of the volume); excludes such as
   `nextcloud.log`, `updater-*`, `appdata_*/preview/*` can be added later to trim
   size.
-- `concurrencyPolicy: Forbidden`, `restartPolicy: OnFailure`, history limits,
+- `concurrencyPolicy: Forbid`, `restartPolicy: OnFailure`, history limits,
   `securityContext.runAsUser: 0` (simplest read access to uid-33 files; a
   non-root + `fsGroup` alternative is possible).
 - **Env** `RESTIC_REPOSITORY`, `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`,
