@@ -4,16 +4,20 @@ date: 2026-10-14
 source_count: 0
 ---
 
-# Forgejo on Talos (self-hosted git forge, LAN-only)
+# Forgejo on Talos (self-hosted git forge)
 
 A self-hosted **Forgejo** (community fork of Gitea) on the `talos` cluster,
-moved off the old phase-1 Compose stack. It is **LAN-only** for now, served at
-`http://git.homelab.local` through Traefik; a public `git.otakeessen.com` (behind
-the existing `*.otakeessen.com` tunnel + **Cloudflare Access**) is a later step.
+moved off the old phase-1 Compose stack. Served at the public canonical host
+**`https://git.otakeessen.com`** (TLS at Cloudflare; the `*.otakeessen.com`
+tunnel reaches Traefik), with a LAN fallback at `http://git.homelab.local`.
 
-> **Status: implemented on branch `talos/forgejo` (pending merge + verification).**
-> Namespace `forgejo`; CNPG `Cluster forgejo`; served at `git.homelab.local`.
-> git-over-SSH is **not** exposed yet (HTTPS only).
+> **Status: live.** Namespace `forgejo`; CNPG `Cluster forgejo` healthy;
+> `git.otakeessen.com` served through the tunnel; DB + file backups verified.
+> git-over-SSH is **not** exposed (HTTPS only).
+>
+> ⚠️ **The public host MUST be behind Cloudflare Access** (Zero Trust ->
+> Access -> Applications). Registration is disabled in the app, but the login
+> page itself should not be reachable anonymously.
 
 ## Pieces
 
@@ -25,7 +29,9 @@ the existing `*.otakeessen.com` tunnel + **Cloudflare Access**) is a later step.
 | `infra/clusters/talos/apps/forgejo/scheduled-backup.yaml` | daily `ScheduledBackup forgejo-daily` (03:00) |
 | `infra/clusters/talos/apps/forgejo/deployment.yaml` | Forgejo `16` (digest-pinned), `FORGEJO__*` env config, `/data` mount |
 | `infra/clusters/talos/apps/forgejo/service.yaml` | `forgejo:3000` for Traefik |
-| `infra/clusters/talos/apps/forgejo/ingress-lan.yaml` | `git.homelab.local` -> service (plain HTTP) |
+| `infra/clusters/talos/apps/forgejo/middleware.yaml` | `X-Forwarded-Proto: https` (public ingress) |
+| `infra/clusters/talos/apps/forgejo/ingress-public.yaml` | `git.otakeessen.com` -> service (public) |
+| `infra/clusters/talos/apps/forgejo/ingress-lan.yaml` | `git.homelab.local` -> service (LAN, plain HTTP) |
 | `infra/clusters/talos/apps/forgejo/restic-backup.yaml` | daily `forgejo-restic` -> `s3://restic-backups/forgejo` |
 | `infra/clusters/talos/apps/secrets/forgejo-*.sops.yaml` | **local only**, out-of-band Secrets |
 
@@ -65,11 +71,21 @@ flux reconcile kustomization apps -n flux-system --with-source
 kubectl --context talos -n forgejo get cluster,pods,pvc -w
 ```
 
-Add a client hosts entry, then open it:
+Public host `https://git.otakeessen.com` (tunnel -> Traefik; the
+`*.otakeessen.com` wildcard already routes it). **Configure Cloudflare Access
+for it before relying on it** (below). The LAN fallback needs a hosts entry:
 
 ```
 192.168.2.234 git.homelab.local
 ```
+
+### Cloudflare Access (do this on the dashboard)
+
+`git.otakeessen.com` serves Forgejo, so put a login gate in front: **Zero Trust
+-> Access -> Applications -> Add an application (Self-hosted)**, hostname
+`git.otakeessen.com`, and a policy allowing only your identity (e.g. an email
+one-time-PIN or your SSO). Without it the login page is reachable by the whole
+internet.
 
 ## First admin user
 
@@ -88,9 +104,9 @@ bash infra/clusters/talos/apps/forgejo/create-admin.sh
 
 The script decrypts the Secret and runs
 `forgejo admin user create --admin --must-change-password=false` inside the pod,
-then prints the login URL. Sign in at `http://git.homelab.local/`, enable
-**2FA**, and set `FORGEJO__repository__FORCE_PRIVATE=true` if the instance
-should default to private repos.
+then prints the login URL. Sign in at `https://git.otakeessen.com/` (or the LAN
+URL), enable **2FA**, and set `FORGEJO__repository__FORCE_PRIVATE=true` if the
+instance should default to private repos.
 
 ## Backups
 
@@ -106,17 +122,20 @@ Two independent layers, both to the LAN MinIO (192.168.2.112:9000):
 ```bash
 kubectl --context talos -n forgejo get cluster forgejo   # Cluster in healthy state
 kubectl --context talos -n forgejo get pods,pvc,ingress
-curl -s -H 'Host: git.homelab.local' http://192.168.2.234/ | head -1
+curl -s -H 'Host: git.homelab.local' http://192.168.2.234/ | head -1      # LAN
+curl -sI https://git.otakeessen.com/ | head -1                            # public (200 or Access redirect)
 ```
 
 ## Future / gotchas
 
-- **Public exposure**: add a `git.otakeessen.com` Ingress (the `*.otakeessen.com`
-  tunnel already reaches Traefik) **behind Cloudflare Access**, keep
-  registration disabled, and require 2FA. Do not expose it without Access.
-- **git-over-SSH**: not exposed (the built-in SSH server is off). Exposing it
-  means a node host port / NodePort, since the Cloudflare tunnel only carries
-  HTTP.
+- **Cloudflare Access is mandatory for the public host.** The Ingress exposes
+  `git.otakeessen.com` to the internet; only Access makes it private. Keep
+  registration disabled (it is) and require 2FA on accounts.
+- **Tunnel + SSH**: the Cloudflare tunnel carries HTTP(S) only, so **git-over-SSH
+  does not work** through it -- use HTTPS clone URLs. The built-in SSH server is
+  off; exposing it needs a node host port / NodePort.
+- **Large pushes**: Cloudflare's free plan caps proxied uploads at ~100 MB, so
+  very large pushes over HTTPS can fail.
 - **Image upgrades**: `codeberg.org/forgejo/forgejo` is pinned by digest; major
   bumps (`16` -> `17`) need the Forgejo upgrade guide and a manual digest change.
 - **PSA**: the namespace does not enforce `restricted`; Forgejo runs as root by

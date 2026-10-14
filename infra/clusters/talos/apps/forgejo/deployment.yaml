@@ -1,8 +1,9 @@
 # Forgejo web (self-hosted git forge) on the talos cluster.
 #
-# LAN-only for now: served at http://git.homelab.local via Traefik (add a client
-# hosts entry: 192.168.2.234 git.homelab.local). A public git.otakeessen.com
-# Ingress + Cloudflare Access can be added later.
+# Public canonical host: https://git.otakeessen.com (TLS at Cloudflare, the
+# *.otakeessen.com tunnel -> Traefik). MUST be put behind Cloudflare Access in
+# the dashboard -- the app is otherwise reachable by the internet. A LAN
+# ingress (git.homelab.local, hosts entry 192.168.2.234) works too.
 #
 # Mirrors infra/phase1/forgejo/docker-compose.yml, adapted to the cluster:
 #   - the database is the dedicated CloudNativePG `forgejo` Cluster (not the
@@ -13,7 +14,7 @@
 #
 # The image runs as root by default (as in Compose) and drops to the `git` user
 # (USER_UID/USER_GID = 1000); the Dockerfile exposes /data, 22 and 3000.
-# git-over-SSH is NOT exposed yet (HTTPS only): START_SSH_SERVER=false.
+# git-over-SSH is NOT exposed (HTTPS only): START_SSH_SERVER=false.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -56,10 +57,12 @@ spec:
               value: "1000"
             - name: USER_GID
               value: "1000"
+            # Canonical public hostname (TLS terminates at Cloudflare). The LAN
+            # ingress (git.homelab.local) still works; links use this URL.
             - name: FORGEJO__server__DOMAIN
-              value: git.homelab.local
+              value: git.otakeessen.com
             - name: FORGEJO__server__ROOT_URL
-              value: http://git.homelab.local/
+              value: https://git.otakeessen.com/
             - name: FORGEJO__server__HTTP_PORT
               value: "3000"
             # git-over-SSH stays off for now (HTTPS-only first cut).

@@ -1,5 +1,16 @@
 # DevOps Wiki — Log
 
+## [2026-10-14] change | Forgejo: public host git.otakeessen.com
+
+Exposed Forgejo publicly at `https://git.otakeessen.com` (the `*.otakeessen.com`
+Cloudflare tunnel already reaches Traefik): added a public Ingress + a
+`X-Forwarded-Proto: https` middleware, set the Deployment's
+`FORGEJO__server__DOMAIN`/`ROOT_URL` to the public host, and listed
+`git.otakeessen.com` explicitly in the cloudflared config. The LAN
+`git.homelab.local` Ingress stays. **Cloudflare Access must be configured for the
+host** or the forge is internet-reachable. Updated
+[[Forgejo on Talos (self-hosted git forge)]] (title drops "LAN-only").
+
 ## [2026-10-14] change | MinIO cnpg policy: allow forgejo/* (backups)
 
 Added `arn:aws:s3:::cnpg-backups/forgejo/*` to the MinIO `cnpg-rw` policy's
@@ -18,7 +29,7 @@ Service, LAN Ingress at `git.homelab.local`, daily `forgejo-restic` restic
 CronJob to `s3://restic-backups/forgejo`, and `create-admin.sh`). Wired into
 `apps/kustomization.yaml`. Four out-of-band SOPS Secrets
 (`forgejo-db`, `forgejo-minio`, `forgejo-backup`, `forgejo-admin`) — local only.
-Wrote [[Forgejo on Talos (self-hosted git forge, LAN-only)]]. **Not yet merged /
+Wrote [[Forgejo on Talos (self-hosted git forge)]]. **Not yet merged /
 deployed.** Requires the MinIO `cnpg` policy to be widened with `forgejo/*`.
 
 ## [2026-10-14] change | restic backups: Phase 0 + Phase 1 implemented
