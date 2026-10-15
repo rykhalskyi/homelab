@@ -51,7 +51,7 @@ data:
           url: http://forgejo.forgejo.svc.cluster.local:3000/
           # Not a secret (the "username" half of the runner identity). Fill it in
           # from the registration: see register-runner.sh.
-          uuid: REPLACE_WITH_RUNNER_UUID
+          uuid: 64636261-6637-3131-3466-623239386538
           # The secret token ("password" half) is never in Git: it is mounted
           # from the out-of-band `forgejo-runner-token` Secret at
           # $CREDENTIALS_DIRECTORY/token (see deployment.yaml).

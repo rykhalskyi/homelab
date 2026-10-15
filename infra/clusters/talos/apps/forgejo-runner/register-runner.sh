@@ -31,7 +31,7 @@ echo "-> registering runner '$NAME' in $CTX/$NS (scope: ${SCOPE:-global})"
 # The Forgejo CLI refuses to run as root; the pod runs as root by default, so
 # drop to the `git` user (uid 1000) with s6-setuidgid first.
 uuid="$(kubectl --context "$CTX" -n "$NS" exec deploy/forgejo -- \
-  s6-setuidgid git "${args[@]}" | tr -d '\r' | tail -n1)"
+  s6-setuidgid git forgejo "${args[@]}" | tr -d '\r' | tail -n1)"
 
 echo
 echo "  UUID   : $uuid"
