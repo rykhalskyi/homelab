@@ -1,0 +1,8 @@
+# metrics-server on the talos cluster.
+#
+# Self-contained namespace (mirrors the other infra add-ons): the Deployment,
+# its ServiceAccount/RBAC and the aggregated APIService all live here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metrics-server

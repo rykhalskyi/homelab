@@ -14,8 +14,10 @@ resources:
   - sources/cloudnative-pg.yaml
   - sources/nextcloud.yaml
   - sources/homepage.yaml
+  - sources/metrics-server.yaml
   # add-ons
   - local-path
   - traefik
   - monitoring
   - cnpg
+  - metrics-server
