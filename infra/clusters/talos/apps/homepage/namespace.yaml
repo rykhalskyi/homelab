@@ -1,0 +1,7 @@
+# Homepage (a highly customizable application dashboard) on the talos cluster.
+# Self-contained namespace; the Deployment, its RBAC and the LAN Ingress all
+# live here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: homepage

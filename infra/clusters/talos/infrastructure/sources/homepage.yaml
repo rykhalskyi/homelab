@@ -1,0 +1,10 @@
+# Homepage publishes its Helm chart on GitHub Pages (jameswynn/helm-charts).
+# Flux tracks the index here; the HelmRelease pins the exact chart version.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: homepage
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://jameswynn.github.io/helm-charts
