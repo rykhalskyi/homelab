@@ -76,10 +76,13 @@ spec:
           image: docker:28-dind@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac
           imagePullPolicy: IfNotPresent
           # The dind entrypoint prepends `dockerd` when the first arg is a flag.
-          # TLS is off (the API is only reachable inside the pod).
+          # TLS is off (the API is only reachable inside the pod). The in-cluster
+          # Forgejo registry is plain HTTP, so mark it insecure to let CI push
+          # images to it (forgejo.forgejo.svc.cluster.local:3000).
           args:
             - "--host=tcp://0.0.0.0:2375"
             - "--tls=false"
+            - "--insecure-registry=forgejo.forgejo.svc.cluster.local:3000"
           env:
             - name: DOCKER_TLS_CERTDIR
               value: ""
