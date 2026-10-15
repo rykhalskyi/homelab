@@ -1,0 +1,99 @@
+# Homepage (gethomepage.dev) on the talos cluster.
+#
+# LAN-only: served at http://homepage.homelab.local (Traefik host ingress on
+# node-two's :80, same pattern as Grafana/pgAdmin). It is NOT routed through the
+# *.otakeessen.com Cloudflare tunnel, so a dashboard that lists every internal
+# service never leaves the LAN.
+#
+# The chart renders every entry under `config` into ConfigMaps (services.yaml,
+# widgets.yaml, settings.yaml, ...) and restarts the Pod when they change.
+# `settingsString` is used instead of `settings` so the layout ordering is kept
+# (Helm's toYaml sorts map keys).
+#
+# RBAC is enabled so the Kubernetes widgets can read cluster/node metrics and
+# pod status directly from the API (no metrics-server required for CPU/RAM of
+# nodes via the /proxy subresource).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: homepage
+  namespace: homepage
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: homepage
+      version: "2.1.0"
+      sourceRef:
+        kind: HelmRepository
+        name: homepage
+        namespace: flux-system
+  values:
+    # Kubernetes integration: create the ServiceAccount + ClusterRole/Binding and
+    # point the widgets at the in-cluster API via that ServiceAccount.
+    enableRbac: true
+    serviceAccount:
+      create: true
+    config:
+      kubernetes:
+        mode: cluster
+      widgets:
+        - kubernetes:
+            cluster:
+              show: true
+              cpu: true
+              memory: true
+              showLabel: true
+              label: talos
+            nodes:
+              show: true
+              cpu: true
+              memory: true
+              showLabel: true
+        - search:
+            provider: duckduckgo
+            target: _blank
+      services:
+        - Infrastructure:
+            - Grafana:
+                icon: grafana.png
+                href: http://grafana.homelab.local/
+                description: Metrics, logs and dashboards
+            - pgAdmin:
+                icon: pgadmin.png
+                href: http://pgadmin-db.homelab.local/
+                description: PostgreSQL administration
+        - Applications:
+            - Nextcloud:
+                icon: nextcloud.png
+                href: https://cloud.otakeessen.com/
+                description: Files and collaboration
+            - Wiki:
+                icon: bookstack.png
+                href: https://wiki.otakeessen.com/
+                description: DevOps wiki
+            - Forgejo:
+                icon: forgejo.png
+                href: https://git.otakeessen.com/
+                description: Self-hosted git forge
+            - Euro-Office:
+                icon: onlyoffice.png
+                href: https://office.otakeessen.com/
+                description: Document server
+      settingsString: |
+        title: Homelab
+        headerStyle: boxed
+        layout:
+          Infrastructure:
+          Applications:
+    # Homepage returns 400 for any Host not listed here. Keep it to the LAN
+    # hostname; add more (comma-separated) only if another ingress host is added.
+    env:
+      - name: HOMEPAGE_ALLOWED_HOSTS
+        value: homepage.homelab.local
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
