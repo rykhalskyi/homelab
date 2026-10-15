@@ -1,0 +1,15 @@
+# Navidrome keeps its SQLite database, cache and transcoding cache in
+# ND_DATAFOLDER (/data). This is the only stateful volume owned by the cluster;
+# the music itself lives on the NAS and is mounted read-only (see deployment).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: navidrome-data
+  namespace: navidrome
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

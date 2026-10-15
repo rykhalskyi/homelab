@@ -1,0 +1,85 @@
+# Navidrome music server. Serves the FLAC library stored on the Synology NAS
+# (192.168.2.112) as a Subsonic-API server, reachable at music.otakeessen.com.
+#
+# The music share is mounted over NFS inline (same pattern as the Nextcloud
+# Deployment): kubelet performs the mount on whichever node runs the Pod and
+# presents it at /music, read-only — Navidrome never writes to the library.
+# Only its SQLite DB/cache folder (/data) is backed by a local-path PVC.
+#
+# The image is pinned by tag + digest; bump both on upgrade.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: navidrome
+  namespace: navidrome
+  labels:
+    app: navidrome
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: navidrome
+  template:
+    metadata:
+      labels:
+        app: navidrome
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: navidrome
+          image: navidrome/navidrome:0.64.2@sha256:38dc2727bfcfd5ede290f8ada114fc90368146f265ae4701ddddbcbe2a44ee52
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4533
+          env:
+            - name: ND_MUSICFOLDER
+              value: /music
+            - name: ND_DATAFOLDER
+              value: /data
+            - name: ND_PORT
+              value: "4533"
+            # Rescan the NAS library hourly; files are added out-of-band.
+            - name: ND_SCANSCHEDULE
+              value: "1h"
+            - name: ND_LOGLEVEL
+              value: info
+          volumeMounts:
+            - name: music
+              mountPath: /music
+              readOnly: true
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: music
+          nfs:
+            server: 192.168.2.112
+            path: /volume1/media/Music
+            readOnly: true
+        - name: data
+          persistentVolumeClaim:
+            claimName: navidrome-data
