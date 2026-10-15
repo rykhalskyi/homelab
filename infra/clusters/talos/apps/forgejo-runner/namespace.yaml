@@ -2,7 +2,16 @@
 # (mirrors the `forgejo`/`pullini` layout). The runner pod is scheduled with a
 # privileged `dind` sidecar, so keeping it out of the `forgejo` namespace keeps
 # the forge itself free of privileged workloads.
+#
+# Pod Security Admission: the cluster enforces `baseline` by default, which
+# forbids `privileged`. The dind sidecar genuinely needs it (dockerd creates its
+# own storage/networking), so this namespace deliberately opts in to
+# `privileged`. Keep it small and trusted-only.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: forgejo-runner
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
