@@ -1,0 +1,33 @@
+# metrics-server: serves the `metrics.k8s.io` aggregated API, which backs
+# `kubectl top`, HorizontalPodAutoscaler, and Homepage's Kubernetes CPU/RAM
+# widget. Talos ships no metrics-server by default.
+#
+# Talos note: the kubelet serving certificate is signed by the Talos machine CA,
+# not the cluster CA, so metrics-server cannot verify it and every scrape fails
+# with x509 errors. `--kubelet-insecure-tls` disables that verification — safe
+# here because metrics-server only reaches kubelets over the node network, and
+# the API it exposes is gated by the Kubernetes aggregation layer.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: metrics-server
+  namespace: metrics-server
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: metrics-server
+      version: "3.14.0"
+      sourceRef:
+        kind: HelmRepository
+        name: metrics-server
+        namespace: flux-system
+  values:
+    args:
+      - --kubelet-insecure-tls
+    resources:
+      requests:
+        cpu: 25m
+        memory: 48Mi
+      limits:
+        memory: 128Mi

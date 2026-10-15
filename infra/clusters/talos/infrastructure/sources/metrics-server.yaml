@@ -1,0 +1,10 @@
+# metrics-server (kubernetes-sigs) publishes its Helm chart on GitHub Pages.
+# Flux tracks the index here; the HelmRelease pins the exact chart version.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: metrics-server
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://kubernetes-sigs.github.io/metrics-server/
