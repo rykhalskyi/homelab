@@ -80,6 +80,9 @@ The runner shows up under `/admin/actions/runners` (and each repo's
   add another Deployment with its **own** registration/token and its **own**
   `dind` — do **not** use `replicas:` (they would share one token) and do not
   share a `dind` across runners.
+- **Pod Security**: the namespace opts in to `privileged` PSA (the cluster
+  default is `baseline`, which forbids the `dind` sidecar). Keep this namespace
+  small and trusted — `privileged` is effectively node root.
 - **Images are pinned by digest**; bump the tag + digest by hand.
 - **Ephemeral storage**: `/data` (`.runner` + cache) and `/var/lib/docker` use
   `emptyDir`; both are lost on restart. Swap for a PVC if you want the cache to

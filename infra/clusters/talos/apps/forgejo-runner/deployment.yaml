@@ -37,10 +37,17 @@ spec:
         - name: runner
           image: data.forgejo.org/forgejo/runner:13.2.0@sha256:ca3d5eea46004789a175d1369eec6829d3ea9bfbe2011a06625b4bdaa55f7552
           imagePullPolicy: IfNotPresent
-          # Keep the image's dumb-init (PID 1) and its own binary path; only the
-          # args change.
-          command: ["/usr/bin/dumb-init", "/bin/forgejo-runner"]
-          args: ["daemon", "--config", "/config/config.yml"]
+          # Wait for the dind daemon before starting: the runner exits with
+          # "cannot ping the docker daemon" if it starts first. Then hand PID 1
+          # to dumb-init (the image's entrypoint) and run the daemon.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              until nc -z 127.0.0.1 2375; do
+                echo "waiting for dind on 127.0.0.1:2375"
+                sleep 2
+              done
+              exec /usr/bin/dumb-init /bin/forgejo-runner daemon --config /config/config.yml
           env:
             # token_url in config.yml is file:$CREDENTIALS_DIRECTORY/token.
             - name: CREDENTIALS_DIRECTORY
