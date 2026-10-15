@@ -1,0 +1,119 @@
+# Forgejo Actions runner + Docker-in-Docker sidecar.
+#
+# Forgejo hands each workflow job to a runner, and the runner launches every job
+# as a container. Talos has no host Docker daemon and the runner cannot talk to
+# containerd, so the pod brings its own engine: the `dind` sidecar runs
+# `dockerd`, and the runner drives it over tcp://127.0.0.1:2375.
+#
+# One pod == one runner == one job (`capacity: 1`, see configmap.yaml). To run
+# jobs in parallel, add another Deployment (NOT replicas:) with its OWN
+# registration/token and its OWN dind -- replicas sharing one token are treated
+# as the same runner, and a shared dind would let concurrent jobs see each
+# other's containers.
+#
+# Images are pinned by digest; bump tag + digest by hand.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-runner
+  namespace: forgejo-runner
+  labels:
+    app: forgejo-runner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: forgejo-runner
+  template:
+    metadata:
+      labels:
+        app: forgejo-runner
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: runner
+          image: data.forgejo.org/forgejo/runner:13.2.0@sha256:ca3d5eea46004789a175d1369eec6829d3ea9bfbe2011a06625b4bdaa55f7552
+          imagePullPolicy: IfNotPresent
+          # Keep the image's dumb-init (PID 1) and its own binary path; only the
+          # args change.
+          command: ["/usr/bin/dumb-init", "/bin/forgejo-runner"]
+          args: ["daemon", "--config", "/config/config.yml"]
+          env:
+            # token_url in config.yml is file:$CREDENTIALS_DIRECTORY/token.
+            - name: CREDENTIALS_DIRECTORY
+              value: /run/credentials/forgejo-runner
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: token
+              mountPath: /run/credentials/forgejo-runner
+              readOnly: true
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+        - name: dind
+          image: docker:28-dind@sha256:2a232a42256f70d78e3cc5d2b5d6b3276710a0de0596c145f627ecfae90282ac
+          imagePullPolicy: IfNotPresent
+          # The dind entrypoint prepends `dockerd` when the first arg is a flag.
+          # TLS is off (the API is only reachable inside the pod).
+          args:
+            - "--host=tcp://0.0.0.0:2375"
+            - "--tls=false"
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+          securityContext:
+            # dockerd needs to create its own storage/networking: overlayfs,
+            # iptables, cgroups. This makes the container effectively node root.
+            privileged: true
+          ports:
+            - name: docker
+              containerPort: 2375
+          readinessProbe:
+            tcpSocket:
+              port: 2375
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: docker-storage
+              mountPath: /var/lib/docker
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+      volumes:
+        - name: config
+          configMap:
+            name: forgejo-runner-config
+        # Out-of-band Secret (apps/secrets/forgejo-runner-token.sops.yaml).
+        - name: token
+          secret:
+            secretName: forgejo-runner-token
+            # Readable by the non-root runner uid via fsGroup (see spec.securityContext).
+            defaultMode: 0440
+            items:
+              - key: token
+                path: token
+        # Ephemeral: /data/.runner + the runner's cache. The dind image cache is
+        # ephemeral too -- swap either for a PVC if you want it to survive.
+        - name: data
+          emptyDir: {}
+        - name: docker-storage
+          emptyDir: {}

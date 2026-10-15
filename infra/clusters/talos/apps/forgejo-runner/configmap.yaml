@@ -1,0 +1,58 @@
+# Forgejo Runner configuration (`forgejo-runner daemon --config`).
+#
+# The runner is a separate program from Forgejo: it fetches workflows from the
+# forge and executes the jobs. This pod also runs a `docker:dind` sidecar as its
+# container engine (Talos has no host Docker), see deployment.yaml.
+#
+# The runner talks to Forgejo over the in-cluster Service, never through the
+# public host -- so CI is unaffected by Cloudflare Access or the 100 MB tunnel
+# upload cap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forgejo-runner-config
+  namespace: forgejo-runner
+data:
+  config.yml: |
+    log:
+      level: info
+      job_level: info
+
+    runner:
+      # Registration result / working state (writable path on the data volume).
+      file: /data/.runner
+      # One job at a time: one pod == one runner == one job. Scale out by adding
+      # pods, each with its OWN registration (token) and its own dind.
+      capacity: 1
+      timeout: 3h
+      # Passed into every job/step container so the docker CLI inside a job
+      # reaches the dind daemon (paired with container.options --add-host below).
+      envs:
+        DOCKER_HOST: tcp://dind.docker.internal:2375
+      labels:
+        - ubuntu-latest:docker://node:20-bookworm
+        - docker:docker://node:20-bookworm
+
+    cache:
+      enabled: true
+      dir: /data/cache
+
+    container:
+      # The runner itself talks to the dind sidecar; both share the pod network
+      # namespace, so this is loopback inside the pod.
+      docker_host: 'tcp://127.0.0.1:2375'
+      # Make the dind API reachable from job containers by name (they run on
+      # dind's own bridge; host-gateway resolves to the pod network namespace).
+      options: '--add-host=dind.docker.internal:host-gateway'
+
+    server:
+      connections:
+        otakeessen:
+          url: http://forgejo.forgejo.svc.cluster.local:3000/
+          # Not a secret (the "username" half of the runner identity). Fill it in
+          # from the registration: see register-runner.sh.
+          uuid: 64636261-6637-3131-3466-623239386538
+          # The secret token ("password" half) is never in Git: it is mounted
+          # from the out-of-band `forgejo-runner-token` Secret at
+          # $CREDENTIALS_DIRECTORY/token (see deployment.yaml).
+          token_url: file:$CREDENTIALS_DIRECTORY/token

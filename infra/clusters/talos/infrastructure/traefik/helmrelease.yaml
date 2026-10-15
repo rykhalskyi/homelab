@@ -23,6 +23,13 @@ spec:
         name: traefik
         namespace: flux-system
   values:
+    # Traefik binds the node's :80/:443 via hostPort, so it must run on the node
+    # that the `*.homelab.local` /etc/hosts entries point at. Without a pin the
+    # scheduler may place it on node-one instead of node-two, and every LAN host
+    # (grafana.homelab.local, git.homelab.local, ...) goes dark. Pin it to
+    # node-two, which is the documented ingress node (192.168.2.234).
+    nodeSelector:
+      kubernetes.io/hostname: node-two
     service:
       spec:
         # Chart 41.x nests this under service.spec (not service.type).

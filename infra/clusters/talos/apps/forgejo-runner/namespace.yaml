@@ -1,0 +1,8 @@
+# Forgejo Actions runner for the talos cluster. Self-contained namespace
+# (mirrors the `forgejo`/`pullini` layout). The runner pod is scheduled with a
+# privileged `dind` sidecar, so keeping it out of the `forgejo` namespace keeps
+# the forge itself free of privileged workloads.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgejo-runner
