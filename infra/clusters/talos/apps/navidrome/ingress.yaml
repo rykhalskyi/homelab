@@ -1,0 +1,23 @@
+# Public: covered by the wildcard *.otakeessen.com Cloudflare tunnel to the
+# talos Traefik (see apps/cloudflared/configmap.yaml), so no tunnel edit is
+# needed. TLS terminates at Cloudflare -> the forwarded-proto middleware.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: navidrome
+  namespace: navidrome
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: navidrome-navidrome-forwarded-proto@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: music.otakeessen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: navidrome
+                port:
+                  number: 80

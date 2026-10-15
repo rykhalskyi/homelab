@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-10-15] ingest | Navidrome on Talos (FLAC music server)
+
+Added Navidrome to the `talos` cluster: new
+`infra/clusters/talos/apps/navidrome/` (namespace, 2Gi `local-path` PVC for
+`/data`, digest-pinned `navidrome/navidrome:0.64.2` Deployment that mounts the
+Synology FLAC library **read-only** over NFS
+(`192.168.2.112:/volume1/media/Music` -> `/music`) with a `local-path` PVC at
+`/data`, Service `navidrome:80`, a `X-Forwarded-Proto: https` middleware, and a
+public Ingress at `music.otakeessen.com`). Wired into `apps/kustomization.yaml`.
+No new Secret; the `*.otakeessen.com` wildcard tunnel already routes the host.
+Wrote [[Navidrome on Talos (FLAC music server, read-only NAS library)]].
+
 ## [2026-10-14] change | Forgejo: public host git.otakeessen.com
 
 Exposed Forgejo publicly at `https://git.otakeessen.com` (the `*.otakeessen.com`

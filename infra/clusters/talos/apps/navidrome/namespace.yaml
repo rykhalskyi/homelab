@@ -1,0 +1,7 @@
+# Navidrome (a self-hosted music server / Subsonic API) on the talos cluster.
+# Self-contained namespace, mirroring the `pullini`/`forgejo` layout: the
+# Deployment, its SQLite data volume and the ingress all live here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: navidrome

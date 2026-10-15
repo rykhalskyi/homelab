@@ -10,3 +10,4 @@ resources:
   - forgejo-runner
   - cloudflared
   - homepage
+  - navidrome
