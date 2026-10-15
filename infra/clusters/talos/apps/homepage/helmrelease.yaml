@@ -80,6 +80,10 @@ spec:
                 icon: onlyoffice.png
                 href: https://office.otakeessen.com/
                 description: Document server
+            - Navidrome:
+                icon: navidrome.png
+                href: https://music.otakeessen.com/
+                description: Music streaming
       settingsString: |
         title: Homelab
         headerStyle: boxed
