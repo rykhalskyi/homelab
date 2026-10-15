@@ -7,4 +7,5 @@ resources:
   - eurooffice
   - pullini
   - forgejo
+  - forgejo-runner
   - cloudflared
