@@ -51,7 +51,7 @@ cluster's `pgadmin.homelab.local` (node-one) so the two never collide. Add to
 each client's `/etc/hosts`:
 
 ```
-192.168.2.234 pgadmin-db.homelab.local
+192.168.2.240 pgadmin-db.homelab.local
 ```
 
 Then open `http://pgadmin-db.homelab.local/` and log in with the `pgadmin-auth`
@@ -80,7 +80,7 @@ In pgAdmin, add a new server:
 
 ```bash
 kubectl --context talos -n databases get deploy,po,svc,ingress | grep -i pgadmin
-curl -s -H 'Host: pgadmin-db.homelab.local' http://192.168.2.234/misc/ping   # pong
+curl -s -H 'Host: pgadmin-db.homelab.local' http://192.168.2.240/misc/ping   # pong
 ```
 
 ## Notes

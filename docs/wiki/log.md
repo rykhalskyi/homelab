@@ -1,5 +1,29 @@
 # DevOps Wiki — Log
 
+## [2026-10-16] change | Navidrome LAN-only + node-independent ingress VIP
+
+Made Navidrome LAN-only and gave the LAN ingress a floating VIP:
+
+- Navidrome: replaced the public `music.otakeessen.com` Ingress (and its
+  `X-Forwarded-Proto` Middleware, now removed) with a **LAN-only**
+  `music.homelab.local` Ingress. Hosts entry is now
+  `192.168.2.240 music.homelab.local`. It is no longer reachable from the
+  internet.
+- VIP: Traefik is now a `LoadBalancer` Service on the node-independent VIP
+  `192.168.2.240`, assigned by a Flux-managed `CiliumLoadBalancerIPPool` and
+  ARP-announced by a `CiliumL2AnnouncementPolicy` (new
+  `infrastructure/cilium/`). Removed the `nodeSelector`/`hostPort` pinning and
+  the `privileged` PodSecurity label from the Traefik namespace.
+  `cilium/values.yaml` enables `l2announcements` (+ raised `k8sClientRateLimit`);
+  because Cilium is out of band, re-run `cilium/install.sh` to apply it.
+- Repointed every `*.homelab.local` hosts entry/verify snippet at
+  `192.168.2.240`: Navidrome, Forgejo, Nextcloud/Euro-Office, pgAdmin, Grafana.
+
+Updated [[Navidrome on Talos (FLAC music server, LAN-only, read-only NAS library)]],
+[[Cilium on Talos (Helm, kube-proxy-free)]], the talos `README.md`, and the
+hosts entries in the Forgejo / pgAdmin / Nextcloud-Euro-Office / Observability
+pages.
+
 ## [2026-10-15] ingest | Navidrome on Talos (FLAC music server)
 
 Added Navidrome to the `talos` cluster: new
@@ -10,7 +34,7 @@ Synology FLAC library **read-only** over NFS
 `/data`, Service `navidrome:80`, a `X-Forwarded-Proto: https` middleware, and a
 public Ingress at `music.otakeessen.com`). Wired into `apps/kustomization.yaml`.
 No new Secret; the `*.otakeessen.com` wildcard tunnel already routes the host.
-Wrote [[Navidrome on Talos (FLAC music server, read-only NAS library)]].
+Wrote [[Navidrome on Talos (FLAC music server, LAN-only, read-only NAS library)]].
 
 ## [2026-10-14] change | Forgejo: public host git.otakeessen.com
 

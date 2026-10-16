@@ -133,7 +133,7 @@ Client access:
 
 ```bash
 # /etc/hosts
-192.168.2.234 grafana.homelab.local
+192.168.2.240 grafana.homelab.local
 # then
 curl -I http://grafana.homelab.local
 ```

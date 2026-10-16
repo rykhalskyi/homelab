@@ -1,0 +1,17 @@
+# Announce LoadBalancer IPs over the LAN. One node holds the per-service lease
+# and answers ARP/NDP on the listed interfaces; the lease migrates to another
+# node if the holder fails, so the VIP follows the service rather than a fixed
+# node.
+#
+# Interfaces are the physical NICs of both nodes (node-one enp1s0, node-two
+# eno1); the expressions are OR-ed. Requires `l2announcements.enabled=true` in
+# cilium/values.yaml.
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: lan-ingress
+spec:
+  loadBalancerIPs: true
+  interfaces:
+    - ^enp1s0$
+    - ^eno1$

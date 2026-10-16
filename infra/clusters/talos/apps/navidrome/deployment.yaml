@@ -1,5 +1,6 @@
 # Navidrome music server. Serves the FLAC library stored on the Synology NAS
-# (192.168.2.112) as a Subsonic-API server, reachable at music.otakeessen.com.
+# (192.168.2.112) as a Subsonic-API server, reachable on the LAN only at
+# music.homelab.local (see ingress.yaml).
 #
 # The music share is mounted over NFS inline (same pattern as the Nextcloud
 # Deployment): kubelet performs the mount on whichever node runs the Pod and
