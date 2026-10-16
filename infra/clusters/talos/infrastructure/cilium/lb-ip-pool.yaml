@@ -1,0 +1,14 @@
+# Cilium LB IPAM pool for the LAN ingress VIP.
+#
+# A single address just above the node range (node-one .233, node-two .234).
+# Traefik's LoadBalancer Service requests this IP via the
+# `lbipam.cilium.io/ips` annotation; the L2 announcement policy then answers
+# ARP for it on the LAN from one node at a time, so the VIP floats
+# independently of the node running Traefik.
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: lan-ingress
+spec:
+  blocks:
+    - cidr: 192.168.2.240/32

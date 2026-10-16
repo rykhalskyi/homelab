@@ -1,20 +1,22 @@
 ---
-tags: [navidrome, music, flac, subsonic, talos, kubernetes, flux, nfs, synology, nas, traefik, cloudflare, tunnel, ingress]
-date: 2026-10-15
+tags: [navidrome, music, flac, subsonic, talos, kubernetes, flux, nfs, synology, nas, traefik, homelab-local, lan, ingress]
+date: 2026-10-16
 source_count: 0
 ---
 
-# Navidrome on Talos (FLAC music server, read-only NAS library)
+# Navidrome on Talos (FLAC music server, LAN-only, read-only NAS library)
 
 A **Navidrome** music server (Subsonic-API) on the `talos` cluster, serving the
 FLAC library that already lives on the Synology NAS. The library is mounted
 **read-only** over NFS; only Navidrome's own SQLite DB/cache is a cluster PVC.
-Served publicly at **`https://music.otakeessen.com`** (TLS at Cloudflare; the
-`*.otakeessen.com` wildcard tunnel already reaches the talos Traefik).
 
-> **Status:** manifests added on `infra/clusters/talos/apps/navidrome`,
-> reconciled by Flux via the `apps` Kustomization. No new Secret is required and
-> the tunnel needs no edit (wildcard covers the host).
+It is served **LAN-only** at **`http://music.homelab.local`**. The host is under
+`*.homelab.local`, which the Cloudflare tunnel never routes (it only forwards
+`*.otakeessen.com`), so the app is unreachable from the internet.
+
+> **Status:** manifests live on `infra/clusters/talos/apps/navidrome`, reconciled
+> by Flux via the `apps` Kustomization. No new Secret is required. Reachable on
+> the LAN only (was previously public at `music.otakeessen.com`).
 
 ## Working setup
 
@@ -25,8 +27,8 @@ Served publicly at **`https://music.otakeessen.com`** (TLS at Cloudflare; the
 | Container port | `4533` (`ND_PORT`) |
 | Music mount | NFS `192.168.2.112:/volume1/media/Music` -> `/music` (**ro**) |
 | Data mount | PVC `navidrome-data` (2Gi, `local-path`) -> `/data` |
-| Public host | `https://music.otakeessen.com` (Ingress -> Service `navidrome:80`) |
-| Node IP | `192.168.2.234` (Traefik listens on node-two's :80) |
+| LAN host | `http://music.homelab.local` (Ingress -> Service `navidrome:80`) |
+| Ingress VIP | `192.168.2.240` (Traefik's LoadBalancer IP, ARP-announced by Cilium L2) |
 
 ## Pieces
 
@@ -36,8 +38,7 @@ Served publicly at **`https://music.otakeessen.com`** (TLS at Cloudflare; the
 | `infra/clusters/talos/apps/navidrome/pvc.yaml` | `navidrome-data` (2Gi, `local-path`) -> `/data` (SQLite + cache) |
 | `infra/clusters/talos/apps/navidrome/deployment.yaml` | Navidrome (digest-pinned), NFS music volume (ro) + data PVC |
 | `infra/clusters/talos/apps/navidrome/service.yaml` | `navidrome:80` -> `http` (4533) for Traefik |
-| `infra/clusters/talos/apps/navidrome/middleware.yaml` | `X-Forwarded-Proto: https` (public ingress) |
-| `infra/clusters/talos/apps/navidrome/ingress.yaml` | `music.otakeessen.com` -> service (public) |
+| `infra/clusters/talos/apps/navidrome/ingress.yaml` | `music.homelab.local` -> service (LAN-only) |
 
 Config is passed through `ND_*` environment variables:
 
@@ -77,19 +78,23 @@ kubectl --context talos -n navidrome get pods,pvc,ingress -w
 
 ## First run
 
-Open `https://music.otakeessen.com` and create the **admin account** on the
-first-run screen (Navidrome asks for username + password the first time). Then
-create users / playlists as needed. The Subsonic endpoint is the same host
-(`/rest/...`); point clients such as Symfonium / DSub / play:Sub at
-`https://music.otakeessen.com`.
+Add a client hosts entry, then open `http://music.homelab.local`:
+
+```
+192.168.2.240 music.homelab.local
+```
+
+Create the **admin account** on the first-run screen (Navidrome asks for username
++ password the first time). Then create users / playlists as needed. The Subsonic
+endpoint is the same host (`/rest/...`); point LAN clients such as Symfonium /
+DSub / play:Sub at `http://music.homelab.local` (or the VIP directly).
 
 ## Verify
 
 ```bash
 kubectl --context talos -n navidrome get pods,pvc,ingress
 kubectl --context talos -n navidrome exec deploy/navidrome -- ls /music | head   # NAS visible
-curl -sI https://music.otakeessen.com/ping | head -1                            # 200
-curl -s -H 'Host: music.otakeessen.com' http://192.168.2.234/ping                # pong
+curl -s -H 'Host: music.homelab.local' http://192.168.2.240/ping                # pong
 ```
 
 ## Backups
@@ -109,9 +114,12 @@ matter, add a restic CronJob to `s3://restic-backups/navidrome` following
   while and is CPU/IO heavy; `ND_SCANSCHEDULE=1h` keeps later scans incremental.
 - **Image upgrades**: `navidrome/navidrome` is pinned by tag **and** digest —
   bump both together on upgrade.
-- **Public host is internet-reachable.** Navidrome has its own login, but if you
-  want to keep even the login page private, put **Cloudflare Access** in front
-  of `music.otakeessen.com` (Zero Trust -> Access -> Applications), the same way
-  [[Forgejo on Talos (self-hosted git forge)]] does.
+- **LAN-only by design.** The host is `*.homelab.local`, so it is never exposed
+  by the `*.otakeessen.com` tunnel. Remote listening needs the LAN (or a VPN).
+  Navidrome still has its own login for untrusted LAN devices.
+- **Node-independent VIP.** The ingress VIP `192.168.2.240` is a Cilium
+  LoadBalancer IP ARP-announced by whichever node holds the lease, so it survives
+  `node-two` going down like the other `*.homelab.local` services — see
+  [[Cilium on Talos (Helm, kube-proxy-free)]].
 - **NFS is read-only on purpose.** Do not mount the library read-write; keep the
   NAS as the single writer.

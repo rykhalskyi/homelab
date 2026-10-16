@@ -35,6 +35,9 @@ partial-rotation outage.
   pinned), Hubble on, `operator.replicas: 1` for a single node.
 - `infra/clusters/talos/cilium/install.sh` — `helm upgrade --install cilium
   cilium/cilium -f values.yaml`. Used for both first install and upgrades.
+- `infra/clusters/talos/infrastructure/cilium/` — Flux-managed
+  `CiliumLoadBalancerIPPool` + `CiliumL2AnnouncementPolicy` for the LAN ingress
+  VIP (see L2 announcements below).
 - `infra/clusters/talos/nodes/<node>/patch.yaml` — the machine patch (see below).
 - `infra/clusters/talos/README.md` — the authoritative, short version.
 
@@ -178,6 +181,45 @@ ServiceMonitors need the `monitoring.coreos.com/v1` CRD. On a **fresh** cluster
 Cilium is installed before kube-prometheus-stack, so `install.sh` detects the
 missing CRD and installs without ServiceMonitors; re-run it later to enable
 them. (Grafana/Prometheus live in `monitoring`, not `kube-system`.)
+
+## L2 announcements + the LAN ingress VIP
+
+Cilium's **L2 announcements** (a beta feature) answer ARP/NDP for
+`LoadBalancer`/external VIPs on the LAN, from **one elected node at a time**.
+That gives the `*.homelab.local` services a **node-independent** ingress IP:
+Traefik is no longer pinned to `node-two`, and the VIP simply migrates to the
+other node if the lease holder fails.
+
+Two Flux-managed objects make it work:
+
+| File | Role |
+| --- | --- |
+| `infrastructure/cilium/lb-ip-pool.yaml` | `CiliumLoadBalancerIPPool` `lan-ingress` = `192.168.2.240/32` |
+| `infrastructure/cilium/l2-announcement-policy.yaml` | `CiliumL2AnnouncementPolicy` — announce LB IPs on `eno1`/`enp1s0` |
+
+Traefik's Service requests the VIP with `lbipam.cilium.io/ips: 192.168.2.240`
+(see `infrastructure/traefik/helmrelease.yaml`). The feature itself is enabled
+in `cilium/values.yaml` (`l2announcements.enabled: true`, plus a raised
+`k8sClientRateLimit` — leader election is API-heavy). Because Cilium is installed
+out of band, **re-run `bash cilium/install.sh` after changing those values**.
+
+> Point every `*.homelab.local` hosts entry at `192.168.2.240`, not `node-two`.
+
+```bash
+kubectl --context talos get ciliumloadbalancerippools,ciliuml2announcementpolicies
+kubectl --context talos -n traefik get svc traefik          # EXTERNAL-IP 192.168.2.240
+kubectl --context talos -n kube-system get lease | grep cilium-l2announce
+# holder node is whichever node currently answers ARP for the VIP:
+kubectl --context talos -n kube-system get lease cilium-l2announce-traefik-traefik \
+  -o jsonpath='{.spec.holderIdentity}'; echo
+```
+
+Caveats:
+
+- **Keep `externalTrafficPolicy: Cluster`** (the default) on the Service — L2
+  announcements plus `Local` can announce on a node with no pod and drop traffic.
+- The VIP must be outside the DHCP pool and **not** in the node/pod CIDRs.
+- Failover takes roughly `leaseDuration ± leaseRenewDeadline` (defaults 10–20s).
 
 ## Commands
 

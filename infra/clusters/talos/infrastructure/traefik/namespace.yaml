@@ -1,12 +1,7 @@
+# Traefik is exposed via a LoadBalancer Service (Cilium LB IPAM + L2
+# announcements), so it no longer binds host ports. It does not need the
+# `privileged` PodSecurity level; the cluster default (`baseline`) applies.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: traefik
-  labels:
-    # The cluster defaults namespaces to the `baseline` PodSecurity level, which
-    # forbids hostPort. Traefik binds node-two's :80/:443 via hostPort (there is
-    # no LoadBalancer on kube-proxy-free Cilium), so this namespace must be
-    # `privileged`.
-    pod-security.kubernetes.io/enforce: privileged
-    pod-security.kubernetes.io/audit: privileged
-    pod-security.kubernetes.io/warn: privileged

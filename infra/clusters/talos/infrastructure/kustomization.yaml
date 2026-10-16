@@ -17,6 +17,7 @@ resources:
   - sources/metrics-server.yaml
   # add-ons
   - local-path
+  - cilium
   - traefik
   - monitoring
   - cnpg

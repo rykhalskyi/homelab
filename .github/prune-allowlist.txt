@@ -12,3 +12,8 @@
 # instead of subPaths, so NAS-backed dynamic provisioning is no longer needed.
 Namespace|-|nfs-provisioner
 HelmRepository|flux-system|nfs-subdir-external-provisioner
+
+# navidrome: the public music.otakeessen.com Ingress was replaced by a LAN-only
+# music.homelab.local Ingress, so its X-Forwarded-Proto Middleware is no longer
+# used.
+Middleware|navidrome|navidrome-forwarded-proto

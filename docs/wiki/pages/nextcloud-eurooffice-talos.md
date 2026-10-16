@@ -126,7 +126,7 @@ kubectl --context talos -n nextcloud get pods
 Add client hosts entries:
 
 ```
-192.168.2.234 cloud-talos.homelab.local office-talos.homelab.local
+192.168.2.240 cloud-talos.homelab.local office-talos.homelab.local
 ```
 
 then open `http://cloud-talos.homelab.local/`.

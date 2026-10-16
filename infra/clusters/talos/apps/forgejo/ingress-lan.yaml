@@ -1,5 +1,5 @@
 # LAN-only ingress: http://git.homelab.local (add a client hosts entry:
-# 192.168.2.234 git.homelab.local). No forced-https middleware -- plain HTTP on
+# 192.168.2.240 git.homelab.local, Traefik's LoadBalancer VIP). No forced-https middleware -- plain HTTP on
 # the LAN, matching the Nextcloud LAN ingress. A public `git.otakeessen.com`
 # Ingress (behind the existing *.otakeessen.com tunnel + Cloudflare Access) can
 # be added later.

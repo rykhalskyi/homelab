@@ -11,6 +11,18 @@ ipam:
 kubeProxyReplacement: true
 k8sServiceHost: localhost
 k8sServicePort: 7445
+# L2 announcements: ARP/NDP-announce LoadBalancer VIPs from one elected node at a
+# time, so the LAN ingress VIP (192.168.2.240, see the CiliumLoadBalancerIPPool
+# and CiliumL2AnnouncementPolicy in infrastructure/cilium) migrates to another
+# node if the one holding the lease goes down. This is what makes the LAN
+# endpoint independent of the node running Traefik. Needs kube-proxy-free
+# (above). Leader election generates API traffic, so the client rate limit is
+# raised above the default 5 QPS / 10 burst.
+l2announcements:
+  enabled: true
+k8sClientRateLimit:
+  qps: 50
+  burst: 100
 securityContext:
   capabilities:
     # Default set minus SYS_MODULE: Talos forbids loading kernel modules.

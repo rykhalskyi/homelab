@@ -1,17 +1,24 @@
-# Public: covered by the wildcard *.otakeessen.com Cloudflare tunnel to the
-# talos Traefik (see apps/cloudflared/configmap.yaml), so no tunnel edit is
-# needed. TLS terminates at Cloudflare -> the forwarded-proto middleware.
+# LAN-only on purpose: the host is `*.homelab.local`, NOT under
+# `*.otakeessen.com`, so the wildcard Cloudflare tunnel never routes it and it is
+# never reachable from outside the LAN (the tunnel's `*.otakeessen.com` rule
+# falls through to `http_status:404` for any host without an Ingress).
+#
+# Reach it by adding this to your client /etc/hosts:
+#
+#   192.168.2.240 music.homelab.local
+#
+# then open http://music.homelab.local/. The VIP is Traefik's LoadBalancer IP
+# (Cilium LB IPAM), announced on the LAN by Cilium L2 announcements, so it does
+# not depend on which node runs Traefik.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: navidrome
   namespace: navidrome
-  annotations:
-    traefik.ingress.kubernetes.io/router.middlewares: navidrome-navidrome-forwarded-proto@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
-    - host: music.otakeessen.com
+    - host: music.homelab.local
       http:
         paths:
           - path: /

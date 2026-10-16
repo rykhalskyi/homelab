@@ -76,7 +76,7 @@ Public host `https://git.otakeessen.com` (tunnel -> Traefik; the
 for it before relying on it** (below). The LAN fallback needs a hosts entry:
 
 ```
-192.168.2.234 git.homelab.local
+192.168.2.240 git.homelab.local
 ```
 
 ### Cloudflare Access (do this on the dashboard)
@@ -122,7 +122,7 @@ Two independent layers, both to the LAN MinIO (192.168.2.112:9000):
 ```bash
 kubectl --context talos -n forgejo get cluster forgejo   # Cluster in healthy state
 kubectl --context talos -n forgejo get pods,pvc,ingress
-curl -s -H 'Host: git.homelab.local' http://192.168.2.234/ | head -1      # LAN
+curl -s -H 'Host: git.homelab.local' http://192.168.2.240/ | head -1      # LAN
 curl -sI https://git.otakeessen.com/ | head -1                            # public (200 or Access redirect)
 ```
 
