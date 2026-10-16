@@ -82,7 +82,7 @@ spec:
                 description: Document server
             - Navidrome:
                 icon: navidrome.png
-                href: https://music.otakeessen.com/
+                href: http://music.homelab.local/
                 description: Music streaming
       settingsString: |
         title: Homelab
