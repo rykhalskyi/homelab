@@ -1,0 +1,23 @@
+# Direct LAN access with no DNS: a NodePort so devices that cannot resolve
+# `music.homelab.home.arpa` (e.g. a phone) can open a plain IP:port URL. It bypasses
+# Traefik, so no Host header is needed.
+#
+#   http://192.168.2.233:30453   (node-one)
+#   http://192.168.2.234:30453   (node-two)
+#
+# NodePorts are served on every node, so either node IP works. Exposed on the LAN
+# only (the Cloudflare tunnel only forwards *.otakeessen.com).
+apiVersion: v1
+kind: Service
+metadata:
+  name: navidrome-nodeport
+  namespace: navidrome
+spec:
+  type: NodePort
+  selector:
+    app: navidrome
+  ports:
+    - name: http
+      port: 4533
+      targetPort: http
+      nodePort: 30453

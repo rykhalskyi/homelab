@@ -45,7 +45,13 @@ helm upgrade --install cilium cilium/cilium \
   -f "$DIR/values.yaml" \
   "${SM_ARGS[@]}"
 
+# The chart does not roll the agent DaemonSet for configmap-only changes, and the
+# agent does not hot-reload every option (e.g. l2announcements), so a values
+# change would otherwise sit unused until the pods happen to restart. Restart the
+# agents and wait so the running config matches values.yaml.
+kubectl --context "$CTX" -n kube-system rollout restart ds/cilium
+kubectl --context "$CTX" -n kube-system rollout status ds/cilium --timeout=180s
+
 echo
 echo "Cilium $CILIUM_VERSION applied. Verify with:"
-echo "  kubectl --context $CTX -n kube-system rollout status ds/cilium"
 echo "  cilium status --wait"
