@@ -5,9 +5,9 @@
 #
 # Reach it by adding this to your client /etc/hosts:
 #
-#   192.168.2.240 pgadmin-db.homelab.home.arpa
+#   192.168.2.240 pgadmin.homelab.home.arpa
 #
-# then open http://pgadmin-db.homelab.home.arpa/.
+# then open http://pgadmin.homelab.home.arpa/.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -16,7 +16,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: pgadmin-db.homelab.home.arpa
+    - host: pgadmin.homelab.home.arpa
       http:
         paths:
           - path: /

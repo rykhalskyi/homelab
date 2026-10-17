@@ -61,7 +61,7 @@ spec:
                 description: Metrics, logs and dashboards
             - pgAdmin:
                 icon: pgadmin.png
-                href: http://pgadmin-db.homelab.home.arpa/
+                href: http://pgadmin.homelab.home.arpa/
                 description: PostgreSQL administration
         - Applications:
             - Nextcloud:
