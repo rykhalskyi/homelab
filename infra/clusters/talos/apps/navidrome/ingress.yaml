@@ -1,13 +1,13 @@
-# LAN-only on purpose: the host is `*.homelab.local`, NOT under
+# LAN-only on purpose: the host is `*.homelab.home.arpa`, NOT under
 # `*.otakeessen.com`, so the wildcard Cloudflare tunnel never routes it and it is
 # never reachable from outside the LAN (the tunnel's `*.otakeessen.com` rule
 # falls through to `http_status:404` for any host without an Ingress).
 #
 # Reach it by adding this to your client /etc/hosts:
 #
-#   192.168.2.240 music.homelab.local
+#   192.168.2.240 music.homelab.home.arpa
 #
-# then open http://music.homelab.local/. The VIP is Traefik's LoadBalancer IP
+# then open http://music.homelab.home.arpa/. The VIP is Traefik's LoadBalancer IP
 # (Cilium LB IPAM), announced on the LAN by Cilium L2 announcements, so it does
 # not depend on which node runs Traefik.
 apiVersion: networking.k8s.io/v1
@@ -18,7 +18,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: music.homelab.local
+    - host: music.homelab.home.arpa
       http:
         paths:
           - path: /

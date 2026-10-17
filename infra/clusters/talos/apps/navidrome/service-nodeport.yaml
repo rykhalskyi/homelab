@@ -1,5 +1,5 @@
 # Direct LAN access with no DNS: a NodePort so devices that cannot resolve
-# `music.homelab.local` (e.g. a phone) can open a plain IP:port URL. It bypasses
+# `music.homelab.home.arpa` (e.g. a phone) can open a plain IP:port URL. It bypasses
 # Traefik, so no Host header is needed.
 #
 #   http://192.168.2.233:30453   (node-one)

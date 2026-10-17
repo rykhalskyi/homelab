@@ -1,7 +1,7 @@
 # LAN fallback for Nextcloud. The HelmRelease ingress serves the public
-# `cloud.otakeessen.com`; this adds the on-LAN `cloud-talos.homelab.local` on
+# `cloud.otakeessen.com`; this adds the on-LAN `cloud.homelab.home.arpa` on
 # Traefik's LoadBalancer VIP (add a client /etc/hosts entry: 192.168.2.240
-# cloud-talos.homelab.local).
+# cloud.homelab.home.arpa).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: cloud-talos.homelab.local
+    - host: cloud.homelab.home.arpa
       http:
         paths:
           - path: /
