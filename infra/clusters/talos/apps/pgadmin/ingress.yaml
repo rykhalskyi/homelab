@@ -1,13 +1,13 @@
-# LAN-only on purpose: the host is `*.homelab.local`, NOT under
+# LAN-only on purpose: the host is `*.home.arpa`, NOT under
 # `*.otakeessen.com`, so Traefik serves it on its LoadBalancer VIP and it is
 # never exposed beyond the LAN. The host is distinct from the k8s cluster's
 # pgAdmin (`pgadmin.homelab.local`, node-one) so the two never collide.
 #
 # Reach it by adding this to your client /etc/hosts:
 #
-#   192.168.2.240 pgadmin-db.homelab.local
+#   192.168.2.240 pgadmin-db.homelab.home.arpa
 #
-# then open http://pgadmin-db.homelab.local/.
+# then open http://pgadmin-db.homelab.home.arpa/.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -16,7 +16,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: pgadmin-db.homelab.local
+    - host: pgadmin-db.homelab.home.arpa
       http:
         paths:
           - path: /

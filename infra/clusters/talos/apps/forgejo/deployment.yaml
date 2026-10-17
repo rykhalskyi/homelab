@@ -3,7 +3,7 @@
 # Public canonical host: https://git.otakeessen.com (TLS at Cloudflare, the
 # *.otakeessen.com tunnel -> Traefik). MUST be put behind Cloudflare Access in
 # the dashboard -- the app is otherwise reachable by the internet. A LAN
-# ingress (git.homelab.local, hosts entry 192.168.2.240) works too.
+# ingress (git.homelab.home.arpa, hosts entry 192.168.2.240) works too.
 #
 # Mirrors infra/phase1/forgejo/docker-compose.yml, adapted to the cluster:
 #   - the database is the dedicated CloudNativePG `forgejo` Cluster (not the
@@ -58,7 +58,7 @@ spec:
             - name: USER_GID
               value: "1000"
             # Canonical public hostname (TLS terminates at Cloudflare). The LAN
-            # ingress (git.homelab.local) still works; links use this URL.
+            # ingress (git.homelab.home.arpa) still works; links use this URL.
             - name: FORGEJO__server__DOMAIN
               value: git.otakeessen.com
             - name: FORGEJO__server__ROOT_URL

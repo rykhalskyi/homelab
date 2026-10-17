@@ -27,9 +27,9 @@ whose VIP `192.168.2.240` is assigned by Cilium LB IPAM
 (`infrastructure/cilium/CiliumLoadBalancerIPPool`) and ARP-announced on the LAN
 by Cilium L2 announcements (`CiliumL2AnnouncementPolicy`), so the LAN ingress
 endpoint floats between nodes instead of being pinned to the node running
-Traefik. `*.homelab.local` hosts entries should point at `192.168.2.240`. See
+Traefik. `*.homelab.home.arpa` hosts entries should point at `192.168.2.240`. See
 [[Observability on Talos (Prometheus + Grafana + Alertmanager)]] — Grafana is
-LAN-only at `grafana.homelab.local`.
+LAN-only at `grafana.homelab.home.arpa`.
 
 ## Talos machine layer — NOT reconciled by Flux
 

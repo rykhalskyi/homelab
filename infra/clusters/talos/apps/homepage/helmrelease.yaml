@@ -1,6 +1,6 @@
 # Homepage (gethomepage.dev) on the talos cluster.
 #
-# LAN-only: served at http://homepage.homelab.local (Traefik host ingress on
+# LAN-only: served at http://homepage.homelab.home.arpa (Traefik host ingress on
 # node-two's :80, same pattern as Grafana/pgAdmin). It is NOT routed through the
 # *.otakeessen.com Cloudflare tunnel, so a dashboard that lists every internal
 # service never leaves the LAN.
@@ -57,11 +57,11 @@ spec:
         - Infrastructure:
             - Grafana:
                 icon: grafana.png
-                href: http://grafana.homelab.local/
+                href: http://grafana.homelab.home.arpa/
                 description: Metrics, logs and dashboards
             - pgAdmin:
                 icon: pgadmin.png
-                href: http://pgadmin-db.homelab.local/
+                href: http://pgadmin-db.homelab.home.arpa/
                 description: PostgreSQL administration
         - Applications:
             - Nextcloud:
@@ -82,7 +82,7 @@ spec:
                 description: Document server
             - Navidrome:
                 icon: navidrome.png
-                href: http://music.homelab.local/
+                href: http://music.homelab.home.arpa/
                 description: Music streaming
       settingsString: |
         title: Homelab
@@ -94,7 +94,7 @@ spec:
     # hostname; add more (comma-separated) only if another ingress host is added.
     env:
       - name: HOMEPAGE_ALLOWED_HOSTS
-        value: homepage.homelab.local
+        value: homepage.homelab.home.arpa
     resources:
       requests:
         cpu: 50m
