@@ -1,0 +1,72 @@
+# Transcributed control plane and Faster-Whisper worker.
+#
+# The chart is published as an OCI artifact by the app repo. Only 0.1.0 is
+# published, and its `appVersion` is 0.1.0 while the images are tagged v0.1.0:
+# both image tags must be pinned explicitly or the Pods hit ImagePullBackOff.
+#
+# Prerequisites (already deployed): KEDA, RabbitMQ, and the `transcributed`
+# CloudNativePG Cluster. The API is LAN-only at transcributed.homelab.home.arpa;
+# it has no authentication yet, so it must not be routed through the public
+# Cloudflare tunnel.
+#
+# The NAS share is mounted read-only at /nas/lectures for both the API and the
+# workers. `/volume1/video/lectures` must be exported to the node IPs before
+# this release can become Ready.
+#
+# Worker concurrency: KEDA creates one Job per queued message (queueLength 1),
+# up to two at a time; preferred anti-affinity spreads them across nodes when
+# both have capacity.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: transcributed
+  namespace: transcributed
+spec:
+  interval: 10m
+  chartRef:
+    kind: OCIRepository
+    name: transcributed
+    namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    api:
+      image:
+        tag: v0.1.0
+      ingress:
+        enabled: true
+        className: traefik
+        hosts:
+          - host: transcributed.homelab.home.arpa
+            paths:
+              - path: /
+                pathType: Prefix
+    worker:
+      image:
+        tag: v0.1.0
+      keda:
+        maxReplicaCount: 2
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: worker
+    migrations:
+      backoffLimit: 6
+      activeDeadlineSeconds: 900
+    nas:
+      enabled: true
+      create: true
+      server: 192.168.2.112
+      share: /volume1/video/lectures
+      mountPath: /nas/lectures
+      capacity: 10Ti
+      accessMode: ReadOnlyMany
