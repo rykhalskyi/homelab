@@ -4,6 +4,10 @@
 # published, and its `appVersion` is 0.1.0 while the images are tagged v0.1.0:
 # both image tags must be pinned explicitly or the Pods hit ImagePullBackOff.
 #
+# Chart 0.1.0 also defaults the worker limit to 4Gi, which OOM-kills
+# Faster-Whisper shortly after startup. The release overrides the worker
+# resources to 4Gi requested / 12Gi limit until a newer chart is published.
+#
 # Prerequisites (already deployed): KEDA, RabbitMQ, and the `transcributed`
 # CloudNativePG Cluster. The API is LAN-only at transcributed.homelab.home.arpa;
 # it has no authentication yet, so it must not be routed through the public
@@ -20,8 +24,8 @@
 # it. Remove the workaround after the app chart is fixed and republished.
 #
 # Worker concurrency: KEDA creates one Job per queued message (queueLength 1),
-# up to two at a time; preferred anti-affinity spreads them across nodes when
-# both have capacity.
+# one at a time (maxReplicaCount 1) so a 12Gi worker fits on a node; preferred
+# anti-affinity still spreads Jobs if the limit is raised.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
