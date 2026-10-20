@@ -57,7 +57,7 @@ spec:
   values:
     api:
       image:
-        tag: v0.1.0
+        tag: ghcr.io/rykhalskyi/transcributed-api:sha-6e5828220faea967698b7f7a74f7fb02cedf5cdd@sha256:8e81fd685bf22e887e693c61dd8bd107f139dc5a0315bac0ed56848f81227ce0
       ingress:
         enabled: true
         className: traefik
@@ -68,7 +68,7 @@ spec:
                 pathType: Prefix
     worker:
       image:
-        tag: v0.1.0
+        tag: ghcr.io/rykhalskyi/transcributed-worker:sha-6e5828220faea967698b7f7a74f7fb02cedf5cdd@sha256:21582dd8af8c65c8906df33ed49e258fbf3536a5035f6030233136f8770455bf
       keda:
         maxReplicaCount: 1
       resources:
