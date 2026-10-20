@@ -1,5 +1,37 @@
 # DevOps Wiki — Log
 
+## [2026-10-20] ingest | Transcributed on Talos (architecture) + running a transcription
+
+Documented the live Transcributed deployment on `talos` in two pages:
+[[Transcributed on Talos (architecture)]] and
+[[Running a transcription (Transcributed)]]. The architecture page maps the
+Flux-managed pieces (published OCI chart `0.1.0`, KEDA `2.21.0`, RabbitMQ,
+CNPG, the API Deployment, KEDA worker Jobs, the read-only NAS PV/PVC, and
+MinIO/CNPG backups) with request-flow and namespace/pod Mermaid diagrams. It
+also records the deployment-side fixes: pin both images to `v0.1.0`, drop the
+unsupported `ScaledJob.cooldownPeriod` with a HelmRelease `postRenderers`
+patch, and use client-default NFS mount options because the Synology rejects
+`nfsvers=4.1`. The usage page is a copy-paste API runbook (create project, add
+NAS-relative items, start, poll, download `txt`/`vtt`/`json`, cancel, clean up)
+and documents the `small`-only worker model, retries, and KEDA concurrency.
+Also marked the original deployment plan as implemented; its historical
+findings and preconditions remain below as plan-time context.
+
+## [2026-10-18] ingest | Transcributed on Talos (deployment plan)
+
+Saved a deployment plan (no cluster changes) for running
+[Transcributed](https://github.com/rykhalskyi/transcributed) on `talos`:
+[[Transcributed on Talos (deployment plan)]]. Records the current state (chart
+`0.1.0` is the only published release; images are tagged `v0.1.0` while the
+chart defaults to `0.1.0`; KEDA and RabbitMQ are absent; the NAS does not yet
+export `/volume1/video/lectures`) and the chosen shape: KEDA in the
+infrastructure layer, a single-node RabbitMQ StatefulSet, a dedicated CNPG
+`Cluster transcributed` with MinIO backups, the chart installed by Flux from
+the OCI source, LAN-only ingress at `transcributed.homelab.home.arpa`,
+read-only NFS input, and up to two KEDA workers with preferred anti-affinity.
+The plan is split into two PRs so the database and broker are Ready before the
+chart's migration hook runs.
+
 ## [2026-10-16] change | Navidrome LAN-only + node-independent ingress VIP
 
 Made Navidrome LAN-only and gave the LAN ingress a floating VIP:
