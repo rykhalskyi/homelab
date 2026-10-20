@@ -1,0 +1,5 @@
+# KEDA scales Transcributed's worker Jobs from the RabbitMQ queue depth.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keda

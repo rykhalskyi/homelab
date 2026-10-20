@@ -1,0 +1,13 @@
+# Daily physical base backup of the Transcributed CNPG Cluster to MinIO, plus
+# the continuous WAL archiving the operator runs once the backup stanza exists.
+# Six-field cron (seconds first): 03:30:00 every day.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: transcributed-daily
+  namespace: transcributed
+spec:
+  schedule: "0 30 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: transcributed

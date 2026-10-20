@@ -6,6 +6,8 @@ kind: Kustomization
 # Ordering is not positional here: every HelmRelease waits for its source, and
 # the whole set is applied together. local-path must exist before the
 # monitoring PVCs can bind, and Traefik before the Grafana Ingress serves.
+# KEDA's CRDs must exist before the `apps` layer applies Transcributed's
+# ScaledJob.
 resources:
   # chart sources (live in flux-system)
   - sources/local-path-provisioner.yaml
@@ -15,6 +17,8 @@ resources:
   - sources/nextcloud.yaml
   - sources/homepage.yaml
   - sources/metrics-server.yaml
+  - sources/keda.yaml
+  - sources/transcributed.yaml
   # add-ons
   - local-path
   - cilium
@@ -22,3 +26,4 @@ resources:
   - monitoring
   - cnpg
   - metrics-server
+  - keda

@@ -11,3 +11,5 @@ resources:
   - cloudflared
   - homepage
   - navidrome
+  - rabbitmq
+  - transcributed

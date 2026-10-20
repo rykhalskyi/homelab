@@ -1,0 +1,51 @@
+# KEDA operator (Kubernetes Event-driven Autoscaling) for the talos cluster.
+#
+# It owns the `keda.sh` CRDs used by Transcributed's worker (`ScaledJob` and
+# `TriggerAuthentication`). CRDs are managed through the chart; the
+# install/upgrade crds settings mirror the CloudNativePG release.
+#
+# Defaults are trimmed: the cluster is small and KEDA only needs to watch the
+# RabbitMQ queue, so requests are modest and limits are memory-only.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: keda
+  namespace: keda
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: keda
+      version: "2.21.0"
+      sourceRef:
+        kind: HelmRepository
+        name: keda
+        namespace: flux-system
+  install:
+    crds: Create
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+  values:
+    resources:
+      operator:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+      metricServer:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+      webhooks:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
