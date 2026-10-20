@@ -24,8 +24,8 @@
 # it. Remove the workaround after the app chart is fixed and republished.
 #
 # Worker concurrency: KEDA creates one Job per queued message (queueLength 1),
-# one at a time (maxReplicaCount 1) so a 12Gi worker fits on a node; preferred
-# anti-affinity still spreads Jobs if the limit is raised.
+# up to two at a time (maxReplicaCount 2); preferred anti-affinity spreads
+# Jobs across the two nodes (one per node).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -70,7 +70,7 @@ spec:
       image:
         tag: sha-6e5828220faea967698b7f7a74f7fb02cedf5cdd@sha256:21582dd8af8c65c8906df33ed49e258fbf3536a5035f6030233136f8770455bf
       keda:
-        maxReplicaCount: 1
+        maxReplicaCount: 2
       resources:
         requests:
           cpu: "1"
