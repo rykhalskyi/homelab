@@ -26,11 +26,11 @@ on:
   workflow_dispatch:
     inputs:
       sha:
-        description: 'Commit SHA of the sha-<sha> image tags. Empty = latest transcributed main.'
+        description: 'Commit SHA of the sha-<sha> image tags. Empty = latest transcributed release (falls back to main).'
         required: false
         type: string
       chart_version:
-        description: 'Optional chart version to pin (e.g. 0.2.1). Empty = leave the chart unchanged.'
+        description: 'Optional chart version to pin (e.g. 0.2.1). Empty = latest release when SHA is empty; otherwise unchanged.'
         required: false
         type: string
 
@@ -79,22 +79,37 @@ jobs:
         run: |
           set -euo pipefail
           sha="${INPUT_SHA:-${DISPATCH_SHA:-}}"
+          latest_tag=""
           if [ -z "$sha" ]; then
-            sha="$(gh api "repos/${APP_REPO}/commits/main" --jq .sha)"
+            latest_tag="$(gh api "repos/${APP_REPO}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+            if [ -n "$latest_tag" ]; then
+              sha="$(gh api "repos/${APP_REPO}/commits/${latest_tag}" --jq .sha)"
+            else
+              sha="$(gh api "repos/${APP_REPO}/commits/main" --jq .sha)"
+            fi
           fi
           tag="sha-${sha}"
 
-          api_digest="$(docker buildx imagetools inspect "${API_IMAGE}:${tag}" \
-            --format '{{.Manifest.Digest}}')"
-          worker_digest="$(docker buildx imagetools inspect "${WORKER_IMAGE}:${tag}" \
-            --format '{{.Manifest.Digest}}')"
-          [ -n "$api_digest" ] || { echo "::error::could not resolve ${API_IMAGE}:${tag}"; exit 1; }
-          [ -n "$worker_digest" ] || { echo "::error::could not resolve ${WORKER_IMAGE}:${tag}"; exit 1; }
+          if ! api_digest="$(docker buildx imagetools inspect "${API_IMAGE}:${tag}" \
+            --format '{{.Manifest.Digest}}' 2>/tmp/api-digest.err)"; then
+            echo "::error::${API_IMAGE}:${tag} not found; was the images workflow successful for this commit?"
+            cat /tmp/api-digest.err || true
+            exit 1
+          fi
+          if ! worker_digest="$(docker buildx imagetools inspect "${WORKER_IMAGE}:${tag}" \
+            --format '{{.Manifest.Digest}}' 2>/tmp/worker-digest.err)"; then
+            echo "::error::${WORKER_IMAGE}:${tag} not found; was the images workflow successful for this commit?"
+            cat /tmp/worker-digest.err || true
+            exit 1
+          fi
 
           api_pin="${API_IMAGE}:${tag}@${api_digest}"
           worker_pin="${WORKER_IMAGE}:${tag}@${worker_digest}"
 
           chart_version="${INPUT_CHART:-${DISPATCH_CHART:-}}"
+          if [ -z "$chart_version" ] && [ -n "$latest_tag" ]; then
+            chart_version="${latest_tag#v}"
+          fi
           chart_version="${chart_version#v}"
           if [ -n "$chart_version" ]; then
             docker manifest inspect "${CHART_IMAGE}:${chart_version}" >/dev/null \
