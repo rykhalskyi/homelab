@@ -103,8 +103,12 @@ jobs:
             exit 1
           fi
 
-          api_pin="${API_IMAGE}:${tag}@${api_digest}"
-          worker_pin="${WORKER_IMAGE}:${tag}@${worker_digest}"
+          # The chart builds the image as "<repository>:<tag>", so the values
+          # file must contain only the tag (+ digest), never the full reference.
+          api_pin="${tag}@${api_digest}"
+          worker_pin="${tag}@${worker_digest}"
+          api_image="${API_IMAGE}:${api_pin}"
+          worker_image="${WORKER_IMAGE}:${worker_pin}"
 
           chart_version="${INPUT_CHART:-${DISPATCH_CHART:-}}"
           if [ -z "$chart_version" ] && [ -n "$latest_tag" ]; then
@@ -133,12 +137,14 @@ jobs:
             echo "tag=${tag}"
             echo "api_pin=${api_pin}"
             echo "worker_pin=${worker_pin}"
+            echo "api_image=${api_image}"
+            echo "worker_image=${worker_image}"
             echo "chart_version=${chart_version}"
             echo "changed=${changed}"
           } >> "$GITHUB_OUTPUT"
 
-          echo "API:     ${api_pin}"
-          echo "Worker:  ${worker_pin}"
+          echo "API:     ${api_image}"
+          echo "Worker:  ${worker_image}"
           echo "Chart:   ${chart_version:-unchanged}"
           echo "Changed: ${changed}"
 
@@ -178,8 +184,8 @@ jobs:
             Automated pin update after the transcributed images
             `sha-${{ steps.resolve.outputs.sha }}` were published.
 
-            - API image: `${{ steps.resolve.outputs.api_pin }}`
-            - Worker image: `${{ steps.resolve.outputs.worker_pin }}`
+            - API image: `${{ steps.resolve.outputs.api_image }}`
+            - Worker image: `${{ steps.resolve.outputs.worker_image }}`
             - Chart: `${{ steps.resolve.outputs.chart_version || 'unchanged' }}`
 
             Merge; Flux on the `talos` cluster reconciles the new images within its
