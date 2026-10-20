@@ -1,0 +1,6 @@
+# Transcributed control plane and worker workloads (HelmRelease lands here in
+# the second deployment PR).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: transcributed

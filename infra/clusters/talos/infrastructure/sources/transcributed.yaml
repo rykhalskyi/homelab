@@ -1,0 +1,16 @@
+# Transcributed's Helm chart is published as an OCI artifact by the app repo's
+# "Lint and publish chart" workflow. Only 0.1.0 is published: the v0.2.0 tag
+# exists but both release workflows failed, so this must stay at 0.1.0.
+#
+# The chart's appVersion is 0.1.0 while the published images are tagged
+# v0.1.0; the HelmRelease overrides both image tags explicitly.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: transcributed
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: oci://ghcr.io/rykhalskyi/charts/transcributed
+  ref:
+    tag: "0.1.0"

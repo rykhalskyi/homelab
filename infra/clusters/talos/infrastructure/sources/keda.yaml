@@ -1,0 +1,14 @@
+# KEDA publishes its Helm charts on GitHub Pages. Flux tracks the index here;
+# the HelmRelease pins the exact chart version (2.21.0).
+#
+# KEDA lives in the infrastructure layer because the `apps` Kustomization
+# applies Transcributed's `ScaledJob` and `TriggerAuthentication`, and both
+# CRDs must exist first.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: keda
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://kedacore.github.io/charts

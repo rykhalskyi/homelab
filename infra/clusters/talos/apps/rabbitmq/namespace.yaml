@@ -1,0 +1,8 @@
+# RabbitMQ broker for Transcributed's KEDA worker queue.
+#
+# Self-contained namespace: the StatefulSet and its out-of-band
+# `rabbitmq-secrets` Secret live here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rabbitmq
