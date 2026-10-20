@@ -1,0 +1,172 @@
+name: talos/transcributed 1/1 Pin transcributed images
+
+# Keeps the Transcributed HelmRelease pinned to the sha-<commit> images built by
+# the transcributed repo's "Build and push images" workflow. It resolves the
+# API/worker digests from GHCR and opens a PR that rewrites both tags to
+# `sha-<commit>@sha256:<digest>`.
+#
+# It can also pin the published OCI chart version in one PR. The app repo
+# publishes the chart on v* tags, so pass `chart_version` without the leading
+# `v` (for example `0.2.1`).
+#
+# Triggers:
+#   - repository_dispatch -> event_type "transcributed-image" with
+#     client_payload.sha and optional client_payload.chart_version; sent by the
+#     transcributed repo after a successful image push (requires a
+#     HOMELAB_DISPATCH_TOKEN PAT secret there).
+#   - workflow_dispatch   -> manual run, optionally pinning a specific SHA or
+#     chart version. Empty SHA means the latest transcributed main commit.
+#
+# Mirrors update-pullini-image-pin.yml. The GHCR packages must be public (or
+# this workflow needs a pull credential).
+
+on:
+  repository_dispatch:
+    types: [transcributed-image]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA of the sha-<sha> image tags. Empty = latest transcributed main.'
+        required: false
+        type: string
+      chart_version:
+        description: 'Optional chart version to pin (e.g. 0.2.1). Empty = leave the chart unchanged.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-transcributed-image-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: Refresh deployment images
+    runs-on: ubuntu-latest
+    if: github.repository == 'rykhalskyi/homelab'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/yq \
+            "https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64"
+          sudo install /tmp/yq /usr/local/bin/yq
+          yq --version
+
+      - name: Resolve image digests
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_REPO: rykhalskyi/transcributed
+          API_IMAGE: ghcr.io/rykhalskyi/transcributed-api
+          WORKER_IMAGE: ghcr.io/rykhalskyi/transcributed-worker
+          CHART_IMAGE: ghcr.io/rykhalskyi/charts/transcributed
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+          DISPATCH_SHA: ${{ github.event.client_payload.sha }}
+          INPUT_CHART: ${{ github.event.inputs.chart_version }}
+          DISPATCH_CHART: ${{ github.event.client_payload.chart_version }}
+          HELM_FILE: infra/clusters/talos/apps/transcributed/helmrelease.yaml
+          SOURCE_FILE: infra/clusters/talos/infrastructure/sources/transcributed.yaml
+        run: |
+          set -euo pipefail
+          sha="${INPUT_SHA:-${DISPATCH_SHA:-}}"
+          if [ -z "$sha" ]; then
+            sha="$(gh api "repos/${APP_REPO}/commits/main" --jq .sha)"
+          fi
+          tag="sha-${sha}"
+
+          api_digest="$(docker buildx imagetools inspect "${API_IMAGE}:${tag}" \
+            --format '{{.Manifest.Digest}}')"
+          worker_digest="$(docker buildx imagetools inspect "${WORKER_IMAGE}:${tag}" \
+            --format '{{.Manifest.Digest}}')"
+          [ -n "$api_digest" ] || { echo "::error::could not resolve ${API_IMAGE}:${tag}"; exit 1; }
+          [ -n "$worker_digest" ] || { echo "::error::could not resolve ${WORKER_IMAGE}:${tag}"; exit 1; }
+
+          api_pin="${API_IMAGE}:${tag}@${api_digest}"
+          worker_pin="${WORKER_IMAGE}:${tag}@${worker_digest}"
+
+          chart_version="${INPUT_CHART:-${DISPATCH_CHART:-}}"
+          chart_version="${chart_version#v}"
+          if [ -n "$chart_version" ]; then
+            docker manifest inspect "${CHART_IMAGE}:${chart_version}" >/dev/null \
+              || { echo "::error::chart ${chart_version} not found in ${CHART_IMAGE}"; exit 1; }
+          fi
+
+          current_api="$(yq -r '.spec.values.api.image.tag' "$HELM_FILE")"
+          current_worker="$(yq -r '.spec.values.worker.image.tag' "$HELM_FILE")"
+          current_chart="$(yq -r '.spec.ref.tag' "$SOURCE_FILE")"
+
+          changed=false
+          [ "$current_api" = "$api_pin" ] || changed=true
+          [ "$current_worker" = "$worker_pin" ] || changed=true
+          if [ -n "$chart_version" ] && [ "$current_chart" != "$chart_version" ]; then
+            changed=true
+          fi
+
+          {
+            echo "sha=${sha}"
+            echo "short=${sha:0:7}"
+            echo "tag=${tag}"
+            echo "api_pin=${api_pin}"
+            echo "worker_pin=${worker_pin}"
+            echo "chart_version=${chart_version}"
+            echo "changed=${changed}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "API:     ${api_pin}"
+          echo "Worker:  ${worker_pin}"
+          echo "Chart:   ${chart_version:-unchanged}"
+          echo "Changed: ${changed}"
+
+      - name: Update pins
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          HELM_FILE: infra/clusters/talos/apps/transcributed/helmrelease.yaml
+          SOURCE_FILE: infra/clusters/talos/infrastructure/sources/transcributed.yaml
+          API_PIN: ${{ steps.resolve.outputs.api_pin }}
+          WORKER_PIN: ${{ steps.resolve.outputs.worker_pin }}
+          CHART_VERSION: ${{ steps.resolve.outputs.chart_version }}
+        run: |
+          set -euo pipefail
+          yq -i '.spec.values.api.image.tag = strenv(API_PIN)' "$HELM_FILE"
+          yq -i '.spec.values.worker.image.tag = strenv(WORKER_PIN)' "$HELM_FILE"
+          if [ -n "${CHART_VERSION:-}" ]; then
+            yq -i '.spec.ref.tag = strenv(CHART_VERSION)' "$SOURCE_FILE"
+          fi
+
+      - name: Show diff
+        if: steps.resolve.outputs.changed == 'true'
+        run: git --no-pager diff
+
+      - name: Open pull request
+        if: steps.resolve.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/transcributed-${{ steps.resolve.outputs.short }}
+          base: main
+          delete-branch: true
+          title: "Pin transcributed to sha-${{ steps.resolve.outputs.short }}"
+          commit-message: "Pin transcributed to sha-${{ steps.resolve.outputs.short }}"
+          labels: |
+            dependencies
+          body: |
+            Automated pin update after the transcributed images
+            `sha-${{ steps.resolve.outputs.sha }}` were published.
+
+            - API image: `${{ steps.resolve.outputs.api_pin }}`
+            - Worker image: `${{ steps.resolve.outputs.worker_pin }}`
+            - Chart: `${{ steps.resolve.outputs.chart_version || 'unchanged' }}`
+
+            Merge; Flux on the `talos` cluster reconciles the new images within its
+            `apps` interval. The Helm chart's migration hook applies any new
+            Alembic migration before the API rolls out.
