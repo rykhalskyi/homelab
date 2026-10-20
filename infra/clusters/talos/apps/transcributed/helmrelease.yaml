@@ -11,7 +11,13 @@
 #
 # The NAS share is mounted read-only at /nas/lectures for both the API and the
 # workers. `/volume1/video/lectures` must be exported to the node IPs before
-# this release can become Ready.
+# this release can become Ready. Mount options are left at the client default:
+# the chart's nfsvers=4.1 default is rejected by the Synology (`Protocol not
+# supported`), while the inline NFS mounts used by Navidrome/Nextcloud work.
+#
+# Chart 0.1.0 renders `spec.cooldownPeriod` on the KEDA ScaledJob, but that
+# field does not exist in the ScaledJob CRD (KEDA 2.21); the postRenderer drops
+# it. Remove the workaround after the app chart is fixed and republished.
 #
 # Worker concurrency: KEDA creates one Job per queued message (queueLength 1),
 # up to two at a time; preferred anti-affinity spreads them across nodes when
@@ -27,6 +33,17 @@ spec:
     kind: OCIRepository
     name: transcributed
     namespace: flux-system
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              group: keda.sh
+              version: v1alpha1
+              kind: ScaledJob
+              name: transcributed-worker
+            patch: |
+              - op: remove
+                path: /spec/cooldownPeriod
   install:
     remediation:
       retries: 3
@@ -70,3 +87,4 @@ spec:
       mountPath: /nas/lectures
       capacity: 10Ti
       accessMode: ReadOnlyMany
+      mountOptions: []
