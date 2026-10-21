@@ -1,6 +1,6 @@
 ---
-tags: [transcributed, transcription, whisper, api, curl, runbook, keda, rabbitmq, postgresql, nas, talos, lan]
-date: 2026-10-20
+tags: [transcributed, transcription, whisper, api, curl, runbook, keda, rabbitmq, postgresql, nas, talos, lan, ui]
+date: 2026-10-21
 source_count: 0
 ---
 
@@ -13,8 +13,18 @@ the transcript. Everything runs on the LAN at:
 http://transcributed.homelab.home.arpa
 ```
 
-- Swagger UI: `http://transcributed.homelab.home.arpa/docs`
-- OpenAPI: `http://transcributed.homelab.home.arpa/openapi.json`
+That host serves the web UI. The curl examples below use the same host; the
+UI's nginx proxies `/api/*` and the health endpoints to the API, so they work
+unchanged.
+
+The Swagger UI and raw OpenAPI document are **not** proxied by the UI. Use a
+port-forward when you need them:
+
+```bash
+kubectl -n transcributed port-forward svc/transcributed-api 8000:8000
+# Swagger UI: http://localhost:8000/docs
+# OpenAPI:    http://localhost:8000/openapi.json
+```
 
 The API has **no authentication** yet, so it is LAN-only. Do not expose it
 through the Cloudflare tunnel. For the cluster architecture, see
@@ -66,8 +76,7 @@ PROJECT=$(curl -sS $RESOLVE -X POST "$BASE/api/v1/projects" \
     "defaults": {
       "language": "ru",
       "model": "small",
-      "output_formats": ["txt", "vtt", "json"],
-      "max_attempts": 3
+      "output_formats": ["txt", "vtt", "json"]
     }
   }')
 echo "$PROJECT" | jq '{id, name, status, defaults}'
@@ -90,7 +99,7 @@ Poll the run until it reaches a terminal status:
 
 ```bash
 curl -sS $RESOLVE "$BASE/api/v1/runs/$RUN_ID" \
-  | jq '{status, tasks: [.tasks[] | {id, status, attempts, error, artifacts}]}'
+  | jq '{status, tasks: [.tasks[] | {id, status, error, artifacts}]}'
 ```
 
 Download an artifact once its task is `succeeded`:
@@ -125,13 +134,12 @@ curl -sS $RESOLVE -X POST "$BASE/api/v1/projects" \
   -d '{"name":"Course X","description":"optional","defaults":{
         "language":"auto",
         "model":"small",
-        "output_formats":["txt"],
-        "max_attempts":3
+        "output_formats":["txt"]
       }}'
 ```
 
 `defaults` is optional; the defaults are `language: auto`, `model: small`,
-`output_formats: ["txt"]`, `max_attempts: 3`.
+and `output_formats: ["txt"]`.
 
 ### 2. Add lectures
 
@@ -171,14 +179,14 @@ Run detail includes every task and its artifacts:
 
 ```bash
 curl -sS $RESOLVE "$BASE/api/v1/runs/$RUN_ID" \
-  | jq '{status, tasks: [.tasks[] | {id, status, attempts, error}]}'
+  | jq '{status, tasks: [.tasks[] | {id, status, error}]}'
 ```
 
 Single task:
 
 ```bash
 curl -sS $RESOLVE "$BASE/api/v1/tasks/$TASK_ID" \
-  | jq '{status, attempts, error, artifacts}'
+  | jq '{status, error, artifacts}'
 ```
 
 The KEDA side:
@@ -256,7 +264,7 @@ curl -sS $RESOLVE -X DELETE -o /dev/null -w '%{http_code}\n' \
 # Change defaults for future runs
 curl -sS $RESOLVE -X PATCH \
   -H 'Content-Type: application/json' \
-  -d '{"defaults":{"language":"ru","model":"small","output_formats":["txt","vtt"],"max_attempts":3}}' \
+  -d '{"defaults":{"language":"ru","model":"small","output_formats":["txt","vtt"]}}' \
   "$BASE/api/v1/projects/$PROJECT_ID" | jq
 ```
 
@@ -296,13 +304,13 @@ sequenceDiagram
   `WHISPER_LOCAL_FILES_ONLY=true`.
 - **Language:** `auto`, `en`, `ru`, or `de` (default `auto`).
 - **Outputs:** `txt`, `vtt`, `json` (default `txt`).
-- **Retries:** up to `max_attempts` (1-10, default 3), via the 1m and 10m retry
-  queues. Permanent errors (for example an unavailable model) do not retry.
+- **Retries:** since `0.2.5` tasks fail immediately; there are no automatic
+  retry queues and no `max_attempts` field. Start the project again to retry.
 - **Concurrency:** KEDA creates one worker Job per queued task, maximum two at a
   time. More tasks wait in `transcription.jobs`.
 - **Runtime:** a Job has a 12-hour deadline (`activeDeadlineSeconds: 43200`) and
   is retained for 15 minutes after it finishes.
-- **Resources:** each worker requests `1 CPU`/`2Gi`, with limits of `4 CPU`/`4Gi`.
+- **Resources:** each worker requests `1 CPU`/`4Gi`, with limits of `4 CPU`/`12Gi`.
   Transcription runs on CPU with `int8`; large recordings can take a long time.
 - **Input changes:** the NAS file's size and mtime are recorded when the item is
   added. If the file changes, `/start` rejects it as "Source file changed since
@@ -337,5 +345,5 @@ kubectl -n rabbitmq exec rabbitmq-0 -- rabbitmqctl list_queues name messages
 
 - [[Transcributed on Talos (architecture)]]
 - [[Transcributed on Talos (deployment plan)]]
-- Swagger UI on the LAN: `http://transcributed.homelab.home.arpa/docs`
+- Swagger UI: port-forward `svc/transcributed-api` and open `http://localhost:8000/docs`
 - App repo: `~/Source/transcributed` (chart, API, worker, behaviour notes)

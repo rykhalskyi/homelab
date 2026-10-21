@@ -1,27 +1,25 @@
-# Transcributed control plane and Faster-Whisper worker.
+# Transcributed web UI, control plane, and Faster-Whisper worker.
 #
-# The chart is published as an OCI artifact by the app repo. Only 0.1.0 is
-# published, and its `appVersion` is 0.1.0 while the images are tagged v0.1.0:
-# both image tags must be pinned explicitly or the Pods hit ImagePullBackOff.
+# The chart is published as an OCI artifact by the app repo. Chart 0.2.5 adds
+# the UI Deployment/Service/Ingress. Its images are tagged `v<version>` and
+# `sha-<commit>`, while the chart defaults to `<version>`, so all three tags are
+# pinned explicitly (the pin workflow maintains them) to avoid ImagePullBackOff.
 #
-# Chart 0.1.0 also defaults the worker limit to 4Gi, which OOM-kills
-# Faster-Whisper shortly after startup. The release overrides the worker
-# resources to 4Gi requested / 12Gi limit until a newer chart is published.
+# The UI is the only LAN ingress. It serves the SPA and proxies /api, /healthz
+# and /readyz to the API Service, so it uses a single origin and the API
+# Ingress stays disabled on the same host. The Ingress is plain HTTP on
+# Traefik's LAN LoadBalancer VIP 192.168.2.240 (see infrastructure/traefik).
+# The app has no authentication yet, so it must not be routed through the
+# public Cloudflare tunnel.
 #
-# Prerequisites (already deployed): KEDA, RabbitMQ, and the `transcributed`
-# CloudNativePG Cluster. The API is LAN-only at transcributed.homelab.home.arpa;
-# it has no authentication yet, so it must not be routed through the public
-# Cloudflare tunnel.
+# Chart 0.2.5 also removed the invalid `ScaledJob.cooldownPeriod` field, so the
+# old postRenderer workaround is gone.
 #
 # The NAS share is mounted read-only at /nas/lectures for both the API and the
 # workers. `/volume1/video/lectures` must be exported to the node IPs before
 # this release can become Ready. Mount options are left at the client default:
 # the chart's nfsvers=4.1 default is rejected by the Synology (`Protocol not
 # supported`), while the inline NFS mounts used by Navidrome/Nextcloud work.
-#
-# Chart 0.1.0 renders `spec.cooldownPeriod` on the KEDA ScaledJob, but that
-# field does not exist in the ScaledJob CRD (KEDA 2.21); the postRenderer drops
-# it. Remove the workaround after the app chart is fixed and republished.
 #
 # Worker concurrency: KEDA creates one Job per queued message (queueLength 1),
 # up to two at a time (maxReplicaCount 2); preferred anti-affinity spreads
@@ -37,17 +35,6 @@ spec:
     kind: OCIRepository
     name: transcributed
     namespace: flux-system
-  postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              group: keda.sh
-              version: v1alpha1
-              kind: ScaledJob
-              name: transcributed-worker
-            patch: |
-              - op: remove
-                path: /spec/cooldownPeriod
   install:
     remediation:
       retries: 3
@@ -55,9 +42,9 @@ spec:
     remediation:
       retries: 3
   values:
-    api:
+    ui:
       image:
-        tag: sha-6e5828220faea967698b7f7a74f7fb02cedf5cdd@sha256:8e81fd685bf22e887e693c61dd8bd107f139dc5a0315bac0ed56848f81227ce0
+        tag: sha-2f6b6f5839f49db2f900a175f19f3f9d9044485c@sha256:1e73ded75aac8cca2d5b7cb16bb3eca2b524a7e851b134bb384ab274334bf94c
       ingress:
         enabled: true
         className: traefik
@@ -66,9 +53,16 @@ spec:
             paths:
               - path: /
                 pathType: Prefix
+    api:
+      image:
+        tag: sha-2f6b6f5839f49db2f900a175f19f3f9d9044485c@sha256:3611e9e4c328f2d06b6918babb86c948dedaf0fa158c446badc198bcd6214839
+      # The UI proxies API traffic on the same host; enabling this too would
+      # create two Ingress routers for transcributed.homelab.home.arpa.
+      ingress:
+        enabled: false
     worker:
       image:
-        tag: sha-6e5828220faea967698b7f7a74f7fb02cedf5cdd@sha256:21582dd8af8c65c8906df33ed49e258fbf3536a5035f6030233136f8770455bf
+        tag: sha-2f6b6f5839f49db2f900a175f19f3f9d9044485c@sha256:c30b3c9a679054cf634112afc04f5814575ce5a6ce3361651f90a47852e6cade
       keda:
         maxReplicaCount: 2
       resources:

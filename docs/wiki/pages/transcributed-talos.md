@@ -1,20 +1,23 @@
 ---
-tags: [transcributed, talos, kubernetes, flux, keda, rabbitmq, cloudnativepg, postgresql, whisper, transcription, nfs, traefik, lan, architecture]
-date: 2026-10-20
+tags: [transcributed, talos, kubernetes, flux, keda, rabbitmq, cloudnativepg, postgresql, whisper, transcription, nfs, traefik, lan, ui, architecture]
+date: 2026-10-21
 source_count: 0
 ---
 
 # Transcributed on Talos (architecture)
 
-**Status: live** since 2026-10-20. Transcributed is a self-hosted lecture
-transcription control plane on the `talos` cluster. A FastAPI control plane
-stores projects/runs/tasks in PostgreSQL, publishes jobs to RabbitMQ, and KEDA
-creates Faster-Whisper worker Jobs that read the lecture library from the
-Synology NAS and write transcripts back to PostgreSQL.
+**Status: live** since 2026-10-20; web UI added 2026-10-21. Transcributed is a
+self-hosted lecture transcription app on the `talos` cluster. A Vue UI is served
+by nginx, a FastAPI control plane stores projects/runs/tasks in PostgreSQL,
+publishes jobs to RabbitMQ, and KEDA creates Faster-Whisper worker Jobs that read
+the lecture library from the Synology NAS and write transcripts back to
+PostgreSQL.
 
 It is reachable **LAN-only** at
-**`http://transcributed.homelab.home.arpa`**. The API has no authentication yet,
-so do not route it through the public Cloudflare tunnel.
+**`http://transcributed.homelab.home.arpa`**. Traefik's `Ingress` routes the host
+to the UI; the UI's nginx proxies `/api/`, `/healthz` and `/readyz` to the API, so
+the browser uses one origin and the API has no separate Ingress. The app has no
+authentication yet, so do not route it through the public Cloudflare tunnel.
 
 For the day-to-day runbook, see
 [[Running a transcription (Transcributed)]]. The original pre-deployment plan is
@@ -24,11 +27,13 @@ kept at [[Transcributed on Talos (deployment plan)]].
 
 | Piece | Value |
 |-------|-------|
-| LAN entry | `http://transcributed.homelab.home.arpa` -> Traefik `192.168.2.240` -> `transcributed-api:8000` |
+| LAN entry | `http://transcributed.homelab.home.arpa` -> Traefik `192.168.2.240` -> `transcributed-ui:80` -> `transcributed-api:8000` |
 | DNS | Pi-hole record `transcributed.homelab.home.arpa` -> `192.168.2.240` |
-| Chart | `oci://ghcr.io/rykhalskyi/charts/transcributed:0.1.0` |
-| API image | `ghcr.io/rykhalskyi/transcributed-api:v0.1.0` |
-| Worker image | `ghcr.io/rykhalskyi/transcributed-worker:v0.1.0` |
+| Chart | `oci://ghcr.io/rykhalskyi/charts/transcributed:0.2.5` |
+| UI image | `ghcr.io/rykhalskyi/transcributed-ui:v0.2.5` |
+| API image | `ghcr.io/rykhalskyi/transcributed-api:v0.2.5` |
+| Worker image | `ghcr.io/rykhalskyi/transcributed-worker:v0.2.5` |
+| UI workload | `Deployment/transcributed-ui` (1 replica, nginx `:8080`, Service `:80`) |
 | API workload | `Deployment/transcributed-api` (1 replica, `:8000`) |
 | Worker workload | `ScaledJob/transcributed-worker` (KEDA, 1-2 concurrent Jobs) |
 | Broker | `StatefulSet/rabbitmq` (`rabbitmq-0`, `:5672`, management `:15672`) |
@@ -42,7 +47,9 @@ kept at [[Transcributed on Talos (deployment plan)]].
 ```mermaid
 flowchart LR
   client["LAN client"] --> traefik["Traefik<br/>192.168.2.240:80"]
-  traefik --> api["Deployment<br/>transcributed-api<br/>:8000"]
+  traefik --> ui["Deployment<br/>transcributed-ui<br/>nginx :8080"]
+  ui -->|"static SPA"| client
+  ui -->|"/api/, /healthz, /readyz"| api["Deployment<br/>transcributed-api<br/>:8000"]
 
   api -->|"SQL"| db[("CNPG Cluster transcributed<br/>transcributed-1 :5432")]
   api -->|"publish task"| mq[("RabbitMQ<br/>rabbitmq-0 :5672")]
@@ -56,20 +63,23 @@ flowchart LR
   db -->|"WAL + daily base backup"| minio[("MinIO<br/>s3://cnpg-backups/transcributed")]
 ```
 
-1. The API writes the project, run, and task rows to PostgreSQL.
-2. Starting a project publishes one task per included item to the
+1. Traefik routes the host to the UI Service. The UI nginx serves the built Vue
+   assets and proxies `/api/`, `/healthz` and `/readyz` to the API Service.
+2. The API writes the project, run, and task rows to PostgreSQL.
+3. Starting a project publishes one task per included item to the
    `transcription` exchange / `transcription.jobs` queue.
-3. KEDA watches the queue; one queued message above `queueLength: 1` creates a
+4. KEDA watches the queue; one queued message above `queueLength: 1` creates a
    worker Job (up to `maxReplicaCount: 2`).
-4. The worker consumes the task, mounts the NAS read-only at `/nas/lectures`,
+5. The worker consumes the task, mounts the NAS read-only at `/nas/lectures`,
    runs `ffmpeg` + Faster-Whisper on CPU, and writes artifacts/status to
    PostgreSQL.
-5. The client polls the API for run/task status and downloads artifacts from
+6. The UI polls the API for run/task status and downloads artifacts from
    PostgreSQL.
-6. Failed tasks retry through `transcription.retry.1m` and
-   `transcription.retry.10m` until `max_attempts`; terminal failures go to
-   `transcription.dead`. Cancellation is cooperative (checked every ~30s of
-   audio) and unlocks the project for a new run.
+7. Since `0.2.5`, tasks fail immediately: there are no automatic retry queues
+   and no `max_attempts`. Failed tasks are still rejected to
+   `transcription.dead` through the `transcription.dlx` exchange. Cancellation
+   is cooperative (checked every ~30s of audio) and unlocks the project for a
+   new run.
 
 ## Pods and namespaces
 
@@ -77,7 +87,7 @@ flowchart LR
 flowchart TB
   subgraph cluster["Talos cluster"]
     subgraph nsflux["flux-system"]
-      oci["OCIRepository<br/>transcributed 0.1.0"]
+      oci["OCIRepository<br/>transcributed 0.2.5"]
       hr["HelmRelease<br/>transcributed"]
     end
 
@@ -93,6 +103,7 @@ flowchart TB
     end
 
     subgraph nstx["transcributed"]
+      ui["Deployment transcributed-ui"]
       api["Deployment transcributed-api"]
       sj["ScaledJob transcributed-worker"]
       ta["TriggerAuthentication<br/>transcributed-rabbitmq"]
@@ -109,8 +120,10 @@ flowchart TB
   end
 
   oci --> hr
+  hr --> ui
   hr --> api
   hr --> sj
+  ui --> api
   sj --> ta
   sj --> wj
   api --> db
@@ -130,7 +143,7 @@ flowchart TB
 
 | Namespace | Pods / workloads | Role |
 |-----------|------------------|------|
-| `transcributed` | `transcributed-api-*`, `transcributed-1`, `transcributed-worker-*` Jobs | API, database instance, on-demand workers |
+| `transcributed` | `transcributed-ui-*`, `transcributed-api-*`, `transcributed-1`, `transcributed-worker-*` Jobs | UI, API, database instance, on-demand workers |
 | `rabbitmq` | `rabbitmq-0` | task queue |
 | `keda` | `keda-operator-*`, `keda-operator-metrics-apiserver-*`, `keda-admission-webhooks-*` | queue-driven Job scaling |
 | `cnpg-system` | `cnpg-controller-manager-*` | CloudNativePG operator |
@@ -146,13 +159,13 @@ CNPG backup covers them.
 | Path | Role |
 |------|------|
 | `infra/clusters/talos/infrastructure/sources/keda.yaml` | KEDA HelmRepository |
-| `infra/clusters/talos/infrastructure/sources/transcributed.yaml` | OCI chart source, tag `0.1.0` |
+| `infra/clusters/talos/infrastructure/sources/transcributed.yaml` | OCI chart source, tag `0.2.5` |
 | `infra/clusters/talos/infrastructure/keda/` | KEDA namespace and HelmRelease `2.21.0` |
 | `infra/clusters/talos/apps/rabbitmq/` | RabbitMQ namespace, headless/ClusterIP Services, StatefulSet |
 | `infra/clusters/talos/apps/transcributed/namespace.yaml` | `transcributed` namespace |
 | `infra/clusters/talos/apps/transcributed/db-cluster.yaml` | CNPG `Cluster transcributed` |
 | `infra/clusters/talos/apps/transcributed/scheduled-backup.yaml` | daily `ScheduledBackup` |
-| `infra/clusters/talos/apps/transcributed/helmrelease.yaml` | API/worker chart values, Ingress, NAS PV/PVC |
+| `infra/clusters/talos/apps/transcributed/helmrelease.yaml` | UI/API/worker chart values, UI Ingress, NAS PV/PVC |
 | `infra/clusters/talos/apps/secrets/*.sops.yaml` | local-only SOPS Secrets (not committed) |
 
 Flux applies `infrastructure` before `apps`, so KEDA's `ScaledJob` and
@@ -182,18 +195,37 @@ The chart renders a ConfigMap consumed by both the API and workers:
 the database password also bootstraps the CNPG cluster, so the two values must
 match.
 
+### UI and ingress
+
+Chart `0.2.5` adds the UI. The `transcributed-ui` Deployment runs the Vite build
+behind `nginxinc/nginx-unprivileged` on `:8080`; its Service listens on `:80`.
+nginx serves the SPA with history fallback and proxies `/api/`, `/healthz` and
+`/readyz` to `http://transcributed-api:8000`, so the browser only talks to one
+origin and the API needs no CORS change.
+
+Only `ui.ingress` is enabled. It uses `ingressClassName: traefik`, so Traefik
+serves it on the LAN VIP **`192.168.2.240`** (Cilium LB IPAM, see
+`infrastructure/traefik/`). The API Ingress is deliberately disabled: enabling
+both on `transcributed.homelab.home.arpa` would create two routers for the same
+host and path.
+
+The UI's `/api/*`, `/healthz` and `/readyz` routes are the only API exposure.
+`/docs` and `/openapi.json` are not proxied; use a port-forward for those (or a
+separate API-only hostname) when regenerating the OpenAPI client.
+
 ## Operational notes
 
-- **Image tags.** The chart's `appVersion` is `0.1.0`, but the published images
-  are tagged `v0.1.0`. The HelmRelease pins both image tags explicitly. Do not
-  let the chart default to `0.1.0`; that tag does not exist in GHCR.
-- **Only chart 0.1.0 is published.** A `v0.2.0` git tag exists, but its release
-  workflows failed. Keep `sources/transcributed.yaml` at `0.1.0` until a newer
-  chart is actually published.
-- **ScaledJob workaround.** Chart 0.1.0 renders `spec.cooldownPeriod` on the
-  KEDA `ScaledJob`, but KEDA's `ScaledJob` CRD has no such field. The
-  HelmRelease uses a `postRenderers` kustomize patch to remove it. If the app
-  chart is fixed and republished, remove the workaround.
+- **Image tags.** The published images are tagged `v0.2.5` and `sha-<commit>`,
+  but the chart defaults to its `appVersion` (`0.2.5`, without the `v`). The
+  HelmRelease pins the UI, API, and worker tags to the `sha-2f6b6f5...` digests;
+  the pin workflow in `.github/workflows/update-transcributed-image-pin.yml`
+  maintains all three. Do not let the chart fall back to the `0.2.5` tag.
+- **Chart 0.2.5.** Adds the UI and removes the invalid `ScaledJob.cooldownPeriod`
+  field, so the old HelmRelease `postRenderers` workaround is gone.
+- **UI ingress owns the host.** `api.ingress.enabled` is false. If the UI is ever
+  disabled, re-enable the API Ingress rather than enabling both.
+- **No auth.** Keep the app on the LAN. Do not add a public Cloudflare ingress
+  until authentication and multi-user authorization exist.
 - **NFS mount options.** The chart default `nfsvers=4.1` is rejected by the
   Synology (`mount.nfs: Protocol not supported`). The HelmRelease sets
   `nas.mountOptions: []` so the client negotiates the version, matching the
@@ -203,8 +235,6 @@ match.
 - **MinIO policy.** The `cnpg` user needs
   `arn:aws:s3:::cnpg-backups/transcributed/*` in addition to the existing
   prefixes. Without it, WAL archiving fails with `AccessDenied`.
-- **No auth.** Keep the API on the LAN. Do not add a public Cloudflare ingress
-  until authentication and multi-user authorization exist.
 - **Model limit.** The worker image bakes only the `small` model with
   `WHISPER_LOCAL_FILES_ONLY=true`; requesting another model fails permanently.
 - **Concurrency.** KEDA creates one Job per queued task (`queueLength: 1`), up
@@ -220,27 +250,70 @@ match.
 ```bash
 flux get kustomizations -n flux-system
 flux get helmreleases -n transcributed
-kubectl -n transcributed get pods,scaledjob,jobs,pvc
+kubectl -n transcributed get deploy,svc,ingress,scaledjob,jobs,pvc
 kubectl -n rabbitmq get statefulset,pods,pvc
 
 kubectl -n transcributed get cluster transcributed \
   -o jsonpath='{range .status.conditions[*]}{.type}={.status}{"\n"}{end}'
 # expect Ready=True and ContinuousArchiving=True
 
+# UI is the LAN entry; it proxies the API health endpoints.
+curl -fsS http://transcributed.homelab.home.arpa/ | grep -q '<div id="app">'
 curl -fsS http://transcributed.homelab.home.arpa/healthz
 curl -fsS http://transcributed.homelab.home.arpa/readyz
+curl -fsS http://transcributed.homelab.home.arpa/api/v1/version
 ```
 
-If DNS is not configured yet, use
+`/api/v1/version` must return the UI's API version (`0.2.5`). If DNS is not
+configured yet, use
 `curl --resolve transcributed.homelab.home.arpa:80:192.168.2.240 ...`.
+
+## Upgrading from chart 0.2.1 to 0.2.5
+
+Chart `0.2.5` removes `ScaledJob.cooldownPeriod`; the old HelmRelease's
+`postRenderers` remove-patch fails once the field is absent. Because the OCI
+source (`infrastructure`) reconciles before the HelmRelease (`apps`), suspend
+the release before merging the source bump so the old spec cannot upgrade first.
+
+The `pre-upgrade` migration also drops `tasks.attempts` and
+`tasks.max_attempts`. The old worker and API still query those columns until the
+new pods roll out, so drain the app first: wait for running worker Jobs to
+finish and scale the API to zero. The resumed upgrade restores the chart's
+`api.replicaCount` (1), so the new API comes back automatically.
+
+```bash
+flux suspend helmrelease transcributed -n transcributed
+
+# Wait until every worker Job is Complete/Failed (none Running or Pending;
+# a Job can run for up to 12h).
+kubectl -n transcributed get jobs -l app.kubernetes.io/component=worker
+
+# Stop the old API before the pre-upgrade migration drops its columns.
+kubectl -n transcributed scale deploy/transcributed-api --replicas=0
+
+# Merge the source tag 0.2.5 + HelmRelease changes, then:
+flux reconcile kustomization infrastructure -n flux-system --with-source
+flux reconcile kustomization apps -n flux-system --with-source
+flux resume helmrelease transcributed -n transcributed
+flux get helmreleases -n transcributed
+```
+
+The resumed upgrade uses the new spec (no `postRenderers`, UI pinned, UI Ingress
+enabled, API Ingress disabled). The migration is a `pre-upgrade` hook, so it runs
+before the new API/UI/worker pods start. If you would rather accept a short
+window where task/run reads return `500` while the old API runs against the
+dropped columns, skip the scale command.
 
 ## Common failures
 
 | Symptom | Cause / fix |
 |---------|-------------|
-| `ImagePullBackOff` | image tag is `0.1.0` instead of `v0.1.0`; pin `api.image.tag` and `worker.image.tag` |
+| `ImagePullBackOff` on the UI | `ui.image.tag` not pinned; the chart default `0.2.5` does not exist, use `v0.2.5` or the `sha-<commit>@sha256:...` pin |
+| `ImagePullBackOff` on API/worker | image tag is `0.2.5` instead of `v0.2.5`; pin both tags |
 | `mount.nfs: Protocol not supported` | `nfsvers=4.1`; set `nas.mountOptions: []` |
-| Helm install fails with `spec.cooldownPeriod: field not declared in schema` | chart 0.1.0 ScaledJob field; keep the `postRenderers` patch |
+| Helm upgrade fails with `remove`/`missing path` on `cooldownPeriod` | old `postRenderers` patch with chart 0.2.5; remove it and resume with `--reset` if needed |
+| UI loads but API calls 502 | API Service/Deployment not Ready; check `transcributed-api` and `API_UPSTREAM` |
+| UI/API route swaps or 404s on the LAN | both `ui.ingress` and `api.ingress` enabled on the same host; disable the API Ingress |
 | `ContinuousArchiving=False` / `AccessDenied` | add `cnpg-backups/transcributed/*` to the `cnpg-rw` MinIO policy |
 | API `/readyz` returns 503 | database or RabbitMQ unavailable; check the API logs and both workloads |
 | No worker Job appears | check `transcription.jobs` queue depth and KEDA logs; a task is only queued after `/start` |
