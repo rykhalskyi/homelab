@@ -105,7 +105,7 @@ jobs:
           fi
           if ! ui_digest="$(docker buildx imagetools inspect "${UI_IMAGE}:${tag}" \
             --format '{{.Manifest.Digest}}' 2>/tmp/ui-digest.err)"; then
-            echo "::error::${UI_IMAGE}:${tag} not found; was the images workflow successful for this commit?"
+            echo "::error::${UI_IMAGE}:${tag} not found; the UI image was added in v0.2.5, so this SHA must be v0.2.5+ and its images workflow must have succeeded."
             cat /tmp/ui-digest.err || true
             exit 1
           fi

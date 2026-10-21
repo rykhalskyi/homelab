@@ -15,7 +15,7 @@ PostgreSQL.
 
 It is reachable **LAN-only** at
 **`http://transcributed.homelab.home.arpa`**. Traefik's `Ingress` routes the host
-to the UI; the UI's nginx proxies `/api`, `/healthz` and `/readyz` to the API, so
+to the UI; the UI's nginx proxies `/api/`, `/healthz` and `/readyz` to the API, so
 the browser uses one origin and the API has no separate Ingress. The app has no
 authentication yet, so do not route it through the public Cloudflare tunnel.
 
@@ -49,7 +49,7 @@ flowchart LR
   client["LAN client"] --> traefik["Traefik<br/>192.168.2.240:80"]
   traefik --> ui["Deployment<br/>transcributed-ui<br/>nginx :8080"]
   ui -->|"static SPA"| client
-  ui -->|"/api, /healthz, /readyz"| api["Deployment<br/>transcributed-api<br/>:8000"]
+  ui -->|"/api/, /healthz, /readyz"| api["Deployment<br/>transcributed-api<br/>:8000"]
 
   api -->|"SQL"| db[("CNPG Cluster transcributed<br/>transcributed-1 :5432")]
   api -->|"publish task"| mq[("RabbitMQ<br/>rabbitmq-0 :5672")]
@@ -64,7 +64,7 @@ flowchart LR
 ```
 
 1. Traefik routes the host to the UI Service. The UI nginx serves the built Vue
-   assets and proxies `/api`, `/healthz` and `/readyz` to the API Service.
+   assets and proxies `/api/`, `/healthz` and `/readyz` to the API Service.
 2. The API writes the project, run, and task rows to PostgreSQL.
 3. Starting a project publishes one task per included item to the
    `transcription` exchange / `transcription.jobs` queue.
@@ -75,10 +75,11 @@ flowchart LR
    PostgreSQL.
 6. The UI polls the API for run/task status and downloads artifacts from
    PostgreSQL.
-7. Since `0.2.5`, tasks fail immediately (no automatic retry queues and no
-   `max_attempts`); there are no terminal-failure or retry exchanges to drain.
-   Cancellation is cooperative (checked every ~30s of audio) and unlocks the
-   project for a new run.
+7. Since `0.2.5`, tasks fail immediately: there are no automatic retry queues
+   and no `max_attempts`. Failed tasks are still rejected to
+   `transcription.dead` through the `transcription.dlx` exchange. Cancellation
+   is cooperative (checked every ~30s of audio) and unlocks the project for a
+   new run.
 
 ## Pods and namespaces
 
@@ -272,10 +273,23 @@ configured yet, use
 Chart `0.2.5` removes `ScaledJob.cooldownPeriod`; the old HelmRelease's
 `postRenderers` remove-patch fails once the field is absent. Because the OCI
 source (`infrastructure`) reconciles before the HelmRelease (`apps`), suspend
-the release before merging the source bump so the old spec cannot upgrade first:
+the release before merging the source bump so the old spec cannot upgrade first.
+
+The `pre-upgrade` migration also drops `tasks.attempts` and
+`tasks.max_attempts`. The old worker and API still query those columns until the
+new pods roll out, so drain the app first: wait for running worker Jobs to
+finish and scale the API to zero. The resumed upgrade restores the chart's
+`api.replicaCount` (1), so the new API comes back automatically.
 
 ```bash
 flux suspend helmrelease transcributed -n transcributed
+
+# Wait until every worker Job is Complete/Failed (none Running or Pending;
+# a Job can run for up to 12h).
+kubectl -n transcributed get jobs -l app.kubernetes.io/component=worker
+
+# Stop the old API before the pre-upgrade migration drops its columns.
+kubectl -n transcributed scale deploy/transcributed-api --replicas=0
 
 # Merge the source tag 0.2.5 + HelmRelease changes, then:
 flux reconcile kustomization infrastructure -n flux-system --with-source
@@ -285,10 +299,10 @@ flux get helmreleases -n transcributed
 ```
 
 The resumed upgrade uses the new spec (no `postRenderers`, UI pinned, UI Ingress
-enabled, API Ingress disabled). The `pre-upgrade` hook also drops
-`tasks.attempts` and `tasks.max_attempts`; wait for running worker Jobs to
-finish first, because the old API/worker (still running until the rollout) query
-those columns.
+enabled, API Ingress disabled). The migration is a `pre-upgrade` hook, so it runs
+before the new API/UI/worker pods start. If you would rather accept a short
+window where task/run reads return `500` while the old API runs against the
+dropped columns, skip the scale command.
 
 ## Common failures
 

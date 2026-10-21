@@ -14,10 +14,9 @@ source_count: 0
 > [[Transcributed on Talos (architecture)]] and the usage runbook in
 > [[Running a transcription (Transcributed)]].
 >
-> The NAS export and MinIO prefix were added. The remaining deployment-side
-> fix is client-default NFS mount options (`nfsvers=4.1` is rejected by the
-> Synology). The findings and preconditions below describe the state at plan
-> time.
+> The NAS export and MinIO prefix were added. The NFS mount options now use the
+> client default (`nfsvers=4.1` is rejected by the Synology). The findings and
+> preconditions below describe the state at plan time.
 
 Deployment plan for [Transcributed](https://github.com/rykhalskyi/transcributed),
 the self-hosted lecture transcription control plane. The app ships a Helm chart
@@ -274,17 +273,18 @@ Then:
 - **Password coupling:** the CNPG bootstrap password, the password inside
   `DATABASE_URL`, and the RabbitMQ password (also inside `RABBITMQ_URL`) must
   match their respective SOPS Secrets.
-- **Image tags:** always pin both image tags to `v0.1.0`; the chart's default
-  `0.1.0` tag does not exist in the registry.
+- **Image tags (plan time):** the plan pinned both tags to `v0.1.0`, because the
+  chart's default `0.1.0` tag did not exist in the registry. Current tags are in
+  [[Transcributed on Talos (architecture)]].
 - **Multiple workers:** `maxReplicaCount: 2` with preferred anti-affinity
   spreads jobs but does not block scheduling if one node is down. Each worker
   requests `1 CPU`/`2Gi` and may burst to `4 CPU`/`4Gi`.
 - **No authentication:** keep the API LAN-only until auth and multi-user
   authorization are implemented. Do not advertise the public Cloudflare
   hostname yet.
-- **Follow-up in the app repo:** fix the chart's default image-tag helper
-  (`appVersion` vs `vX.Y.Z` tags) and republish as `0.2.0` when convenient.
-  Not a blocker for this deployment.
+- **App-repo follow-up (plan time):** fix the chart's default image-tag helper
+  (`appVersion` vs `vX.Y.Z` tags) and republish. The helper still defaults to
+  `appVersion`; the HelmRelease works around it by pinning every image tag.
 
 ## References
 
