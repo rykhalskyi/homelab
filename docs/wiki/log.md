@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-10-21] change | Transcributed web UI on the LAN VIP
+
+Moved the chart to `0.2.5` and made the new web UI the LAN entry at
+`http://transcributed.homelab.home.arpa`: Traefik (VIP `192.168.2.240`) ->
+`transcributed-ui:80` -> nginx proxy -> `transcributed-api:8000`. The API
+Ingress is disabled so the same host/path is not served by two routers; the UI
+proxies `/api`, `/healthz` and `/readyz` for a single origin. Pinned all three
+images (UI/API/worker) to the `sha-2f6b6f5...` v0.2.5 digests, taught the image
+pin workflow about the UI, and dropped the obsolete `ScaledJob.cooldownPeriod`
+postRenderer. Documented the suspend-before-merge upgrade sequence and the
+Swagger/OpenAPI port-forward (the UI does not proxy those paths).
+
 ## [2026-10-20] ingest | Transcributed on Talos (architecture) + running a transcription
 
 Documented the live Transcributed deployment on `talos` in two pages:

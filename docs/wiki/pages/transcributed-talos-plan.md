@@ -6,17 +6,18 @@ source_count: 0
 
 # Transcributed on Talos (deployment plan)
 
-> **Status: implemented 2026-10-20.** Phase 1 (KEDA, RabbitMQ, CNPG) and
-> Phase 2 (the Transcributed HelmRelease) are live on `talos`. This page is kept
-> as the original plan; the current state is documented in
+> **Status: implemented 2026-10-20; UI added 2026-10-21.** Phase 1 (KEDA,
+> RabbitMQ, CNPG) and Phase 2 (the Transcributed HelmRelease) are live on
+> `talos`. Chart `0.2.5` later added the web UI and removed the invalid
+> `ScaledJob.cooldownPeriod`, so the old `postRenderers` workaround is gone.
+> This page is kept as the original plan; the current state is documented in
 > [[Transcributed on Talos (architecture)]] and the usage runbook in
 > [[Running a transcription (Transcributed)]].
 >
-> The NAS export and MinIO prefix were added. Two deployment-side changes were
-> needed after the plan: remove the unsupported `ScaledJob.cooldownPeriod` with
-> a HelmRelease `postRenderers` patch, and use client-default NFS mount options
-> (`nfsvers=4.1` is rejected by the Synology). The findings and preconditions
-> below describe the state at plan time.
+> The NAS export and MinIO prefix were added. The remaining deployment-side
+> fix is client-default NFS mount options (`nfsvers=4.1` is rejected by the
+> Synology). The findings and preconditions below describe the state at plan
+> time.
 
 Deployment plan for [Transcributed](https://github.com/rykhalskyi/transcributed),
 the self-hosted lecture transcription control plane. The app ships a Helm chart
