@@ -208,9 +208,10 @@ match.
 - **Model limit.** The worker image bakes only the `small` model with
   `WHISPER_LOCAL_FILES_ONLY=true`; requesting another model fails permanently.
 - **Concurrency.** KEDA creates one Job per queued task (`queueLength: 1`), up
-  to one (`maxReplicaCount: 1`). Each worker requests `1 CPU`/`4Gi` and may
-  burst to `4 CPU`/`12Gi`; Jobs run with `activeDeadlineSeconds: 43200` (12h)
-  and are retained for 15m after finishing.
+  to two (`maxReplicaCount: 2`). Each worker requests `1 CPU`/`4Gi` and may
+  burst to `4 CPU`/`12Gi`; preferred pod anti-affinity spreads concurrent workers
+  across nodes. Jobs run with `activeDeadlineSeconds: 43200` (12h) and are retained
+  for 15m after finishing.
 - **Backups.** CNPG keeps continuous WAL plus a daily base backup at 03:30 with
   30-day retention. The NAS input is not backed up by the cluster.
 
