@@ -44,7 +44,7 @@ spec:
   values:
     ui:
       image:
-        tag: sha-2f6b6f5839f49db2f900a175f19f3f9d9044485c@sha256:1e73ded75aac8cca2d5b7cb16bb3eca2b524a7e851b134bb384ab274334bf94c
+        tag: sha-193d40e29863451615fe96397689aba0521c3bc0@sha256:7ef3681ea97f4bb24fbdd4c2373e01c78d294f6f99479c0593cc23ad9fc53ed3
       ingress:
         enabled: true
         className: traefik
@@ -55,14 +55,14 @@ spec:
                 pathType: Prefix
     api:
       image:
-        tag: sha-2f6b6f5839f49db2f900a175f19f3f9d9044485c@sha256:3611e9e4c328f2d06b6918babb86c948dedaf0fa158c446badc198bcd6214839
+        tag: sha-193d40e29863451615fe96397689aba0521c3bc0@sha256:a95fe1b866ce49e51b79d549a2faf1afd37026f256fcd81c1cf2e4e8f9523c64
       # The UI proxies API traffic on the same host; enabling this too would
       # create two Ingress routers for transcributed.homelab.home.arpa.
       ingress:
         enabled: false
     worker:
       image:
-        tag: sha-2f6b6f5839f49db2f900a175f19f3f9d9044485c@sha256:c30b3c9a679054cf634112afc04f5814575ce5a6ce3361651f90a47852e6cade
+        tag: sha-193d40e29863451615fe96397689aba0521c3bc0@sha256:65f60cb697cf8588417ca66c22c066876f8deb66ffeb19fd95b673e0ef5e4133
       keda:
         maxReplicaCount: 2
       resources:
