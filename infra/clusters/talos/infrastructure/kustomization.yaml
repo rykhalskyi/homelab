@@ -19,6 +19,7 @@ resources:
   - sources/metrics-server.yaml
   - sources/keda.yaml
   - sources/transcributed.yaml
+  - sources/langfuse.yaml
   # add-ons
   - local-path
   - cilium

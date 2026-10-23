@@ -13,3 +13,4 @@ resources:
   - navidrome
   - rabbitmq
   - transcributed
+  - langfuse

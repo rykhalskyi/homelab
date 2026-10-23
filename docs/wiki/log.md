@@ -1,5 +1,19 @@
 # DevOps Wiki — Log
 
+## [2026-10-23] ingest | Langfuse on Talos (LLM observability)
+
+Documented the prepared Langfuse v4 deployment on `talos`: LAN-only at
+`http://langfuse.homelab.home.arpa`, Helm chart `2.1.6` (app `4.63.0`), a
+dedicated CloudNativePG `Cluster langfuse`, a pinned single-node ClickHouse
+StatefulSet instead of the chart's operator/cert-manager path, bundled Valkey,
+and MinIO for blobs. Recorded the two non-obvious pieces: the ClickHouse
+`users.d` initContainer (env-created users live in read-only `users.xml`, so a
+SQL `GRANT` fails) and the `wait-for-deps` initContainer for first-boot
+migrations. Also documented the SOPS `langfuse-secrets`/`cnpg-minio` shape, the
+MinIO `langfuse`/`clickhouse-backups` layout, verify commands, and the non-HA
+local-path caveats. The page is marked prepared/pending review; it becomes live
+after the PR merges and Flux reconciles.
+
 ## [2026-10-21] change | Transcributed web UI on the LAN VIP
 
 Moved the chart to `0.2.5` and made the new web UI the LAN entry at
