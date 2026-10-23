@@ -88,13 +88,25 @@ spec:
         replicas: 1
         pdb:
           create: false
+        # Node caps the V8 old-space heap at ~50% of the container memory
+        # limit, so 1Gi gave web only ~512MiB and it died with
+        # "Ineffective mark-compacts near heap limit" during first-boot init.
+        pod:
+          additionalEnv:
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=2048"
+        # Startup (Next.js + init scripts) can take ~1 minute on these nodes;
+        # the chart default (20s + 3x10s) kills the pod mid-start.
+        livenessProbe:
+          initialDelaySeconds: 60
+          failureThreshold: 6
         resources:
           requests:
             cpu: 200m
-            memory: 512Mi
-          limits:
-            cpu: "1"
             memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 3Gi
       worker:
         replicas: 1
         pdb:
@@ -102,13 +114,18 @@ spec:
         image:
           tag: "4.63.0@sha256:ca32a8fb2a214c7b5f42dd9c540c8072e41db659cb621f317911ce695ad6bca2"
           pullPolicy: IfNotPresent
+        # Same V8 heap-cap issue as web: 1Gi only allowed ~512MiB of old space.
+        pod:
+          additionalEnv:
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=1536"
         resources:
           requests:
             cpu: 200m
             memory: 512Mi
           limits:
-            cpu: "1"
-            memory: 1Gi
+            cpu: "2"
+            memory: 2Gi
 
     postgresql:
       deploy: false
