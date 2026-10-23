@@ -1,0 +1,190 @@
+# Langfuse v4 (LLM observability) on the talos cluster.
+#
+# LAN-only: served at http://langfuse.homelab.home.arpa on Traefik's
+# LoadBalancer VIP 192.168.2.240. It is NOT routed through the
+# `*.otakeessen.com` Cloudflare tunnel, so traces/prompts never leave the LAN.
+#
+# Storage layout:
+#   - PostgreSQL: dedicated CloudNativePG `Cluster langfuse` (`langfuse-rw`),
+#     credentials from the out-of-band `langfuse-secrets` Secret.
+#   - ClickHouse: the single-node StatefulSet in this directory, reached at
+#     `langfuse-clickhouse:9000/8123`; the chart does not deploy the operator.
+#   - Redis/Valkey: bundled by the chart, image digest-pinned, 2Gi local-path.
+#   - Blobs: the LAN MinIO bucket `langfuse`, path-style, via a scoped
+#     service account stored in `langfuse-secrets`.
+#
+# `signUpDisabled: false` for the first boot so the initial admin/org can be
+# created in the UI. Flip it to true in a follow-up PR once the admin exists.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: langfuse
+  namespace: langfuse
+spec:
+  interval: 10m
+  timeout: 15m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  chart:
+    spec:
+      chart: langfuse
+      version: "2.1.6"
+      sourceRef:
+        kind: HelmRepository
+        name: langfuse
+        namespace: flux-system
+  values:
+    langfuse:
+      nodeEnv: production
+      logging:
+        level: info
+        format: text
+      image:
+        tag: "4.63.0@sha256:67f48d12a190e4ad585249c75ae1ce172b449de3dbbe7486b8179cd28e21408e"
+        pullPolicy: IfNotPresent
+      salt:
+        secretKeyRef:
+          name: langfuse-secrets
+          key: salt
+      encryptionKey:
+        secretKeyRef:
+          name: langfuse-secrets
+          key: encryption-key
+      nextauth:
+        url: http://langfuse.homelab.home.arpa
+        secret:
+          secretKeyRef:
+            name: langfuse-secrets
+            key: nextauth-secret
+      features:
+        telemetryEnabled: false
+        signUpDisabled: false
+      serviceAccount:
+        automountServiceAccountToken: false
+      ingress:
+        enabled: true
+        className: traefik
+        hosts:
+          - host: langfuse.homelab.home.arpa
+            paths:
+              - path: /
+                pathType: Prefix
+      # The database and ClickHouse are CRs/StatefulSets, not Helm releases, so
+      # there is no `dependsOn`. Wait for both before migrations run on first
+      # boot; otherwise web/worker can crash-loop until the stores are ready.
+      extraInitContainers:
+        - name: wait-for-deps
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - "until nc -z langfuse-rw.langfuse.svc.cluster.local 5432 && nc -z langfuse-clickhouse.langfuse.svc.cluster.local 9000; do echo waiting for langfuse deps; sleep 2; done"
+      web:
+        replicas: 1
+        pdb:
+          create: false
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+      worker:
+        replicas: 1
+        pdb:
+          create: false
+        image:
+          tag: "4.63.0@sha256:ca32a8fb2a214c7b5f42dd9c540c8072e41db659cb621f317911ce695ad6bca2"
+          pullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+
+    postgresql:
+      deploy: false
+      host: langfuse-rw.langfuse.svc.cluster.local
+      port: 5432
+      auth:
+        username: langfuse
+        database: langfuse
+        existingSecret: langfuse-secrets
+        secretKeys:
+          userPasswordKey: password
+      migration:
+        autoMigrate: true
+
+    clickhouse:
+      deploy: false
+      # External ClickHouse: no ClickHouseCluster/KeeperCluster CRs to preflight.
+      crdCheck: false
+      host: langfuse-clickhouse.langfuse.svc.cluster.local
+      httpPort: 8123
+      nativePort: 9000
+      database: langfuse
+      cluster:
+        enabled: false
+      migration:
+        autoMigrate: true
+        ssl: false
+      auth:
+        username: langfuse
+        existingSecret: langfuse-secrets
+        existingSecretKey: clickhouse-password
+
+    redis:
+      deploy: true
+      image:
+        tag: "8.0@sha256:4436c94fc34ce4af0354b9379d433a1f258998fb955f995c89822f98c14a8cab"
+        pullPolicy: IfNotPresent
+      auth:
+        existingSecret: langfuse-secrets
+        existingSecretPasswordKey: redis-password
+        # Valkey sub-chart ACL secret: key `default` holds the same password.
+        usersExistingSecret: langfuse-secrets
+      dataStorage:
+        enabled: true
+        className: local-path
+        requestedSize: 2Gi
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+    s3:
+      deploy: false
+      storageProvider: s3
+      bucket: langfuse
+      region: us-east-1
+      endpoint: http://192.168.2.112:9000
+      forcePathStyle: true
+      accessKeyId:
+        secretKeyRef:
+          name: langfuse-secrets
+          key: s3-access-key
+      secretAccessKey:
+        secretKeyRef:
+          name: langfuse-secrets
+          key: s3-secret-key
+      concurrency:
+        reads: 50
+        writes: 50
+      batchExport:
+        enabled: true
+      mediaUpload:
+        enabled: true
+        # Keep this a string: Helm renders the chart's integer default as
+        # `1e+09`, which the app cannot parse as a byte count.
+        maxContentLength: "1000000000"

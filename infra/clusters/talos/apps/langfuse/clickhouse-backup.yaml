@@ -1,0 +1,83 @@
+# Daily logical backup of the Langfuse ClickHouse database to the LAN MinIO.
+#
+# Langfuse's traces/observations/scores live in ClickHouse, so the CNPG backup
+# alone is not enough. This runs ClickHouse's native `BACKUP DATABASE ... TO S3`
+# at 04:00, one hour after the Postgres base backup.
+#
+# Credentials: the `langfuse` MinIO service account stored in
+# `langfuse-secrets`; its policy must also allow
+# `clickhouse-backups/langfuse/*`. Retention is handled by a MinIO lifecycle
+# rule on the bucket (30 days), not by this job.
+#
+# The image is the same digest-pinned ClickHouse server so the client version
+# always matches the server.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: langfuse-clickhouse-backup
+  namespace: langfuse
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+            fsGroup: 101
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: backup
+              image: clickhouse/clickhouse-server:26.8.28.14@sha256:63e02621435cde1146ab0fde66057091ee75b312d12917c0109a6a0c99bc7ce1
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+              args:
+                - |
+                  set -eu
+                  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+                  clickhouse-client \
+                    --host langfuse-clickhouse \
+                    --port 9000 \
+                    --user "$CLICKHOUSE_USER" \
+                    --password "$CLICKHOUSE_PASSWORD" \
+                    --query "BACKUP DATABASE langfuse TO S3('http://192.168.2.112:9000/clickhouse-backups/langfuse/${ts}', '${S3_ACCESS_KEY}', '${S3_SECRET_KEY}', 'us-east-1')"
+              env:
+                - name: CLICKHOUSE_USER
+                  value: langfuse
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: langfuse-secrets
+                      key: clickhouse-password
+                - name: S3_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: langfuse-secrets
+                      key: s3-access-key
+                - name: S3_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: langfuse-secrets
+                      key: s3-secret-key
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL

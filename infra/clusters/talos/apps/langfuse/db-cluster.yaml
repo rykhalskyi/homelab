@@ -1,0 +1,54 @@
+# Dedicated PostgreSQL for Langfuse, managed by CloudNativePG.
+#
+# Clean install: the cluster is created with the `langfuse` database owned by
+# `langfuse`. Credentials come from the out-of-band `langfuse-secrets` Secret
+# (keys `username` / `password`), which the HelmRelease also consumes through
+# `postgresql.auth.existingSecret`. That keeps a single source of truth for the
+# database password.
+#
+# Backups: continuous WAL archiving + a daily base backup (ScheduledBackup
+# `langfuse-daily`) to the LAN MinIO under `s3://cnpg-backups/langfuse`. The
+# MinIO `cnpg` policy must include the `langfuse/*` prefix. Because Secrets are
+# namespaced, the S3 credentials live in the out-of-band `cnpg-minio` Secret in
+# *this* namespace.
+#
+# The operand image is pinned by digest (repo convention).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: langfuse
+  namespace: langfuse
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie@sha256:42708a75345b7a48fdd9257b071830783a97fd228529196b6313187a7198e185
+  storage:
+    storageClass: local-path
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  bootstrap:
+    initdb:
+      database: langfuse
+      owner: langfuse
+      secret:
+        name: langfuse-secrets
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://cnpg-backups/langfuse
+      endpointURL: http://192.168.2.112:9000
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-minio
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-minio
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+      data:
+        compression: gzip
+    retentionPolicy: "30d"

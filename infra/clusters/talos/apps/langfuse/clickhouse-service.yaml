@@ -1,0 +1,20 @@
+# Stable ClusterIP for the ClickHouse StatefulSet. Langfuse uses 8123 (HTTP)
+# and 9000 (native/migrations); the backup CronJob uses 9000 too.
+apiVersion: v1
+kind: Service
+metadata:
+  name: langfuse-clickhouse
+  namespace: langfuse
+  labels:
+    app.kubernetes.io/name: langfuse-clickhouse
+    app.kubernetes.io/part-of: langfuse
+spec:
+  selector:
+    app.kubernetes.io/name: langfuse-clickhouse
+  ports:
+    - name: http
+      port: 8123
+      targetPort: http
+    - name: native
+      port: 9000
+      targetPort: native

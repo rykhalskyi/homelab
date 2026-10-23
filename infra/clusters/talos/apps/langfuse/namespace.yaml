@@ -1,0 +1,9 @@
+# Langfuse (LLM observability) on the talos cluster.
+#
+# The whole stack is self-contained in this namespace: the Langfuse Helm
+# release, its CloudNativePG database, the single-node ClickHouse, the bundled
+# Valkey cache, the ClickHouse backup CronJob and the LAN Ingress.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: langfuse

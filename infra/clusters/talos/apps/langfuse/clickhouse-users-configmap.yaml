@@ -1,0 +1,40 @@
+# ClickHouse users configuration for the single-node Langfuse instance.
+#
+# The official image's env-based user creation writes the user into users.xml,
+# which is read-only at runtime; a later SQL `GRANT` then fails. Instead we
+# render this template in an initContainer (substituting the password from the
+# `langfuse-secrets` Secret) and mount it as users.d. The user is defined with
+# its grants directly, so Langfuse's migrations, DML and v4 system-table reads
+# work on first start.
+#
+# `default` is restricted to localhost so the image entrypoint can still run
+# its one-time `CREATE DATABASE langfuse`; the application always connects as
+# `langfuse`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: langfuse-clickhouse-users
+  namespace: langfuse
+data:
+  users.xml: |
+    <clickhouse>
+      <users>
+        <default>
+          <networks>
+            <ip>::1</ip>
+            <ip>127.0.0.1</ip>
+          </networks>
+        </default>
+        <langfuse>
+          <password>__CLICKHOUSE_PASSWORD__</password>
+          <networks>
+            <ip>::/0</ip>
+          </networks>
+          <profile>default</profile>
+          <quota>default</quota>
+          <grants>
+            <query>GRANT ALL ON *.*</query>
+          </grants>
+        </langfuse>
+      </users>
+    </clickhouse>

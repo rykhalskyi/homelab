@@ -1,0 +1,10 @@
+# Langfuse publishes its Helm chart on GitHub Pages. Flux tracks the index
+# here; the HelmRelease pins the exact chart version (2.1.6 == Langfuse 4.63.0).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: langfuse
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://langfuse.github.io/langfuse-k8s
