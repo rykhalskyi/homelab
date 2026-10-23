@@ -84,6 +84,10 @@ spec:
                 icon: navidrome.png
                 href: http://music.homelab.home.arpa/
                 description: Music streaming
+            - Transcributed:
+                icon: https://raw.githubusercontent.com/rykhalskyi/transcributed/main/ui/public/icon-192.png
+                href: http://transcributed.homelab.home.arpa/
+                description: Audio and video transcription
       settingsString: |
         title: Homelab
         headerStyle: boxed
