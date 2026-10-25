@@ -6,7 +6,7 @@ source_count: 0
 
 # Langfuse on Talos (LLM observability)
 
-**Status: deployment prepared 2026-10-23; PR pending review, not yet live.**
+**Status: live on Talos since 2026-10-25.**
 Langfuse is a self-hosted LLM observability and prompt-management platform. It
 runs in the `langfuse` namespace on `talos` and is reachable **LAN-only** at
 **`http://langfuse.homelab.home.arpa`**. The host is not under
@@ -209,3 +209,9 @@ Expected: CNPG `Cluster in healthy state`, web/worker running, ingress address
   and both image digests. Do not bump ClickHouse below 25.12 (v4 minimum).
 - No TLS on the LAN; `NEXTAUTH_URL` is `http://…`. Add internal TLS later if
   desired.
+- The chart names its app ServiceAccount `langfuse`, the same name CloudNativePG
+  uses for the `langfuse` cluster's instance ServiceAccount. The chart value
+  `langfuse.serviceAccount.automountServiceAccountToken: false` therefore
+  leaves `langfuse-1` without an API token after any pod restart. The
+  HelmRelease `postRenderers` patch forces the SA to automount; web/worker still
+  set `automountServiceAccountToken: false` at pod level. Do not remove it.

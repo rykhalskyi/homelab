@@ -29,6 +29,16 @@ spec:
   upgrade:
     remediation:
       retries: 3
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: ServiceAccount
+              name: langfuse
+            patch: |
+              - op: add
+                path: /automountServiceAccountToken
+                value: true
   chart:
     spec:
       chart: langfuse

@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-10-25] fix | Langfuse DB after Talos upgrade (CNPG SA collision)
+
+After upgrading both Talos nodes to `v1.14.4`, the hibernated CNPG clusters
+were rehydrated and all recovered except `langfuse-1`, which crash-looped with
+`open /var/run/secrets/kubernetes.io/serviceaccount/token: no such file or
+directory`. The Langfuse chart creates the app ServiceAccount `langfuse` with
+`automountServiceAccountToken: false`, but CloudNativePG's `Cluster langfuse`
+uses the same name for its instance ServiceAccount and needs an API token. The
+chart's web/worker pods already opt out at pod level, so the fix is a
+`postRenderers` patch on the HelmRelease that forces the ServiceAccount to
+automount. Documented the gotcha in [[Langfuse on Talos (LLM observability)]].
+
 ## [2026-10-23] ingest | Langfuse on Talos (LLM observability)
 
 Documented the prepared Langfuse v4 deployment on `talos`: LAN-only at
