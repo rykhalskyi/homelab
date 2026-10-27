@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: cloudflared
-          # Pinned by digest (tag 2026.10.5); the image is distroless, so probes
+          # Pinned by digest; the image is distroless, so probes
           # must be HTTP (no shell for exec probes).
           image: cloudflare/cloudflared:2026.10.5@sha256:1b1d34d0a9c0bfca9de72db8460d328db3f19edd2b96169114e3e893a97bbe53
           args:

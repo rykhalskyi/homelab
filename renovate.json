@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/^infra/clusters/(k8s|talos)/(apps|infrastructure)/.+\\.ya?ml$/"
+    ]
+  },
+  "flux": {
+    "managerFilePatterns": [
+      "/^infra/clusters/(k8s|talos)/(apps|infrastructure)/.+\\.ya?ml$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["kubernetes"],
+      "pinDigests": true
+    },
+    {
+      "matchPackageNames": ["cloudflare/cloudflared"],
+      "groupName": "cloudflared"
+    }
+  ]
+}
