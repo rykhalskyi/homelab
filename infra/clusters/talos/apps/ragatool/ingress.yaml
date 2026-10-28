@@ -1,0 +1,26 @@
+# LAN-only Ragatool UI. The host is under `homelab.home.arpa`, which the
+# `*.otakeessen.com` Cloudflare tunnel never routes, so the app is unreachable
+# from outside the LAN.
+#
+# Add to your client /etc/hosts:
+#   192.168.2.240 ragatool.homelab.home.arpa
+#
+# then open http://ragatool.homelab.home.arpa/.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ragatool
+  namespace: ragatool
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ragatool.homelab.home.arpa
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ragatool-frontend
+                port:
+                  number: 80

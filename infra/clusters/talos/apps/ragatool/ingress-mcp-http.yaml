@@ -1,0 +1,24 @@
+# LAN-only MCP-over-streamable-HTTP endpoint. The backend's FastMCP HTTP server
+# listens on 8002 and serves /mcp (this is the transport opencode/Claude-style
+# clients use).
+#
+#   client /etc/hosts: 192.168.2.240 ragatool-mcp-http.homelab.home.arpa
+#   MCP URL:           http://ragatool-mcp-http.homelab.home.arpa/mcp
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ragatool-mcp-http
+  namespace: ragatool
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ragatool-mcp-http.homelab.home.arpa
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ragatool-backend
+                port:
+                  number: 8002

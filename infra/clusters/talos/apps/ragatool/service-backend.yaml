@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ragatool-backend
+  namespace: ragatool
+  labels:
+    app: ragatool-backend
+spec:
+  selector:
+    app: ragatool-backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+    - name: mcp-sse
+      port: 8001
+      targetPort: mcp-sse
+    - name: mcp-http
+      port: 8002
+      targetPort: mcp-http

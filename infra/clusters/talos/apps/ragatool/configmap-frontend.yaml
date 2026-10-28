@@ -1,0 +1,14 @@
+# Non-secret frontend configuration, read at container start (no rebuild):
+#   - API_URL     what the browser calls (same-origin /api)
+#   - BACKEND_URL what nginx proxies /api/ to
+#
+# The frontend image's entrypoint writes API_URL into /config.js and nginx
+# substitutes BACKEND_URL into its server template.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ragatool-frontend-config
+  namespace: ragatool
+data:
+  API_URL: "/api"
+  BACKEND_URL: "http://ragatool-backend.ragatool.svc.cluster.local:8000"

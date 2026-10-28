@@ -92,6 +92,10 @@ spec:
                 icon: https://raw.githubusercontent.com/rykhalskyi/transcributed/main/ui/public/icon-192.png
                 href: http://transcributed.homelab.home.arpa/
                 description: Audio and video transcription
+            - Ragatool:
+                icon: https://raw.githubusercontent.com/rykhalskyi/ragatool/main/frontend/src/assets/ragatouille_logo1_sm.png
+                href: http://ragatool.homelab.home.arpa/
+                description: Local RAG knowledge base and MCP server
       settingsString: |
         title: Homelab
         headerStyle: boxed

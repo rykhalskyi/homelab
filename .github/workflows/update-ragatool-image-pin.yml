@@ -1,0 +1,137 @@
+name: talos/ragatool 1/1 Pin ragatool images
+
+# Keeps the two Ragatool images in
+# `infra/clusters/talos/apps/ragatool/deployment-{backend,frontend}.yaml` pinned
+# to the image built by the ragatool repo's "Create Package" workflow
+# (ghcr.io/rykhalskyi/ragatool-{backend,frontend}:sha-<commit>). It resolves both
+# digests from GHCR and opens a PR that rewrites both image references to
+# `sha-<commit>@sha256:<digest>`.
+#
+# Triggers:
+#   - repository_dispatch -> event_type "ragatool-images" with
+#     client_payload.sha, sent by ragatool's publish-docker.yml after a
+#     successful push (requires a HOMELAB_DISPATCH_TOKEN PAT secret there).
+#   - workflow_dispatch   -> manual run, optionally pinning a specific SHA.
+#
+# The GHCR packages must be public (or this workflow needs a pull credential).
+# Mirrors update-pullini-image-pin.yml.
+
+on:
+  repository_dispatch:
+    types: [ragatool-images]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA of the sha-<sha> image tags to pin. Empty = latest ragatool main.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-ragatool-image-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: Refresh deployment images
+    runs-on: ubuntu-latest
+    if: github.repository == 'rykhalskyi/homelab'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Resolve image digests
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_REPO: rykhalskyi/ragatool
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+          DISPATCH_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          set -euo pipefail
+          sha="${INPUT_SHA:-${DISPATCH_SHA:-}}"
+          if [ -z "$sha" ]; then
+            sha="$(gh api "repos/${APP_REPO}/commits/main" --jq .sha)"
+          fi
+          tag="sha-${sha}"
+
+          backend_image="ghcr.io/rykhalskyi/ragatool-backend:${tag}"
+          backend_digest="$(docker buildx imagetools inspect "$backend_image" --format '{{.Manifest.Digest}}')"
+          [ -n "$backend_digest" ] || { echo "::error::could not resolve digest for ${backend_image}"; exit 1; }
+
+          frontend_image="ghcr.io/rykhalskyi/ragatool-frontend:${tag}"
+          frontend_digest="$(docker buildx imagetools inspect "$frontend_image" --format '{{.Manifest.Digest}}')"
+          [ -n "$frontend_digest" ] || { echo "::error::could not resolve digest for ${frontend_image}"; exit 1; }
+
+          backend="${backend_image}@${backend_digest}"
+          frontend="${frontend_image}@${frontend_digest}"
+
+          backend_file=infra/clusters/talos/apps/ragatool/deployment-backend.yaml
+          frontend_file=infra/clusters/talos/apps/ragatool/deployment-frontend.yaml
+          current_backend="$(grep -oE 'rykhalskyi/ragatool-backend:[^[:space:]]+' "$backend_file" | head -n1 || true)"
+          current_frontend="$(grep -oE 'rykhalskyi/ragatool-frontend:[^[:space:]]+' "$frontend_file" | head -n1 || true)"
+
+          {
+            echo "sha=${sha}"
+            echo "short=${sha:0:7}"
+            echo "backend=${backend}"
+            echo "frontend=${frontend}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Resolved backend:  ${backend}"
+          echo "Pinned backend:    ${current_backend:-none}"
+          echo "Resolved frontend: ${frontend}"
+          echo "Pinned frontend:   ${current_frontend:-none}"
+          if [ "$backend" = "$current_backend" ] && [ "$frontend" = "$current_frontend" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already pinned to these digests - nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update deployment manifests
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          BACKEND_IMAGE: ${{ steps.resolve.outputs.backend }}
+          FRONTEND_IMAGE: ${{ steps.resolve.outputs.frontend }}
+        run: |
+          set -euo pipefail
+          backend_file=infra/clusters/talos/apps/ragatool/deployment-backend.yaml
+          frontend_file=infra/clusters/talos/apps/ragatool/deployment-frontend.yaml
+          sed -i -E "s|^(\s*image: ).*rykhalskyi/ragatool-backend.*$|\1${BACKEND_IMAGE}|" "$backend_file"
+          sed -i -E "s|^(\s*image: ).*rykhalskyi/ragatool-frontend.*$|\1${FRONTEND_IMAGE}|" "$frontend_file"
+
+      - name: Show diff
+        if: steps.resolve.outputs.changed == 'true'
+        run: git --no-pager diff
+
+      - name: Open pull request
+        if: steps.resolve.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/ragatool-images-${{ steps.resolve.outputs.short }}
+          base: main
+          delete-branch: true
+          title: "Pin ragatool images to sha-${{ steps.resolve.outputs.short }}"
+          commit-message: "Pin ragatool images to sha-${{ steps.resolve.outputs.short }}"
+          labels: |
+            dependencies
+          body: |
+            Automated pin update after the ragatool images
+            `ghcr.io/rykhalskyi/ragatool-backend:sha-${{ steps.resolve.outputs.sha }}`
+            and
+            `ghcr.io/rykhalskyi/ragatool-frontend:sha-${{ steps.resolve.outputs.sha }}`
+            were published.
+
+            - backend: `${{ steps.resolve.outputs.backend }}`
+            - frontend: `${{ steps.resolve.outputs.frontend }}`
+
+            Merge; Flux on the `talos` cluster reconciles the new images within
+            its `apps` interval.

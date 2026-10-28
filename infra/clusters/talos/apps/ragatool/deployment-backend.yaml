@@ -1,0 +1,95 @@
+# Ragatool FastAPI backend, plus the two embedded FastMCP servers it starts in
+# background threads:
+#   - 8000 FastAPI (REST + /logs/stream SSE + extensions websocket)
+#   - 8001 MCP over SSE
+#   - 8002 MCP over streamable HTTP
+#
+# Persistence: the container's working directory is /data (the PVC), so the
+# app's relative SQLite and Chroma paths persist. The app code stays in /app;
+# uvicorn is pointed there with --app-dir.
+#
+# The image is built by the ragatool repo's "Create Package" workflow and pinned
+# as sha-<commit>@sha256:<digest>; update-ragatool-image-pin.yml opens the PR that
+# bumps it. Bootstrap note: the digest below is the pre-runtime-config `latest`
+# image; rebuild the images once (the pin PR then replaces both references).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ragatool-backend
+  namespace: ragatool
+  labels:
+    app: ragatool-backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ragatool-backend
+  template:
+    metadata:
+      labels:
+        app: ragatool-backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: backend
+          image: ghcr.io/rykhalskyi/ragatool-backend:latest@sha256:8909ccee5b8ea4d26e2c3c549b6b28f7d4577b875ffd2997f7e5fb5450370e3a
+          imagePullPolicy: IfNotPresent
+          workingDir: /data
+          command:
+            - uvicorn
+            - app.main:app
+            - --app-dir
+            - /app
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+          ports:
+            - name: http
+              containerPort: 8000
+            - name: mcp-sse
+              containerPort: 8001
+            - name: mcp-http
+              containerPort: 8002
+          envFrom:
+            - configMapRef:
+                name: ragatool-backend-config
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          # The first embedding/rerank download happens on demand, not at boot,
+          # so startup is usually seconds. Allow time for the volume + Python.
+          startupProbe:
+            httpGet:
+              path: /version
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /version
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /version
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ragatool-data
