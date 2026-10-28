@@ -1,0 +1,23 @@
+# Non-secret backend configuration.
+#
+# ALLOWED_ORIGINS is the browser origin that talks to the API. The frontend
+# nginx proxies /api same-origin, so CORS is not actually exercised, but keep it
+# set for direct API/MCP use.
+#
+# FASTEMBED_CACHE_DIR points into the PVC so models survive Pod restarts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ragatool-backend-config
+  namespace: ragatool
+data:
+  ALLOWED_ORIGINS: "http://ragatool.homelab.home.arpa"
+  EMBEDDING_MODEL: "BAAI/bge-small-en-v1.5"
+  RERANK_MODEL: "Xenova/ms-marco-MiniLM-L-6-v2"
+  FASTEMBED_CACHE_DIR: "/data/fastembed"
+  MCP_HOST: "0.0.0.0"
+  MCP_PORT: "8001"
+  MCP_HTTP_HOST: "0.0.0.0"
+  MCP_HTTP_PORT: "8002"
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"

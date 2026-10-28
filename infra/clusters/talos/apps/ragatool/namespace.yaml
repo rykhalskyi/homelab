@@ -1,0 +1,9 @@
+# Ragatool (local RAG + MCP servers) on the talos cluster.
+#
+# The whole stack is self-contained in this namespace: the FastAPI backend (SQLite,
+# Chroma, fastembed cache on one PVC), the Angular frontend/nginx proxy and three
+# LAN-only Ingresses (UI + MCP SSE + MCP HTTP).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ragatool

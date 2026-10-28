@@ -1,5 +1,19 @@
 # DevOps Wiki — Log
 
+## [2026-10-28] ingest | Ragatool on Talos (LAN-only RAG + MCP)
+
+Prepared the `ragatool` stack on `talos`: FastAPI backend (ports 8000/8001/8002
+for REST + MCP SSE + MCP HTTP) and the Angular UI in namespace `ragatool`, with
+all state on one 10Gi `local-path` PVC (`/data`: SQLite, Chroma, fastembed
+cache). The UI is LAN-only at `ragatool.homelab.home.arpa`; MCP uses
+`ragatool-mcp{,-http}.homelab.home.arpa` through the Traefik VIP. Also changed
+the app's frontend so the API address is runtime config: `config.js` is written
+from `API_URL` at container start, and nginx proxies `/api/` to a deploy-time
+`BACKEND_URL` (default same-origin), replacing the build-time `sed` of
+`environment.ts`. Added `update-ragatool-image-pin.yml` (pins both images by
+digest after the app repo's Create Package workflow dispatches
+`ragatool-images`). No Secret is required.
+
 ## [2026-10-25] fix | Langfuse DB after Talos upgrade (CNPG SA collision)
 
 After upgrading both Talos nodes to `v1.14.4`, the hibernated CNPG clusters

@@ -1,0 +1,21 @@
+# Holds all mutable Ragatool state:
+#   - /data/ragatouille.db     SQLite database (collections, settings, tasks)
+#   - /data/chroma_data        Chroma vector store
+#   - /data/fastembed          fastembed/reranker model cache
+#
+# The backend container runs with its working directory at /data, so the app's
+# relative paths (`ragatouille.db`, `./chroma_data`) land on this volume instead
+# of the image's /app. 10Gi leaves room for a sizeable document collection and
+# the downloaded models; grow it if the library grows.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ragatool-data
+  namespace: ragatool
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi

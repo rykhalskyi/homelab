@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ragatool-frontend
+  namespace: ragatool
+  labels:
+    app: ragatool-frontend
+spec:
+  selector:
+    app: ragatool-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

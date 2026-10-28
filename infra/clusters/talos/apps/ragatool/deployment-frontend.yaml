@@ -1,0 +1,58 @@
+# Ragatool Angular UI served by nginx. Also proxies /api/ to the backend so the
+# browser uses a single origin (no CORS, one LAN hostname).
+#
+# Both API_URL and BACKEND_URL come from ragatool-frontend-config at runtime.
+# Bootstrap note: the digest below is the pre-runtime-config `latest` image;
+# rebuild the images once (the pin PR then replaces both references).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ragatool-frontend
+  namespace: ragatool
+  labels:
+    app: ragatool-frontend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ragatool-frontend
+  template:
+    metadata:
+      labels:
+        app: ragatool-frontend
+    spec:
+      # The stock nginx image starts as root (master) and drops to nginx for the
+      # workers; its entrypoint also rewrites /config.js and renders the server
+      # template, which needs write access to /usr/share/nginx/html and
+      # /etc/nginx/conf.d. Use the nginx-unprivileged image before tightening
+      # this to a non-root user.
+      containers:
+        - name: frontend
+          image: ghcr.io/rykhalskyi/ragatool-frontend:latest@sha256:b4df36a35bb4d30fba8697c7ad9f4e43b4bacb587b9f1cdbdf7febad16650768
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: ragatool-frontend-config
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
