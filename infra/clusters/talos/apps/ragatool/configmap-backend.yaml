@@ -5,6 +5,10 @@
 # set for direct API/MCP use.
 #
 # FASTEMBED_CACHE_DIR points into the PVC so models survive Pod restarts.
+# HOME/HF_HOME must also point there: the image runs as UID 1000 with no home
+# directory, and huggingface_hub/Xet otherwise tries to write its log/cache to
+# /.cache/huggingface, which fails with "Permission denied (os error 13)" and
+# aborts the model download.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -15,6 +19,8 @@ data:
   EMBEDDING_MODEL: "BAAI/bge-small-en-v1.5"
   RERANK_MODEL: "Xenova/ms-marco-MiniLM-L-6-v2"
   FASTEMBED_CACHE_DIR: "/data/fastembed"
+  HOME: "/data"
+  HF_HOME: "/data/huggingface"
   MCP_HOST: "0.0.0.0"
   MCP_PORT: "8001"
   MCP_HTTP_HOST: "0.0.0.0"

@@ -1,5 +1,15 @@
 # DevOps Wiki — Log
 
+## [2026-10-28] fix | Ragatool HuggingFace model download permissions
+
+The first embedding task failed with `Permission denied (os error 13)` writing
+`/.cache/huggingface/xet/logs/...`, leaving a partial fastembed snapshot and an
+ONNX `NO_SUCHFILE` error. The backend runs as UID 1000 with no home directory;
+pin `HOME=/data` and `HF_HOME=/data/huggingface` in `ragatool-backend-config`,
+then recreate the Pod and remove the partial
+`/data/fastembed/models--qdrant--bge-small-en-v1.5-onnx-q` directory before the
+retry. Documented in [[Ragatool on Talos (LAN-only RAG + MCP)]].
+
 ## [2026-10-28] ingest | Ragatool on Talos (LAN-only RAG + MCP)
 
 Prepared the `ragatool` stack on `talos`: FastAPI backend (ports 8000/8001/8002

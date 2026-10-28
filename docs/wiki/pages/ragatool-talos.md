@@ -111,6 +111,7 @@ directory `/data`. The app's relative paths therefore persist on the PVC:
 | `/data/ragatouille.db` | SQLite: collections, settings, task history |
 | `/data/chroma_data` | Chroma vector store |
 | `/data/fastembed` | downloaded embedding/reranker models (`FASTEMBED_CACHE_DIR`) |
+| `/data/huggingface` | HuggingFace/Xet cache + logs (`HF_HOME`; `HOME` is `/data` too) |
 
 Models are downloaded **on first use**, not at startup, so the Pod needs outbound
 internet the first time a collection is embedded or a query is reranked. After
@@ -217,6 +218,13 @@ keep them LAN-only.
   points at a hostname nginx cannot resolve at startup. Fix
   `ragatool-frontend-config` (the k8s value is
   `http://ragatool-backend.ragatool.svc.cluster.local:8000`).
+- **First embedding/rerank request fails with `Permission denied (os error 13)`
+  writing `/.cache/huggingface/xet/logs/...`.** The container runs as UID 1000
+  with no home directory, so `huggingface_hub`/Xet tried to use `/.cache`. The
+  ConfigMap sets `HOME=/data` and `HF_HOME=/data/huggingface`; recreate the Pod
+  after changing it, and remove the partial
+  `/data/fastembed/models--qdrant--bge-small-en-v1.5-onnx-q` directory so the
+  download starts clean.
 - **First embedding/rerank request hangs or fails.** The Pod cannot reach the
   model host, or the cache path is not writable. Check
   `kubectl logs deploy/ragatool-backend` and that `/data/fastembed` exists.
