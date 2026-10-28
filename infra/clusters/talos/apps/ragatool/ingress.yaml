@@ -2,10 +2,15 @@
 # `*.otakeessen.com` Cloudflare tunnel never routes, so the app is unreachable
 # from outside the LAN.
 #
-# Add to your client /etc/hosts:
+# Add to your client /etc/hosts (or Pi-hole):
 #   192.168.2.240 ragatool.homelab.home.arpa
 #
 # then open http://ragatool.homelab.home.arpa/.
+#
+# The `/mcp` path is the streamable-HTTP MCP endpoint (backend :8002), so MCP
+# clients can use the same hostname without a second DNS record. Traefik picks
+# the longest matching path, so `/mcp` wins over the `/` UI route. SSE still
+# needs its own host (see ingress-mcp-sse.yaml).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -17,6 +22,13 @@ spec:
     - host: ragatool.homelab.home.arpa
       http:
         paths:
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: ragatool-backend
+                port:
+                  number: 8002
           - path: /
             pathType: Prefix
             backend:

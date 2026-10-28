@@ -42,15 +42,18 @@ Cloudflare route.
 
 | Host | Target | Purpose |
 |------|--------|---------|
-| `ragatool.homelab.home.arpa` | `ragatool-frontend:80` | Angular UI; `/api/` is proxied to the backend |
+| `ragatool.homelab.home.arpa` | `ragatool-frontend:80`, `/mcp` → `ragatool-backend:8002` | Angular UI; `/api/` proxied to the backend; `/mcp` is the streamable-HTTP MCP endpoint |
 | `ragatool-mcp.homelab.home.arpa` | `ragatool-backend:8001` | MCP over SSE (`/mcp`) |
-| `ragatool-mcp-http.homelab.home.arpa` | `ragatool-backend:8002` | MCP over streamable HTTP (`/mcp`) |
+| `ragatool-mcp-http.homelab.home.arpa` | `ragatool-backend:8002` | Optional alternative MCP HTTP host (`/mcp`) |
 
 ```text
 192.168.2.240 ragatool.homelab.home.arpa
 192.168.2.240 ragatool-mcp.homelab.home.arpa
 192.168.2.240 ragatool-mcp-http.homelab.home.arpa
 ```
+
+The UI host is enough for opencode: the same host routes `/mcp` to the backend
+(see `ingress.yaml`), so no extra DNS record is needed for HTTP MCP.
 
 > There is no authentication in Ragatool yet. That is why it is LAN-only; do not
 > add a `*.otakeessen.com` Ingress until auth exists.
@@ -189,10 +192,13 @@ download).
 Point an agent at either transport:
 
 ```jsonc
-// streamable HTTP (opencode etc.)
+// streamable HTTP (opencode etc.) -- no extra DNS record needed
+"Ragatool": { "url": "http://ragatool.homelab.home.arpa/mcp" }
+
+// alternative HTTP host, if you created its DNS record
 "Ragatool": { "url": "http://ragatool-mcp-http.homelab.home.arpa/mcp" }
 
-// SSE
+// SSE (requires the ragatool-mcp DNS record)
 "Ragatool": { "url": "http://ragatool-mcp.homelab.home.arpa/mcp" }
 ```
 
