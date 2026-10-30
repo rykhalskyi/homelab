@@ -27,7 +27,7 @@ Traefik (node-two :80) ◄── http://pgadmin-db.homelab.local/   (LAN only)
 | `infra/clusters/talos/apps/pgadmin/kustomization.yaml` | bundles it |
 | `infra/clusters/talos/apps/secrets/pgadmin-auth.sops.yaml` | **local only**, login creds |
 
-Image `dpage/pgadmin4:9.18.0@sha256:c332c5f6…26de` (same pin as k8s); 2Gi
+Image `dpage/pgadmin4:9.19.0@sha256:3591b3d0…0c83` (same pin as k8s); 2Gi
 `local-path` PVC; `Recreate` strategy (single writer).
 
 ## Credentials

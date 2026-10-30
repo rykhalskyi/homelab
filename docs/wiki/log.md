@@ -1,5 +1,12 @@
 # DevOps Wiki — Log
 
+## [2026-10-30] change | pgAdmin 9.19.0
+
+Bumped the pinned pgAdmin image from `dpage/pgadmin4:9.18.0` to `9.19.0` on both
+clusters (`infra/clusters/{k8s,talos}/apps/pgadmin/deployment.yaml`), digest
+`sha256:3591b3d0…0c83`. Replaced the pods to pick up the new image; no manifest
+or PVC changes.
+
 ## [2026-10-28] fix | Ragatool HuggingFace model download permissions
 
 The first embedding task failed with `Permission denied (os error 13)` writing
