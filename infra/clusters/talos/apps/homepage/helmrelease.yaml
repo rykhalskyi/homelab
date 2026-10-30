@@ -1,6 +1,6 @@
 # Homepage (gethomepage.dev) on the talos cluster.
 #
-# LAN-only: served at http://homepage.homelab.home.arpa (Traefik host ingress on
+# LAN-only: served at https://homepage.lan.otakeessen.com (Traefik host ingress on
 # node-two's :80, same pattern as Grafana/pgAdmin). It is NOT routed through the
 # *.otakeessen.com Cloudflare tunnel, so a dashboard that lists every internal
 # service never leaves the LAN.
@@ -57,15 +57,15 @@ spec:
         - Infrastructure:
             - Grafana:
                 icon: grafana.png
-                href: http://grafana.homelab.home.arpa/
+                href: https://grafana.lan.otakeessen.com/
                 description: Metrics, logs and dashboards
             - pgAdmin:
                 icon: pgadmin.png
-                href: http://pgadmin.homelab.home.arpa/
+                href: https://pgadmin.lan.otakeessen.com/
                 description: PostgreSQL administration
             - Langfuse:
                 icon: https://langfuse.com/langfuse_logo.png
-                href: http://langfuse.homelab.home.arpa/
+                href: https://langfuse.lan.otakeessen.com/
                 description: LLM observability and prompt management
         - Applications:
             - Nextcloud:
@@ -86,15 +86,15 @@ spec:
                 description: Document server
             - Navidrome:
                 icon: navidrome.png
-                href: http://music.homelab.home.arpa/
+                href: https://music.lan.otakeessen.com/
                 description: Music streaming
             - Transcributed:
                 icon: https://raw.githubusercontent.com/rykhalskyi/transcributed/main/ui/public/icon-192.png
-                href: http://transcributed.homelab.home.arpa/
+                href: https://transcributed.lan.otakeessen.com/
                 description: Audio and video transcription
             - Ragatool:
                 icon: https://raw.githubusercontent.com/rykhalskyi/ragatool/main/frontend/src/assets/ragatouille_logo1_sm.png
-                href: http://ragatool.homelab.home.arpa/
+                href: https://ragatool.lan.otakeessen.com/
                 description: Local RAG knowledge base and MCP server
       settingsString: |
         title: Homelab
@@ -106,7 +106,7 @@ spec:
     # hostname; add more (comma-separated) only if another ingress host is added.
     env:
       - name: HOMEPAGE_ALLOWED_HOSTS
-        value: homepage.homelab.home.arpa
+        value: homepage.lan.otakeessen.com
     resources:
       requests:
         cpu: 50m

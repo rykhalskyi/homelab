@@ -29,6 +29,12 @@ data:
         service: http://traefik.traefik.svc.cluster.local:80
       - hostname: git.otakeessen.com
         service: http://traefik.traefik.svc.cluster.local:80
+      # The `lan` sub-zone is LAN-only. The public `*.otakeessen.com` DNS
+      # wildcard still resolves these names to Cloudflare, so without this
+      # explicit 404 they would be routed to Traefik (which now has Ingresses
+      # for them) and served publicly.
+      - hostname: "*.lan.otakeessen.com"
+        service: http_status:404
       - hostname: "*.otakeessen.com"
         service: http://traefik.traefik.svc.cluster.local:80
       - service: http_status:404

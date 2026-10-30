@@ -15,7 +15,7 @@ metadata:
   name: ragatool-backend-config
   namespace: ragatool
 data:
-  ALLOWED_ORIGINS: "http://ragatool.homelab.home.arpa"
+  ALLOWED_ORIGINS: "https://ragatool.lan.otakeessen.com"
   EMBEDDING_MODEL: "BAAI/bge-small-en-v1.5"
   RERANK_MODEL: "Xenova/ms-marco-MiniLM-L-6-v2"
   FASTEMBED_CACHE_DIR: "/data/fastembed"

@@ -7,8 +7,8 @@
 #
 # The UI is the only LAN ingress. It serves the SPA and proxies /api, /healthz
 # and /readyz to the API Service, so it uses a single origin and the API
-# Ingress stays disabled on the same host. The Ingress is plain HTTP on
-# Traefik's LAN LoadBalancer VIP 192.168.2.240 (see infrastructure/traefik).
+# Ingress stays disabled on the same host. The UI Ingress uses the LAN wildcard
+# certificate (HTTPS) on Traefik's LoadBalancer VIP 192.168.2.240.
 # The app has no authentication yet, so it must not be routed through the
 # public Cloudflare tunnel.
 #
@@ -48,8 +48,11 @@ spec:
       ingress:
         enabled: true
         className: traefik
+        annotations:
+          traefik.ingress.kubernetes.io/router.tls: "true"
+          traefik.ingress.kubernetes.io/router.entrypoints: websecure
         hosts:
-          - host: transcributed.homelab.home.arpa
+          - host: transcributed.lan.otakeessen.com
             paths:
               - path: /
                 pathType: Prefix
@@ -57,7 +60,7 @@ spec:
       image:
         tag: sha-193d40e29863451615fe96397689aba0521c3bc0@sha256:a95fe1b866ce49e51b79d549a2faf1afd37026f256fcd81c1cf2e4e8f9523c64
       # The UI proxies API traffic on the same host; enabling this too would
-      # create two Ingress routers for transcributed.homelab.home.arpa.
+      # create two Ingress routers for transcributed.lan.otakeessen.com.
       ingress:
         enabled: false
     worker:

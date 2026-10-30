@@ -126,7 +126,7 @@ spec:
       host: cloud.otakeessen.com
       trustedDomains:
         - cloud.otakeessen.com
-        - cloud.homelab.home.arpa
+        - cloud.lan.otakeessen.com
         - nextcloud.nextcloud.svc.cluster.local
         - nextcloud
       datadir: /var/www/html/data

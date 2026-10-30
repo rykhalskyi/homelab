@@ -47,4 +47,4 @@ kubectl --context "$CTX" -n "$NS" exec deploy/forgejo -- \
     --email "$email" \
     --must-change-password=false
 
-echo "-> done. Log in at http://git.homelab.home.arpa/ as '$username'."
+echo "-> done. Log in at https://git.lan.otakeessen.com/ as '$username'."
