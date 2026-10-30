@@ -1,6 +1,6 @@
 # Nextcloud on the talos cluster (LAN-only for now).
 #
-# Mirrors infra/clusters/k8s/apps/nextcloud/helmrelease.yaml, adapted to Talos:
+# Adapted from the retired k3s Nextcloud HelmRelease:
 #   - external database is the dedicated CloudNativePG `nextcloud` Cluster
 #     (`nextcloud-rw.nextcloud.svc.cluster.local`), not a Bitnami subchart;
 #   - storage is the dynamic `local-path` StorageClass (see storage.yaml);

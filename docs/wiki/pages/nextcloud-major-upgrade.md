@@ -6,6 +6,11 @@ source_count: 0
 
 # Nextcloud major upgrade on k3s (31 → 32 → 33)
 
+> **Historical (2026-10-30).** The k3s cluster and `infra/clusters/k8s/` were
+> removed. The image upgrade flow is still used by `talos` — pin the new
+> `NEXTCLOUD_VERSION` and follow [[Releasing a new Nextcloud image (byebyemoneylist app)]];
+> the live deployment is [[Nextcloud + Euro-Office on Talos (LAN-only)]].
+
 How the custom Nextcloud image in `infra/images/nextcloud` is moved up one major
 version at a time. Done for **31.0.14 → 32.0.15 → 33.0.9** to satisfy the
 Euro-Office app (see [[Euro-Office on k3s]]), which needs Nextcloud 33–35.
@@ -49,9 +54,9 @@ Everything happens inside the existing Pod on rollout; the PVC keeps
    (e.g. `NEXTCLOUD_VERSION=32-apache`), commit and push. For the duration of an
    upgrade, pin `infra/clusters/k8s/apps/nextcloud/helmrelease.yaml`'s chart version
    (`version: "9.3.0"`) so only the image changes.
-3. **CI builds** `k3s/nextcloud 2/3 Build Nextcloud image` →
+3. **CI builds** `talos/nextcloud 2/3 Build Nextcloud image` →
    `ghcr.io/rykhalskyi/homelab-nextcloud:sha-<commit>`.
-4. **Merge the pin PR** (`k3s/nextcloud 3/3 Pin Nextcloud image`) — this is what
+4. **Merge the pin PR** (`talos/nextcloud 3/3 Pin Nextcloud image`) — this is what
    makes Flux roll the Pod.
 5. **Flux reconciles** `apps`; the new Pod runs the entrypoint upgrade.
 

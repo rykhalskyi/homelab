@@ -1,4 +1,4 @@
-.PHONY: serve nc-app-deploy nc-app-pin nc-app-status k8s-nc-reset-bruteforce laya-api-deploy laya-api-pin laya-api-status help
+.PHONY: serve nc-app-deploy nc-app-pin nc-app-status laya-api-deploy laya-api-pin laya-api-status help
 
 serve: ## Preview the site locally at http://localhost:8080
 	cd infra/images/nginx/html && python3 -m http.server 8080
@@ -12,9 +12,6 @@ nc-app-pin: ## Pin version + sha256 (VERSION=x.y.z to override) into versions.en
 nc-app-status: ## Show byebyemoneylist app + installed version in Nextcloud AIO
 	docker exec -u www-data nextcloud-aio-nextcloud php occ app:list | grep -i byebyemoneylist || true
 	docker exec -u www-data nextcloud-aio-nextcloud php occ config:app:get byebyemoneylist installed_version
-
-k8s-nc-reset-bruteforce: ## Clear Nextcloud (k8s) brute-force/rate-limit state
-	bash infra/clusters/k8s/apps/nextcloud/reset-bruteforce.sh
 
 laya-api-deploy: ## Deploy/update the pinned laya-api image on node-one
 	bash infra/phase1/laya-api/deploy.sh

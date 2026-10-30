@@ -2,7 +2,7 @@
 # volume with the web container (a separate CronJob could not mount it) and runs
 # `manage.py sync_projects` in a loop; both share the same database.
 #
-# Mirrors infra/clusters/k8s/apps/pullini/deployment.yaml, namespace `pullini`.
+# Runs in namespace `pullini`; adapted from the retired k3s Pullini manifest.
 #
 # The image is built on demand by the pullini repo's "Build image" workflow and
 # pinned here as sha-<commit>@sha256:<digest>;

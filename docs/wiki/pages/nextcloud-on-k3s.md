@@ -6,6 +6,10 @@ source_count: 0
 
 # Nextcloud on k3s (custom image + Helm chart)
 
+> **Retired (2026-10-30).** The k3s cluster and `infra/clusters/k8s/` were
+> removed. The live Nextcloud is [[Nextcloud + Euro-Office on Talos (LAN-only)]];
+> this page is kept as migration history.
+
 How to move Nextcloud from the All-in-One (AIO) Compose stack on `node-one`
 onto the k3s cluster, while keeping the `byebyemoneylist` app **inside the
 Pod**. This page is the plan and the migration runbook: it explains the target

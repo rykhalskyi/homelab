@@ -17,7 +17,6 @@ credentials*
 /keys.txt
 /.sops.yaml
 *.sops.yaml
-/infra/clusters/k8s/apps/secrets/
 /infra/clusters/talos/apps/secrets/
 
 # OS / editor noise

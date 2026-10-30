@@ -6,6 +6,10 @@ source_count: 0
 
 # Euro-Office on k3s
 
+> **Superseded (2026-10-30).** The k3s cluster and `infra/clusters/k8s/` were
+> removed. Euro-Office now runs on `talos` — see
+> [[Nextcloud + Euro-Office on Talos (LAN-only)]]. This page is history.
+
 Euro-Office is the European fork of the ONLYOFFICE DocumentServer (backed by
 Nextcloud, IONOS, Proton, …). This page wires it up as the default office editor
 for the k3s Nextcloud, replacing the ONLYOFFICE integration that AIO used to

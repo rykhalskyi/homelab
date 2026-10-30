@@ -5,13 +5,13 @@ Guidance for agents working in this repository (the `homelab` project).
 ## What this repo is
 
 - `infra/` — deployable stacks, grouped by kind:
-  - `infra/clusters/k8s/` — the k8s cluster: the Flux entrypoint (`flux-system/`)
-    plus `apps/` and `infrastructure/`, reconciled by Flux. `infra/clusters/talos/`
-    is a placeholder for the next cluster.
+  - `infra/clusters/talos/` — the Talos cluster: the Flux entrypoint
+    (`flux-system/`) plus `apps/` and `infrastructure/`, reconciled by Flux.
+    The retired k3s tree (`infra/clusters/k8s/`) was removed.
   - `infra/phase1/` — phase-1 Docker Compose stacks: `nginx/`, `nextcloud/`,
     `forgejo/`, `pihole/`, and `laya-api/` (a pinned prebuilt image deployed via
     `infra/phase1/laya-api/deploy.sh`).
-  - `infra/images/` — build sources for the k8s images: `nginx/` (site content +
+  - `infra/images/` — build sources for the cluster images: `nginx/` (site content +
     Dockerfile) and `nextcloud/` (Dockerfile + `versions.env`).
   - `infra/pi3/` — Raspberry Pi 3 config (VPN + dashboard); not part of the
     cluster.
@@ -20,9 +20,9 @@ Guidance for agents working in this repository (the `homelab` project).
   `docs/wiki/AGENTS.md` for the wiki schema and ingest workflow.
 - `infra/images/nginx/html/` — the static landing page (`index.html` + assets).
   It has no build step.
-- `node-one` (Ubuntu, HP ProDesk 400 G3 DM) is a node of the `k8s` cluster and
+- `node-one` (Ubuntu, HP ProDesk 400 G3 DM) is a node of the `talos` cluster and
   runs the phase-1 Compose stacks; it deploys with `git pull` against the `main`
-  branch, and Flux reconciles the k8s apps.
+  branch, and Flux reconciles the talos apps.
 
 ## Golden rule: the wiki is Markdown only
 

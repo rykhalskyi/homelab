@@ -1,5 +1,26 @@
 # DevOps Wiki — Log
 
+## [2026-10-30] change | retire the k3s tree and clean up references
+
+Deleted the retired k3s tree `infra/clusters/k8s/` (40 files) and removed every
+live reference to it. Removed the now-dead `build-nginx-image.yml` /
+`update-nginx-image-pin.yml` (nothing consumed `homelab-nginx`; the landing page
+is served by the phase-1 Compose bind mount). Repointed the Nextcloud pin
+workflow to `infra/clusters/talos/apps/nextcloud/helmrelease.yaml` and renamed
+the chain `k3s/nextcloud` -> `talos/nextcloud`. Narrowed Renovate to
+`infra/clusters/talos`, dropped the `k8s-nc-reset-bruteforce` Make target and
+the k8s secrets `.gitignore` entry, and refreshed `AGENTS.md`, `README.md`, and
+the nginx image README. Wiki: rewrote [[Deploying site changes (GitOps)]],
+updated [[Releasing a new Nextcloud image (byebyemoneylist app)]],
+[[Secrets with SOPS + age (local, out-of-band)]], and
+[[Nextcloud + Euro-Office on Talos (LAN-only)]]; marked the k3s pages
+superseded/historical ([[Backups: what to save and how to restore]],
+[[PostgreSQL + pgAdmin on k3s (decoupled from Nextcloud)]],
+[[Euro-Office on k3s]], [[Nextcloud on k3s (custom image + Helm chart)]],
+[[Nextcloud major upgrade on k3s (31 → 32 → 33)]],
+[[k3s config graph: entrypoint, Kustomizations, and leaves]], and
+[[k3s + GitOps: nginx and cloudflared (phase 2.1)]]).
+
 ## [2026-10-30] change | pgAdmin 9.19.0
 
 Bumped the pinned pgAdmin image from `dpage/pgadmin4:9.18.0` to `9.19.0` on both

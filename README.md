@@ -20,11 +20,11 @@ my internal network and expose a small number of resources publicly.
 
 ## Repository layout
 
-- `infra/clusters/` — k8s clusters: `k8s/` (the current cluster, reconciled by
-  Flux) and `talos/` (placeholder for the next one).
+- `infra/clusters/` — k8s clusters: `talos/` (the live cluster, reconciled by
+  Flux). The retired k3s tree (`k8s/`) was removed.
 - `infra/phase1/` — phase-1 Docker Compose stacks: `nginx/`, `nextcloud/`,
   `forgejo/`, `pihole/`, `laya-api/`.
-- `infra/images/` — build sources for the k8s images: `nginx/` (site content +
+- `infra/images/` — build sources for the cluster images: `nginx/` (site content +
   Dockerfile) and `nextcloud/` (Dockerfile + pinned versions).
 - `infra/pi3/` — Raspberry Pi 3 config (VPN + dashboard), not in the cluster.
 - `docs/wiki/` — the DevOps wiki, written in Markdown and served by Pullini at
@@ -33,8 +33,8 @@ my internal network and expose a small number of resources publicly.
 
 ## Site & wiki
 
-The landing page is plain HTML/CSS/JS built into the k8s nginx image
-(`infra/images/nginx/`) and also served as-is by the phase-1 Compose stack. The
+The landing page is plain HTML/CSS/JS served as-is by the phase-1 nginx Compose
+stack (`infra/images/nginx/` bind-mounted; no image build). The
 wiki Markdown in `docs/wiki/` is served directly by Pullini at
 `https://wiki.otakeessen.com` — no HTML build step.
 

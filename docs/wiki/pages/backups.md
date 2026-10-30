@@ -6,6 +6,12 @@ source_count: 0
 
 # Backups: what to save and how to restore
 
+> **Superseded (2026-10-30).** This page documents the retired k3s (`node-one`)
+> cluster and the 2026-10-02 incident. It is kept as history. Current backups run
+> on `talos` — see [[CloudNativePG on Talos (PostgreSQL + MinIO backups)]] and
+> [[File-volume backups on Talos (restic → MinIO) — plan]]. The k3s tree,
+> including `infra/clusters/k8s/apps/secrets/`, was removed.
+
 > **Why this page exists.** On 2026-10-02 a bad GitOps change made Flux prune its
 > own root Kustomization, which then garbage-collected the whole `homelab`
 > namespace — including the Nextcloud **database**. The user *files* survived
@@ -114,6 +120,6 @@ With a current dump this restores accounts/shares/calendars too — i.e. the
   explicitly (the missing entry is what let Flux prune itself).
 - `.github/workflows/kustomize-prune-guard.yml` fails a PR that removes a
   `Namespace`/`CustomResourceDefinition`/`PersistentVolumeClaim` or anything in
-  `flux-system` from the build. It now guards `infra/clusters/talos` only — the
-  k3s (`infra/clusters/k8s`) tree is exempt while it is decommissioned.
+  `flux-system` from the build. It guards `infra/clusters/talos` only; the
+  retired k3s tree (`infra/clusters/k8s/`) was removed on 2026-10-30.
 - Backups cover everything those two miss.

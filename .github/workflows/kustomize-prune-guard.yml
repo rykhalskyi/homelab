@@ -7,8 +7,8 @@ name: kustomize prune guard
 # namespace once). Non-protected removals are reported but allowed.
 #
 # Guards the `infra/clusters/talos` tree (root, `apps` and `infrastructure`).
-# The k3s (`infra/clusters/k8s`) cluster is being decommissioned, so its tree is
-# intentionally exempt from the guard.
+# The retired k3s (`infra/clusters/k8s`) tree has been removed, so there is
+# nothing left to guard there.
 #
 # Intentional removals: add the resource identity, one per line, to
 # `.github/prune-allowlist.txt` (format `kind|namespace|name`, namespace `-` for

@@ -6,6 +6,11 @@ source_count: 0
 
 # k3s + GitOps: nginx and cloudflared (phase 2.1)
 
+> **Historical (2026-10-30).** The k3s cluster and `infra/clusters/k8s/` were
+> removed, including the nginx image/pin workflow. The landing page is now served
+> by the phase-1 Compose bind mount ([[Deploying site changes (GitOps)]]) and the
+> tunnel runs on `talos`.
+
 A plain-language, step-by-step guide for moving the homelab website
 (`infra/images/nginx`) and the Cloudflare tunnel off Docker Compose + a host systemd
 service, and onto a **k3s** cluster where **Flux** keeps everything in sync with
