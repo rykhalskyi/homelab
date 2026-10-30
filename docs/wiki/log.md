@@ -1,5 +1,14 @@
 # DevOps Wiki — Log
 
+## [2026-10-30] change | cert-manager Grafana dashboard in Git
+
+The imported cert-manager dashboard (grafana.com 11001) pointed its `Datasource`
+variable at a non-existent `k8s-qa` (regex `/k8s.*/`), so it showed no data even
+after the ServiceMonitor label fix. Committed the dashboard as a
+`grafana_dashboard: "1"` ConfigMap (`monitoring/cert-manager-dashboard`), with
+the datasource regex relaxed to `/.*/` and no pinned variable defaults; the
+Grafana sidecar now provisions it on every sync.
+
 ## [2026-10-30] change | pgAdmin 9.19.0
 
 Bumped the pinned pgAdmin image from `dpage/pgadmin4:9.18.0` to `9.19.0` on both
