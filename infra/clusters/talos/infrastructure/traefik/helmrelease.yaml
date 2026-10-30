@@ -24,6 +24,17 @@ spec:
         name: traefik
         namespace: flux-system
   values:
+    # Default TLS store: serve the Let's Encrypt wildcard for
+    # *.lan.otakeessen.com on every router that enables TLS. The Secret is
+    # issued by cert-manager into this namespace (see cert-manager-config/).
+    # Ingress TLS Secrets are otherwise namespace-scoped, so this is the one
+    # place a single cert can cover LAN hosts across all app namespaces.
+    # If Traefik starts before the Secret exists it falls back to its
+    # self-signed cert and picks the real one up when the Secret appears.
+    tlsStore:
+      default:
+        defaultCertificate:
+          secretName: lan-wildcard-tls
     service:
       # Pin the Service to the pool's address; Cilium LB IPAM honours it.
       annotations:

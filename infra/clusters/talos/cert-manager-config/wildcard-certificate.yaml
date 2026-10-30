@@ -1,0 +1,23 @@
+# Wildcard certificate for the LAN-only ingress hosts (*.lan.otakeessen.com).
+#
+# It is issued once into `traefik/lan-wildcard-tls`; Traefik's default TLS store
+# (infrastructure/traefik helmrelease) serves it for every LAN Ingress router
+# that sets `traefik.ingress.kubernetes.io/router.tls: "true"`. Ingress TLS
+# secrets are normally looked up in the Ingress's own namespace, so a single
+# default-store certificate avoids copying a Secret into each app namespace.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lan-wildcard
+  namespace: traefik
+spec:
+  secretName: lan-wildcard-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.lan.otakeessen.com"
+  duration: 2160h  # 90d
+  renewBefore: 720h  # 30d
+  privateKey:
+    rotationPolicy: Always

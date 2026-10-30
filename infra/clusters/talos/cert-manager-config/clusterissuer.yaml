@@ -1,0 +1,25 @@
+# ACME configuration for cert-manager, kept in its own Flux Kustomization so it
+# is only applied after the cert-manager CRDs exist (dependsOn infrastructure).
+#
+# The Cloudflare API token is NOT in Git: it is a SOPS/age Secret applied out of
+# band from infra/clusters/talos/apps/secrets (see that dir's apply.sh). It must
+# live in the cert-manager namespace (ClusterIssuer solvers resolve there).
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # ACME account contact; change if you prefer another address.
+    email: rikhalskiy@gmail.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      # DNS-01 is required for a wildcard. cert-manager writes a temporary
+      # _acme-challenge.lan.otakeessen.com TXT record via the Cloudflare API.
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token

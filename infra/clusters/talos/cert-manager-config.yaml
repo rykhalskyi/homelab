@@ -1,0 +1,21 @@
+# cert-manager ACME objects (ClusterIssuer + wildcard Certificate).
+#
+# Separate from `infrastructure` on purpose: these are custom resources whose
+# CRDs are installed by the cert-manager HelmRelease. `dependsOn` with
+# `wait: true` on infrastructure guarantees the CRDs (and the traefik
+# namespace) exist before this layer is applied.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cert-manager-config
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: ./infra/clusters/talos/cert-manager-config
+  prune: true
+  wait: true
+  dependsOn:
+    - name: infrastructure
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

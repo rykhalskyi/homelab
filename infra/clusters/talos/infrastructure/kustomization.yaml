@@ -20,10 +20,12 @@ resources:
   - sources/keda.yaml
   - sources/transcributed.yaml
   - sources/langfuse.yaml
+  - sources/cert-manager.yaml
   # add-ons
   - local-path
   - cilium
   - traefik
+  - cert-manager
   - monitoring
   - cnpg
   - metrics-server
