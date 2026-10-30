@@ -6,6 +6,11 @@ source_count: 0
 
 # PostgreSQL + pgAdmin on k3s (decoupled from Nextcloud)
 
+> **Superseded (2026-10-30).** The k3s cluster and `infra/clusters/k8s/` were
+> removed. On `talos` the database is CloudNativePG — see
+> [[CloudNativePG on Talos (PostgreSQL + MinIO backups)]] and
+> [[pgAdmin for the talos cluster (LAN-only)]]. This page is history.
+
 How to run Nextcloud's database as its **own** PostgreSQL workload instead of the
 `postgresql` subchart bundled with the Nextcloud Helm chart, and how to inspect
 it with a LAN-only pgAdmin. This is the first half of the [[Nextcloud on k3s

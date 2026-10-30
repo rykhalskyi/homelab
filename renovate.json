@@ -3,12 +3,12 @@
   "extends": ["config:recommended", ":dependencyDashboard"],
   "kubernetes": {
     "managerFilePatterns": [
-      "/^infra/clusters/(k8s|talos)/(apps|infrastructure)/.+\\.ya?ml$/"
+      "/^infra/clusters/talos/(apps|infrastructure)/.+\\.ya?ml$/"
     ]
   },
   "flux": {
     "managerFilePatterns": [
-      "/^infra/clusters/(k8s|talos)/(apps|infrastructure)/.+\\.ya?ml$/"
+      "/^infra/clusters/talos/(apps|infrastructure)/.+\\.ya?ml$/"
     ]
   },
   "packageRules": [

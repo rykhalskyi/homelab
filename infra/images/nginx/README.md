@@ -3,11 +3,10 @@
 The landing page's content and its container image source. No runtime
 dependencies — plain HTML/CSS/JS. Mirrors `~/Source/nginx` on `node-one`.
 
-- The **k8s cluster** runs this as an image: CI builds `infra/images/nginx/`
-  (`build-nginx-image.yml`) and Flux deploys it from
-  `infra/clusters/k8s/apps/nginx/`.
 - The **phase-1 Compose stack** (`infra/phase1/nginx/docker-compose.yml`)
-  bind-mounts the same `html/` and `conf.d/` directly.
+  bind-mounts the same `html/` and `conf.d/` directly — this is how the landing
+  page is served now. The image build/pin CI that fed the retired k3s cluster
+  was removed with `infra/clusters/k8s/`.
 
 The DevOps wiki is **not** served here anymore; it lives at
 `https://wiki.otakeessen.com` (Pullini). The landing page just links to it.

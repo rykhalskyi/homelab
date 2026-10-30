@@ -1,5 +1,5 @@
 ---
-tags: [sops, age, secrets, encryption, kubernetes, gitops, k8s, talos, operations]
+tags: [sops, age, secrets, encryption, kubernetes, gitops, talos, operations]
 date: 2026-10-08
 source_count: 0
 ---
@@ -7,11 +7,12 @@ source_count: 0
 # Secrets with SOPS + age (local, out-of-band)
 
 How secrets are handled in this homelab: they are **SOPS/age-encrypted, kept
-local (never committed), and applied out of band**. This is the scheme for
-**both** clusters — `k8s` (k3s) and `talos` — sharing one age key.
+local (never committed), and applied out of band**. This is the scheme for the
+`talos` cluster. (The retired k3s tree used the same scheme; its directory was
+removed with `infra/clusters/k8s/`.)
 
 > Flux does **not** decrypt anything today. There is no `sops-age` Secret and no
-> `spec.decryption` in either cluster. Encryption protects the *at-rest* copy on
+> `spec.decryption` in the cluster. Encryption protects the *at-rest* copy on
 > disk; you decrypt and `kubectl apply` yourself (or via `apply.sh`).
 
 ## Where things live
@@ -20,7 +21,6 @@ local (never committed), and applied out of band**. This is the scheme for
 |------|-----------------|---------|
 | `~/.config/sops/age/keys.txt` | no (local) | the age **private** key; the single source of decryption |
 | `.sops.yaml` (repo root) | no (gitignored) | creation rule: which files, which age recipient |
-| `infra/clusters/k8s/apps/secrets/` | no (gitignored) | k8s encrypted Secrets + `apply.sh` |
 | `infra/clusters/talos/apps/secrets/` | no (gitignored) | talos encrypted Secrets + `apply.sh` |
 
 ```
@@ -33,7 +33,6 @@ infra/clusters/<cluster>/apps/secrets/
 `.gitignore` keeps all of this out of the repo:
 ```
 *.sops.yaml
-/infra/clusters/k8s/apps/secrets/
 /infra/clusters/talos/apps/secrets/
 ```
 
@@ -91,11 +90,6 @@ It defaults to context `talos` / namespace `homelab`; override with `CTX`/`NS`:
 ```bash
 # talos (default)
 bash infra/clusters/talos/apps/secrets/apply.sh
-
-# k8s
-CTX=k8s bash infra/clusters/talos/apps/secrets/apply.sh
-# or the k8s script
-bash infra/clusters/k8s/apps/secrets/apply.sh
 ```
 
 Manual equivalent:
@@ -104,8 +98,8 @@ sops --decrypt infra/clusters/talos/apps/secrets/myapp.sops.yaml \
   | kubectl --context talos -n homelab apply -f -
 ```
 
-Because both clusters use the **same age key**, a `*.sops.yaml` file can be
-copied between `k8s` and `talos` secret directories and applied to either.
+The age key is not cluster-specific, so a `*.sops.yaml` file can be reused if
+another cluster is added later.
 
 ## Rotate / manage the age key
 
@@ -114,7 +108,6 @@ copied between `k8s` and `talos` secret directories and applied to either.
 age-keygen -o ~/.config/sops/age/keys.txt.new
 # put its public key in .sops.yaml (age: <new-recipient>), then:
 sops updatekeys infra/clusters/talos/apps/secrets/*.sops.yaml
-sops updatekeys infra/clusters/k8s/apps/secrets/*.sops.yaml
 mv ~/.config/sops/age/keys.txt.new ~/.config/sops/age/keys.txt
 ```
 

@@ -13,7 +13,7 @@ name: talos/pullini 1/1 Pin pullini image
 #   - workflow_dispatch   -> manual run, optionally pinning a specific SHA.
 #
 # The GHCR package must be public (or this workflow needs a pull credential).
-# Mirrors update-nginx-image-pin.yml.
+# Same pattern as the talos/nextcloud image pin workflow.
 
 on:
   repository_dispatch:

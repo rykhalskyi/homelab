@@ -6,6 +6,9 @@ source_count: 0
 
 # k3s config graph: entrypoint, Kustomizations, and leaves
 
+> **Historical (2026-10-30).** The `infra/clusters/k8s/` tree was removed; the
+> `talos` cluster is the only live one. This map is kept for reference.
+
 A map of every YAML manifest under `infra/clusters/k8s/`, the **entrypoint** Flux
 reconciles from, and how the configs reference each other down to the
 **leaves** (external charts, images, Secrets, storage, the tunnel edge).

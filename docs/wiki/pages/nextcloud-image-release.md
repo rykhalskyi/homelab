@@ -1,5 +1,5 @@
 ---
-tags: [nextcloud, k3s, byebyemoneylist, ci, github-actions, ghcr, flux, gitops, release, runbook]
+tags: [nextcloud, talos, byebyemoneylist, ci, github-actions, ghcr, flux, gitops, release, runbook]
 date: 2026-09-28
 source_count: 0
 ---
@@ -7,12 +7,12 @@ source_count: 0
 # Releasing a new Nextcloud image (byebyemoneylist app)
 
 How to ship a new version of **Bye Bye Money List** into the Nextcloud image that
-k3s runs. It is the same idea as [[Deploying site changes (GitOps)]], with one
-extra step: the app source lives in a **different repo**
+`talos` runs. It uses the same release/pin pattern as the other image workflows,
+with one extra step: the app source lives in a **different repo**
 (`rykhalskyi/byebyemoneylist-ns`), so you publish a release there first, then
 point the homelab repo at it.
 
-See [[Nextcloud on k3s (custom image + Helm chart)]] for the one-time migration,
+See [[Nextcloud + Euro-Office on Talos (LAN-only)]] for the one-time migration,
 and [[Byebyemoneylist app integration (Nextcloud AIO)]] for the old AIO path.
 
 ## The chain
@@ -33,7 +33,7 @@ CI (homelab)         build-nextcloud-image.yml downloads + verifies the
         |
         v
 CI (homelab)         update-nextcloud-image-pin.yml opens a PR pinning the
-                     digest in infra/clusters/k8s/apps/nextcloud/helmrelease.yaml
+                     digest in infra/clusters/talos/apps/nextcloud/helmrelease.yaml
         |
         v
 you                  merge the pin PR -> Flux reconciles -> new Pod; the
@@ -50,7 +50,7 @@ Nothing happens until you cut a release and bump the pin.
 | `release.yml` | byebyemoneylist-ns | yes | push a `v*` tag (or manual dispatch) |
 | `update-byebyemoneylist-pin.yml` | homelab | yes (cron) | daily poll, or you run `make nc-app-pin` |
 | `build-nextcloud-image.yml` | homelab | yes | push to `main` touching `infra/images/nextcloud/versions.env` (or the Dockerfile) |
-| `update-nextcloud-image-pin.yml` | homelab | yes | after `k3s/nextcloud 2/3 Build Nextcloud image` succeeds |
+| `update-nextcloud-image-pin.yml` | homelab | yes | after `talos/nextcloud 2/3 Build Nextcloud image` succeeds |
 
 You do **not** run any of these by hand. Your only manual actions are the three
 marked below.
@@ -104,7 +104,7 @@ downloads the tarball, verifies `BYML_SHA256`, builds the image, and pushes
 
 When the build succeeds, `update-nextcloud-image-pin.yml` opens a PR
 (`bot/nextcloud-image-<short>`) that rewrites the image pin in
-`infra/clusters/k8s/apps/nextcloud/helmrelease.yaml` to `sha-<commit>@sha256:<digest>`.
+`infra/clusters/talos/apps/nextcloud/helmrelease.yaml` to `sha-<commit>@sha256:<digest>`.
 Review and merge it - that is the step that makes the new version deployable.
 
 ### 6. Flux rolls it out
@@ -113,7 +113,7 @@ Within its interval Flux applies the new `HelmRelease`; force it if you like:
 
 ```bash
 flux reconcile kustomization apps -n flux-system --with-source
-kubectl -n homelab rollout status deploy/nextcloud
+kubectl -n nextcloud rollout status deploy/nextcloud
 ```
 
 On start the `before-starting` hook copies `/opt/byebyemoneylist` over
@@ -131,9 +131,9 @@ Everything else runs itself.
 ## Verify
 
 ```bash
-kubectl -n homelab exec -u www-data deploy/nextcloud -- \
+kubectl -n nextcloud exec -u www-data deploy/nextcloud -- \
   php /var/www/html/occ config:app:get byebyemoneylist installed_version
-kubectl -n homelab get deploy nextcloud \
+kubectl -n nextcloud get deploy nextcloud \
   -o jsonpath='{.spec.template.spec.containers[0].image}'; echo
 ```
 
@@ -154,7 +154,7 @@ kubectl -n homelab get deploy nextcloud \
 
 ## Status
 
-The image pipeline (steps 1-5) is in place. Step 6 does not happen yet: the
-Nextcloud `HelmRelease` is not wired into Flux (`infra/clusters/k8s/apps/kustomization.yaml`
-does not list `nextcloud`) until the migration cutover in
-[[Nextcloud on k3s (custom image + Helm chart)]].
+The image pipeline (steps 1-5) is live and targets the `talos` cluster. The
+Nextcloud `HelmRelease` is wired into Flux (`infra/clusters/talos/apps/kustomization.yaml`
+lists `nextcloud`), so step 6 rolls out automatically — see
+[[Nextcloud + Euro-Office on Talos (LAN-only)]].
