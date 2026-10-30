@@ -51,7 +51,7 @@ Pinned versions:
 
 - Postgres chart `postgresql` **16.7.27** (appVersion Postgres **17.6.0**),
   image `bitnamilegacy/postgresql:17.6.0-debian-12-r4`.
-- pgAdmin image `dpage/pgadmin4:9.18.0@sha256:c332c5f6…26de`.
+- pgAdmin image `dpage/pgadmin4:9.19.0@sha256:3591b3d0…0c83`.
 
 Three environment details matter:
 
