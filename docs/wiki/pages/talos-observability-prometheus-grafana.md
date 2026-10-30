@@ -86,6 +86,10 @@ Prometheus in-cluster; Prometheus/Alertmanager UIs have no Ingress.
 - Prometheus: `retention: 7d`, `retentionSize: 9GB`, 10Gi `local-path` PVC.
 - Alertmanager: config from the out-of-band Secret `alertmanager-config`, 1Gi PVC.
 - Grafana: admin from the out-of-band Secret `grafana-admin`, 2Gi PVC.
+- Dashboards: the 25 bundled kube-prometheus-stack ones, plus a `cert-manager`
+  dashboard (grafana.com 11001) from the `cert-manager-dashboard` ConfigMap
+  (`grafana_dashboard: "1"`). Provisioned dashboards are read-only in the UI —
+  change the ConfigMap, not the browser.
 - Release name `kube-prometheus-stack` => Services
   `kube-prometheus-stack-{grafana,prometheus,alertmanager}`.
 

@@ -4,3 +4,14 @@ resources:
   - namespace.yaml
   - helmrelease.yaml
   - grafana-ingress.yaml
+
+configMapGenerator:
+  # Grafana's dashboard sidecar loads any ConfigMap labelled grafana_dashboard=1.
+  - name: cert-manager-dashboard
+    namespace: monitoring
+    files:
+      - dashboards/cert-manager.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      disableNameSuffixHash: true
