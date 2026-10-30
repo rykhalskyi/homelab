@@ -38,7 +38,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: backend
-          image: ghcr.io/rykhalskyi/ragatool-backend:sha-b0ce20fd1a4b4a75a6c7928e588894fed23c6dc0@sha256:201b32dd2023ea2f644fc98b82fcd834f983ed91dd8e6707b8d82363ce689cd5
+          image: ghcr.io/rykhalskyi/ragatool-backend:sha-af91471dab6ec829e12d203ac2d08df4804509f3@sha256:f80303a9fbf8c88b9a521b06ac95ac2f4727bd1df8caaa17190e0cf96ebfcd58
           imagePullPolicy: IfNotPresent
           workingDir: /data
           command:
