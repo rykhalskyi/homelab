@@ -30,6 +30,9 @@ spec:
     prometheus:
       servicemonitor:
         enabled: true
+        # Prometheus only selects ServiceMonitors carrying release=kube-prometheus-stack.
+        labels:
+          release: kube-prometheus-stack
     resources:
       requests:
         cpu: 20m
