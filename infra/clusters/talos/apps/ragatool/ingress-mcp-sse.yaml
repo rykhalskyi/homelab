@@ -1,18 +1,18 @@
-# LAN-only MCP-over-SSE endpoint. The backend's FastMCP SSE server listens on
-# 8001 and serves /mcp. Separate host from the UI so the path does not collide
-# with the streamable-HTTP MCP server on 8002.
+# LAN-only MCP-over-SSE endpoint (backend :8001), HTTPS via the wildcard cert.
 #
-#   client /etc/hosts: 192.168.2.240 ragatool-mcp.homelab.home.arpa
-#   MCP URL:           http://ragatool-mcp.homelab.home.arpa/mcp
+#   MCP URL: https://ragatool-mcp.lan.otakeessen.com/mcp
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ragatool-mcp-sse
   namespace: ragatool
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   rules:
-    - host: ragatool-mcp.homelab.home.arpa
+    - host: ragatool-mcp.lan.otakeessen.com
       http:
         paths:
           - path: /

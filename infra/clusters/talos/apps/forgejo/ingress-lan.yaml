@@ -1,17 +1,19 @@
-# LAN-only ingress: http://git.homelab.home.arpa (add a client hosts entry:
-# 192.168.2.240 git.homelab.home.arpa, Traefik's LoadBalancer VIP). No forced-https middleware -- plain HTTP on
-# the LAN, matching the Nextcloud LAN ingress. A public `git.otakeessen.com`
-# Ingress (behind the existing *.otakeessen.com tunnel + Cloudflare Access) can
-# be added later.
+# LAN-only HTTPS via the Let's Encrypt wildcard (*.lan.otakeessen.com).
+# Pi-hole resolves the name to Traefik's LoadBalancer VIP (192.168.2.240);
+# the Cloudflare tunnel 404s the whole `lan` sub-zone, so it never goes public.
+# The public `git.otakeessen.com` Ingress is separate (Cloudflare Access).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: forgejo-lan
   namespace: forgejo
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   rules:
-    - host: git.homelab.home.arpa
+    - host: git.lan.otakeessen.com
       http:
         paths:
           - path: /

@@ -1,8 +1,4 @@
-# LAN ingress for the Euro-Office DocumentServer. Plain HTTP on Traefik's
-# LoadBalancer VIP; no `forwarded-proto` middleware here (the DS should build
-# `http://` URLs for the LAN). Reach it with a client /etc/hosts entry:
-#
-#   192.168.2.240 office-talos.homelab.local
+# LAN-only HTTPS for the Euro-Office DocumentServer, via the wildcard cert.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -10,10 +6,12 @@ metadata:
   namespace: nextcloud
   annotations:
     traefik.ingress.kubernetes.io/router.middlewares: nextcloud-eurooffice-hide-welcome@kubernetescrd
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   rules:
-    - host: office-talos.homelab.local
+    - host: office-talos.lan.otakeessen.com
       http:
         paths:
           - path: /

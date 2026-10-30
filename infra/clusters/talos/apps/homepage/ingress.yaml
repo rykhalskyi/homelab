@@ -1,21 +1,18 @@
-# LAN-only on purpose: the host is `*.homelab.home.arpa`, NOT under
-# `*.otakeessen.com`, so it is never reachable from outside the LAN. Traefik
-# listens on its LoadBalancer VIP (see infrastructure/traefik) and routes by host.
-#
-# Reach it by adding this to your client /etc/hosts:
-#
-#   192.168.2.240 homepage.homelab.home.arpa
-#
-# then open http://homepage.homelab.home.arpa/.
+# LAN-only HTTPS via the Let's Encrypt wildcard (*.lan.otakeessen.com).
+# Pi-hole resolves the name to Traefik's LoadBalancer VIP (192.168.2.240);
+# the Cloudflare tunnel 404s the whole `lan` sub-zone, so it never goes public.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: homepage
   namespace: homepage
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   ingressClassName: traefik
   rules:
-    - host: homepage.homelab.home.arpa
+    - host: homepage.lan.otakeessen.com
       http:
         paths:
           - path: /
