@@ -1,0 +1,38 @@
+# cert-manager: ACME (Let's Encrypt) certificates for the LAN ingress.
+#
+# The chart has no `crds/` directory, so `crds.enabled: true` renders the CRDs
+# from templates on install/upgrade. Flux's `install.crds` policy does not
+# apply here (that only covers a chart `crds/` dir), so do not add it.
+#
+# The ClusterIssuer and wildcard Certificate live in the separate
+# `cert-manager-config` Kustomization (see ../../cert-manager-config.yaml),
+# which dependsOn `infrastructure` so the CRDs exist before they are applied.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: cert-manager
+      # Pinned exactly. Bump deliberately and re-verify the webhook/CRDs.
+      version: "v1.21.3"
+      sourceRef:
+        kind: HelmRepository
+        name: cert-manager
+        namespace: flux-system
+  values:
+    crds:
+      enabled: true
+    # kube-prometheus-stack is already running; scrape cert-manager too.
+    prometheus:
+      servicemonitor:
+        enabled: true
+    resources:
+      requests:
+        cpu: 20m
+        memory: 32Mi
+      limits:
+        memory: 128Mi

@@ -1,0 +1,7 @@
+# Namespace for the cert-manager controller and the Cloudflare API token
+# Secret. ClusterIssuer solver secrets are resolved in the namespace the
+# controller runs in, so `cloudflare-api-token` must live here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
