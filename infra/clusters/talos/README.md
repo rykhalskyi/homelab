@@ -1,9 +1,8 @@
 # talos — the Talos cluster
 
-Three-node Talos/Kubernetes cluster (planned). Two control planes are up today:
-**`node-two`** (`192.168.2.234`) and **`node-one`** (`192.168.2.233`);
-`node-three` will join later. (2-member etcd quorum means either node going down
-takes the API down — add `node-three` for real HA.)
+Three-node Talos/Kubernetes cluster. Control planes:
+**`node-two`** (`192.168.2.234`), **`node-one`** (`192.168.2.233`) and
+**`node-three`** (`192.168.2.235`). Three etcd members tolerate one node down.
 
 This directory holds two separate layers — keep them distinct:
 
@@ -50,9 +49,11 @@ nodes/
 ├── node-two/               # 192.168.2.234
 │   ├── controlplane.yaml   # generated; gitignored (static IP, hostname, install disk)
 │   └── patch.yaml          # committed: static network + CNI switch + CP taint removal
-└── node-one/               # 192.168.2.233
-    ├── controlplane.yaml   # generated; gitignored
-    └── patch.yaml          # committed (interface = enp1s0 on this box)
+├── node-one/               # 192.168.2.233
+│   ├── controlplane.yaml   # generated; gitignored
+│   └── patch.yaml          # committed (interface = enp1s0 on this box)
+└── node-three/             # 192.168.2.235
+    └── patch.yaml          # committed (interface = enp1s0, disk /dev/sda)
 ```
 
 `node-two` is a control plane, so there is no `worker.yaml` here — generate one
@@ -105,6 +106,39 @@ Fix: apply the config with the node's **final** static IP on the very first
 up on that address immediately, before it joins). If you do have to move it,
 bring the node back to its join-time IP to restore quorum first, then
 `talosctl -n <ip> etcd leave`, change the IP, and re-join.
+
+### Gotcha: BIOS boot mode / PXE
+
+After a rack move or BIOS reset, a **“Waiting for DHCP”** screen that appears
+**before Talos loads** is usually the BIOS PXE/network boot — not Talos, and not
+the router. Before debugging DHCP, check:
+
+- boot mode **UEFI** (not Legacy/CSM)
+- **Secure Boot disabled**
+- SATA mode **AHCI**
+- **Network/PXE boot disabled** (or last)
+- internal disk first; remove the USB installer for a normal boot
+
+Boot the installer in **UEFI** mode so Talos installs the UEFI bootloader
+(Legacy installs GRUB). Verify after install:
+
+```bash
+talosctl get bootedentries --talosconfig ./talosconfig -n <ip> -o yaml
+# expect spec.bootedEntry: Talos-v1.14.x.efi
+
+talosctl get discoveredvolumes --talosconfig ./talosconfig -n <ip>
+# expect EFI + STATE + EPHEMERAL partitions
+```
+
+If the installer says “Talos is already installed but booted from another
+media”, that is the `talos.halt_if_installed` safety check — remove the USB or
+bypass it via the ISO GRUB menu. If the UEFI entry is gone, reinstall; for a
+control plane remove the stale etcd member first (only if the old install/data
+is being wiped):
+
+```bash
+talosctl etcd remove-member <id> --talosconfig ./talosconfig -n 192.168.2.234
+```
 
 ## Cilium (CNI) — replaces flannel
 

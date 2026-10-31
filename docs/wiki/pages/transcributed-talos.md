@@ -35,7 +35,7 @@ kept at [[Transcributed on Talos (deployment plan)]].
 | Worker image | `ghcr.io/rykhalskyi/transcributed-worker:v0.2.5` |
 | UI workload | `Deployment/transcributed-ui` (1 replica, nginx `:8080`, Service `:80`) |
 | API workload | `Deployment/transcributed-api` (1 replica, `:8000`) |
-| Worker workload | `ScaledJob/transcributed-worker` (KEDA, 1-2 concurrent Jobs) |
+| Worker workload | `ScaledJob/transcributed-worker` (KEDA, 1-3 concurrent Jobs) |
 | Broker | `StatefulSet/rabbitmq` (`rabbitmq-0`, `:5672`, management `:15672`) |
 | Database | CNPG `Cluster/transcributed` (`transcributed-1`, PostgreSQL 18.4, `:5432`) |
 | NAS input | `192.168.2.112:/volume1/video/lectures` -> `/nas/lectures` (**ro**) |
@@ -69,7 +69,7 @@ flowchart LR
 3. Starting a project publishes one task per included item to the
    `transcription` exchange / `transcription.jobs` queue.
 4. KEDA watches the queue; one queued message above `queueLength: 1` creates a
-   worker Job (up to `maxReplicaCount: 2`).
+   worker Job (up to `maxReplicaCount: 3`).
 5. The worker consumes the task, mounts the NAS read-only at `/nas/lectures`,
    runs `ffmpeg` + Faster-Whisper on CPU, and writes artifacts/status to
    PostgreSQL.
@@ -107,7 +107,7 @@ flowchart TB
       api["Deployment transcributed-api"]
       sj["ScaledJob transcributed-worker"]
       ta["TriggerAuthentication<br/>transcributed-rabbitmq"]
-      wj["Worker Jobs<br/>max 2"]
+      wj["Worker Jobs<br/>max 3"]
       db["Pod transcributed-1<br/>CNPG Cluster transcributed"]
       dbpvc[("PVC transcributed-1<br/>10Gi local-path")]
       naspv[("PV/PVC transcributed-nas<br/>10Ti ReadOnlyMany")]
@@ -238,7 +238,7 @@ separate API-only hostname) when regenerating the OpenAPI client.
 - **Model limit.** The worker image bakes only the `small` model with
   `WHISPER_LOCAL_FILES_ONLY=true`; requesting another model fails permanently.
 - **Concurrency.** KEDA creates one Job per queued task (`queueLength: 1`), up
-  to two (`maxReplicaCount: 2`). Each worker requests `1 CPU`/`4Gi` and may
+  to three (`maxReplicaCount: 3`). Each worker requests `1 CPU`/`4Gi` and may
   burst to `4 CPU`/`12Gi`; preferred pod anti-affinity spreads concurrent workers
   across nodes. Jobs run with `activeDeadlineSeconds: 43200` (12h) and are retained
   for 15m after finishing.

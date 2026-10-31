@@ -306,8 +306,8 @@ sequenceDiagram
 - **Outputs:** `txt`, `vtt`, `json` (default `txt`).
 - **Retries:** since `0.2.5` tasks fail immediately; there are no automatic
   retry queues and no `max_attempts` field. Start the project again to retry.
-- **Concurrency:** KEDA creates one worker Job per queued task, maximum two at a
-  time. More tasks wait in `transcription.jobs`.
+- **Concurrency:** KEDA creates one worker Job per queued task, maximum three at
+  a time. More tasks wait in `transcription.jobs`.
 - **Runtime:** a Job has a 12-hour deadline (`activeDeadlineSeconds: 43200`) and
   is retained for 15 minutes after it finishes.
 - **Resources:** each worker requests `1 CPU`/`4Gi`, with limits of `4 CPU`/`12Gi`.
