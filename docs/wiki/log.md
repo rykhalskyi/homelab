@@ -1,5 +1,16 @@
 # DevOps Wiki — Log
 
+## [2026-10-31] update | Adding a node to the Talos cluster
+
+Added a boot/UEFI checklist after the `node-three` rack move: a “Waiting for
+DHCP” screen before Talos loads is the BIOS PXE/network boot, not Talos and not
+the router. Documents the BIOS checks (UEFI vs Legacy, Secure Boot, AHCI, PXE
+order), the bootloader difference (UEFI vs Legacy), verification with
+`talosctl get bootedentries` / `get discoveredvolumes`, the
+`talos.halt_if_installed` message, and stale etcd member cleanup before
+reinstalling a control plane. Added a short version to the talos README and
+updated the index description.
+
 ## [2026-10-31] ingest | Adding a node to the Talos cluster
 
 Added [[Adding a node to the Talos cluster]], a short end-to-end runbook for

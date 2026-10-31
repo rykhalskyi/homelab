@@ -132,6 +132,60 @@ kubectl --context talos -n kube-system get pods -o wide \
 For a worker, skip the etcd checks. Expect `cilium` and `cilium-envoy` pods, and
 on a control plane the static `kube-apiserver-<node>` and friends.
 
+## Boot / UEFI checklist (after a hardware move or BIOS reset)
+
+Many “network” failures after racking a machine are actually the BIOS booting
+the wrong thing. Check this **before** chasing DHCP or router problems:
+
+- BIOS boot mode: **UEFI** (not Legacy/CSM)
+- **Secure Boot: disabled**
+- SATA mode: **AHCI**
+- **Network/PXE boot disabled** (or placed last)
+- Internal disk first; remove the USB installer before a normal boot
+
+A “Waiting for DHCP” message that appears **before Talos loads** is usually the
+BIOS PXE/network boot — not Talos and not the router. Talos maintenance mode
+only starts after the kernel is loaded.
+
+The mode used to boot the installer decides which bootloader Talos installs:
+
+| Booted installer as | Installed bootloader | Expected boot entry |
+| --- | --- | --- |
+| UEFI | systemd-boot | `Talos-v1.14.x.efi` |
+| Legacy/BIOS | GRUB | legacy disk entry |
+
+Boot the USB as **UEFI** when installing/reinstalling if the machine should
+boot UEFI.
+
+Verify after install:
+
+```bash
+talosctl get bootedentries --talosconfig ./talosconfig -n <static-ip> -o yaml
+# spec.bootedEntry: Talos-v1.14.x.efi  -> installed system booted via UEFI
+
+talosctl get discoveredvolumes --talosconfig ./talosconfig -n <static-ip>
+# expect sda: EFI + STATE + EPHEMERAL partitions
+```
+
+If the installer says **“Talos is already installed but booted from another
+media”**, that is the `talos.halt_if_installed` safety check, not corruption.
+Remove the USB and boot the disk, or boot the USB through the ISO’s GRUB menu,
+edit the kernel line, and remove `talos.halt_if_installed` to enter maintenance.
+The “Reset Talos installation” menu entry also wipes STATE/EPHEMERAL and returns
+to maintenance.
+
+If the UEFI boot entry is gone while the disk is still detected, reinstall
+rather than assuming disk failure. Before reinstalling a **control plane**,
+remove its stale etcd member (only when the old install/data is being wiped):
+
+```bash
+talosctl etcd members --talosconfig ./talosconfig -n 192.168.2.234
+talosctl etcd remove-member <old-member-id> \
+  --talosconfig ./talosconfig -n 192.168.2.234
+```
+
+Do **not** remove the member if you are recovering the existing install.
+
 ## Gotchas
 
 - **Join on the final static IP.** A control plane's etcd peer URL is fixed at

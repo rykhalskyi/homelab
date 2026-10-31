@@ -107,6 +107,39 @@ up on that address immediately, before it joins). If you do have to move it,
 bring the node back to its join-time IP to restore quorum first, then
 `talosctl -n <ip> etcd leave`, change the IP, and re-join.
 
+### Gotcha: BIOS boot mode / PXE
+
+After a rack move or BIOS reset, a **“Waiting for DHCP”** screen that appears
+**before Talos loads** is usually the BIOS PXE/network boot — not Talos, and not
+the router. Before debugging DHCP, check:
+
+- boot mode **UEFI** (not Legacy/CSM)
+- **Secure Boot disabled**
+- SATA mode **AHCI**
+- **Network/PXE boot disabled** (or last)
+- internal disk first; remove the USB installer for a normal boot
+
+Boot the installer in **UEFI** mode so Talos installs the UEFI bootloader
+(Legacy installs GRUB). Verify after install:
+
+```bash
+talosctl get bootedentries --talosconfig ./talosconfig -n <ip> -o yaml
+# expect spec.bootedEntry: Talos-v1.14.x.efi
+
+talosctl get discoveredvolumes --talosconfig ./talosconfig -n <ip>
+# expect EFI + STATE + EPHEMERAL partitions
+```
+
+If the installer says “Talos is already installed but booted from another
+media”, that is the `talos.halt_if_installed` safety check — remove the USB or
+bypass it via the ISO GRUB menu. If the UEFI entry is gone, reinstall; for a
+control plane remove the stale etcd member first (only if the old install/data
+is being wiped):
+
+```bash
+talosctl etcd remove-member <id> --talosconfig ./talosconfig -n 192.168.2.234
+```
+
 ## Cilium (CNI) — replaces flannel
 
 `node-two` runs Cilium instead of Talos's default flannel, with kube-proxy
