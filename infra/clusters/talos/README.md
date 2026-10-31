@@ -1,9 +1,8 @@
 # talos — the Talos cluster
 
-Three-node Talos/Kubernetes cluster (planned). Two control planes are up today:
-**`node-two`** (`192.168.2.234`) and **`node-one`** (`192.168.2.233`);
-`node-three` will join later. (2-member etcd quorum means either node going down
-takes the API down — add `node-three` for real HA.)
+Three-node Talos/Kubernetes cluster. Control planes:
+**`node-two`** (`192.168.2.234`), **`node-one`** (`192.168.2.233`) and
+**`node-three`** (`192.168.2.235`). Three etcd members tolerate one node down.
 
 This directory holds two separate layers — keep them distinct:
 
@@ -50,9 +49,11 @@ nodes/
 ├── node-two/               # 192.168.2.234
 │   ├── controlplane.yaml   # generated; gitignored (static IP, hostname, install disk)
 │   └── patch.yaml          # committed: static network + CNI switch + CP taint removal
-└── node-one/               # 192.168.2.233
-    ├── controlplane.yaml   # generated; gitignored
-    └── patch.yaml          # committed (interface = enp1s0 on this box)
+├── node-one/               # 192.168.2.233
+│   ├── controlplane.yaml   # generated; gitignored
+│   └── patch.yaml          # committed (interface = enp1s0 on this box)
+└── node-three/             # 192.168.2.235
+    └── patch.yaml          # committed (interface = enp1s0, disk /dev/sda)
 ```
 
 `node-two` is a control plane, so there is no `worker.yaml` here — generate one
