@@ -59,15 +59,17 @@ first-boot `occ maintenance:install` a full window.
 | `infra/clusters/talos/apps/cloudflared/*` | tunnel connector (reused k8s tunnel → talos Traefik) |
 | `infra/clusters/talos/apps/secrets/*.sops.yaml` | **local only**, out-of-band Secrets |
 | `.github/workflows/update-nextcloud-image-pin.yml` | pins the image digest in the talos HelmRelease |
+| `.github/workflows/update-booktailor-pin.yml` | refreshes the pinned BookTailor version + checksum in `versions.env` |
 
 ## Image
 
-The custom `ghcr.io/rykhalskyi/homelab-nextcloud` image (byebyemoneylist baked at
-`/opt`, copied into `custom_apps` by the `before-starting` hook).
+The custom `ghcr.io/rykhalskyi/homelab-nextcloud` image (BookTailor and
+byebyemoneylist baked at `/opt`, copied into `custom_apps` by the
+`before-starting` hook).
 `update-nextcloud-image-pin.yml` rewrites the pin in
 `infra/clusters/talos/apps/nextcloud/helmrelease.yaml`; the k3s HelmRelease was
 removed with `infra/clusters/k8s/`.
-See [[Releasing a new Nextcloud image (byebyemoneylist app)]].
+See [[Releasing a new Nextcloud image (BookTailor + byebyemoneylist apps)]].
 
 ## Secrets (out of band, never in Git)
 
