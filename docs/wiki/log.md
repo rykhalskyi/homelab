@@ -1,5 +1,15 @@
 # DevOps Wiki — Log
 
+## [2026-10-31] ingest | Adding a node to the Talos cluster
+
+Added [[Adding a node to the Talos cluster]], a short end-to-end runbook for
+adding a machine: find the NIC/disk in maintenance mode, write the per-node
+`patch.yaml`, generate the config with the real `secrets.yaml` (two-step
+`gen config` + `machineconfig patch`), validate and apply without `bootstrap`,
+then verify etcd/Kubernetes/Cilium. Covers the worker/control-plane differences
+and the final-static-IP etcd gotcha, and links to the detailed `node-one`
+runbook and the Cilium page. Updated the index under "Cluster access".
+
 ## [2026-10-31] change | bake BookTailor into the Nextcloud image
 
 Extended the custom Nextcloud image pipeline to ship both apps: BookTailor v1.7.0
