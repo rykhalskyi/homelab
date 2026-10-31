@@ -11,8 +11,9 @@
 #
 # Clean install: on first boot the official entrypoint runs
 # `occ maintenance:install` using the NEXTCLOUD_ADMIN_* env from the
-# `nextcloud-admin` Secret. The byebyemoneylist app is baked into the image at
-# /opt and copied into custom_apps by the `before-starting` hook.
+# `nextcloud-admin` Secret. The BookTailor and byebyemoneylist apps are baked
+# into the image at /opt and copied into custom_apps by the
+# `before-starting` hook.
 #
 # The image tag is built by .github/workflows/build-nextcloud-image.yml and kept
 # in sync by .github/workflows/update-nextcloud-image-pin.yml.
@@ -149,17 +150,40 @@ spec:
             secretKeyRef:
               name: byebyemoneylist
               key: SILICONFLOW_API_KEY
+        # Optional Langfuse credentials for BookTailor. The booktailor Secret is
+        # created out of band (see booktailor-secret.example.yaml); without it
+        # the pod still starts and BookTailor runs with tracing disabled.
+        - name: BOOKTAILOR_LANGFUSE_URL
+          value: "http://langfuse-web.langfuse.svc.cluster.local:3000"
+        - name: BOOKTAILOR_LANGFUSE_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: booktailor
+              key: langfuse-public-key
+              optional: true
+        - name: BOOKTAILOR_LANGFUSE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: booktailor
+              key: langfuse-secret-key
+              optional: true
+        - name: BOOKTAILOR_LANGFUSE_PROMPT_LABEL
+          value: "production"
       hooks:
         before-starting: |
           #!/bin/sh
           set -e
-          SRC=/opt/byebyemoneylist
-          APP=/var/www/html/custom_apps/byebyemoneylist
+          APPS="byebyemoneylist booktailor"
           mkdir -p /var/www/html/custom_apps
-          if [ -d "$SRC" ]; then
-            rm -rf "$APP"
-            cp -a "$SRC" "$APP"
-          fi
+          for app in $APPS; do
+            SRC="/opt/$app"
+            APP="/var/www/html/custom_apps/$app"
+            if [ -d "$SRC" ]; then
+              rm -rf "$APP"
+              cp -a "$SRC" "$APP"
+            fi
+          done
+          APP=/var/www/html/custom_apps/byebyemoneylist
           if [ -n "${SILICONFLOW_API_KEY:-}" ] && [ -d "$APP" ]; then
             printf 'SILICONFLOW_API_KEY=%s\n' "$SILICONFLOW_API_KEY" > "$APP/.env"
             chmod 640 "$APP/.env"
@@ -170,16 +194,20 @@ spec:
           # let that crash the container: Apache must still come up so the
           # instance is reachable and the next boot can recover.
           if ! php /var/www/html/occ status 2>/dev/null | grep -q 'installed: true'; then
-            echo "byebyemoneylist: Nextcloud not installed yet, skipping app enable"
+            echo "nextcloud: not installed yet, skipping app enable"
             exit 0
           fi
-          code="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$APP/appinfo/info.xml" 2>/dev/null || true)"
-          inst="$(php /var/www/html/occ config:app:get byebyemoneylist installed_version 2>/dev/null || true)"
-          if [ "$inst" != "$code" ]; then
-            php /var/www/html/occ app:disable byebyemoneylist >/dev/null 2>&1 || true
-            php /var/www/html/occ app:enable byebyemoneylist || \
-              echo "byebyemoneylist: app:enable failed, will retry on next boot"
-          fi
+          for app in $APPS; do
+            APP="/var/www/html/custom_apps/$app"
+            [ -d "$APP" ] || continue
+            code="$(sed -n 's:.*<version>\(.*\)</version>.*:\1:p' "$APP/appinfo/info.xml" 2>/dev/null || true)"
+            inst="$(php /var/www/html/occ config:app:get "$app" installed_version 2>/dev/null || true)"
+            if [ "$inst" != "$code" ]; then
+              php /var/www/html/occ app:disable "$app" >/dev/null 2>&1 || true
+              php /var/www/html/occ app:enable "$app" || \
+                echo "$app: app:enable failed, will retry on next boot"
+            fi
+          done
       extraInitContainers:
         # The database is a CloudNativePG Cluster, not a HelmRelease, so there is
         # no `dependsOn`. Wait for it before the entrypoint runs

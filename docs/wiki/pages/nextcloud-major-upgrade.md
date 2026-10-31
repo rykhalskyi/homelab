@@ -8,7 +8,7 @@ source_count: 0
 
 > **Historical (2026-10-30).** The k3s cluster and `infra/clusters/k8s/` were
 > removed. The image upgrade flow is still used by `talos` — pin the new
-> `NEXTCLOUD_VERSION` and follow [[Releasing a new Nextcloud image (byebyemoneylist app)]];
+> `NEXTCLOUD_VERSION` and follow [[Releasing a new Nextcloud image (BookTailor + byebyemoneylist apps)]];
 > the live deployment is [[Nextcloud + Euro-Office on Talos (LAN-only)]].
 
 How the custom Nextcloud image in `infra/images/nextcloud` is moved up one major

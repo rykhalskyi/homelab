@@ -117,7 +117,7 @@ extracts it into the build context, builds, and pushes
 GHCR package **public** (profile → Packages → the image → Package settings →
 Change visibility → Public), or the cluster needs an image pull secret.
 
-> The full day-to-day release flow is [[Releasing a new Nextcloud image (byebyemoneylist app)]].
+> The full day-to-day release flow is [[Releasing a new Nextcloud image (BookTailor + byebyemoneylist apps)]].
 
 > Keep `NEXTCLOUD_VERSION` equal to (or newer than) the **major version AIO is
 > running**. Check it with `docker exec -u www-data nextcloud-aio-nextcloud php occ status`.

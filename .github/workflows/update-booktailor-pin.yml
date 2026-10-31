@@ -1,0 +1,115 @@
+name: talos/nextcloud 1/3 Update BookTailor pin
+
+# Keeps infra/images/nextcloud/versions.env in sync with the latest BookTailor
+# release and opens a pull request so the deploy pin is reviewed in Git.
+#
+# Triggers:
+#   - schedule          -> daily poll of the latest GitHub release
+#   - workflow_dispatch -> manual run, optionally pinning a specific version
+#   - repository_dispatch -> event_type "booktailor-release", optionally with
+#     client_payload.version; sent by the app repo's release workflow (needs a
+#     PAT secret there, same pattern as the byebyemoneylist pin workflow).
+
+on:
+  schedule:
+    - cron: '37 5 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to pin (e.g. 1.7.0). Empty = latest release.'
+        required: false
+        type: string
+  repository_dispatch:
+    types: [booktailor-release]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-booktailor-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    name: Refresh versions.env
+    runs-on: ubuntu-latest
+    if: github.repository == 'rykhalskyi/homelab'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Resolve target version and checksum
+        id: resolve
+        env:
+          APP_REPO: rykhalskyi/booktailor
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          set -euo pipefail
+          version="${INPUT_VERSION:-${DISPATCH_VERSION:-}}"
+          if [ -z "$version" ]; then
+            version="$(curl -fsSL -H 'Accept: application/vnd.github+json' \
+              "https://api.github.com/repos/${APP_REPO}/releases/latest" \
+              | grep -oP '"tag_name"\s*:\s*"v?\K[^"]+')"
+          fi
+          [ -n "$version" ] || { echo "::error::could not resolve a version"; exit 1; }
+
+          url="https://github.com/${APP_REPO}/releases/download/v${version}/booktailor-${version}.tar.gz.sha256"
+          curl -fsSL --retry 3 --retry-delay 2 -o /tmp/booktailor.sha256 "$url" \
+            || { echo "::error::could not fetch ${url} - does release v${version} exist?"; exit 1; }
+          hash="$(awk 'NR==1 {print $1}' /tmp/booktailor.sha256)"
+          [ -n "$hash" ] || { echo "::error::empty checksum in release asset"; exit 1; }
+
+          current_version="$(grep -oP '^BOOKTAILOR_VERSION=\K.*' infra/images/nextcloud/versions.env || true)"
+          current_hash="$(grep -oP '^BOOKTAILOR_SHA256=\K.*' infra/images/nextcloud/versions.env || true)"
+          {
+            echo "version=${version}"
+            echo "hash=${hash}"
+            echo "current=${current_version}"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$version" = "$current_version" ] && [ "$hash" = "$current_hash" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already pinned to ${version} with the current checksum - nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Update available: ${current_version:-none} -> ${version} (checksum ${current_hash:-none} -> ${hash})"
+          fi
+
+      - name: Pin version + checksum
+        if: steps.resolve.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+          HASH: ${{ steps.resolve.outputs.hash }}
+        run: |
+          set -euo pipefail
+          sed -i "s|^BOOKTAILOR_VERSION=.*|BOOKTAILOR_VERSION=${VERSION}|" infra/images/nextcloud/versions.env
+          sed -i "s|^BOOKTAILOR_SHA256=.*|BOOKTAILOR_SHA256=${HASH}|" infra/images/nextcloud/versions.env
+          grep -E '^BOOKTAILOR_' infra/images/nextcloud/versions.env
+
+      - name: Show diff
+        if: steps.resolve.outputs.changed == 'true'
+        run: git --no-pager diff
+
+      - name: Open pull request
+        if: steps.resolve.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/booktailor-${{ steps.resolve.outputs.version }}
+          base: main
+          delete-branch: true
+          title: "Update BookTailor to v${{ steps.resolve.outputs.version }}"
+          commit-message: "Update BookTailor to v${{ steps.resolve.outputs.version }}"
+          labels: |
+            dependencies
+          body: |
+            Automated pin update from a `booktailor` release.
+
+            - version: `${{ steps.resolve.outputs.current }}` → `${{ steps.resolve.outputs.version }}`
+            - `BOOKTAILOR_VERSION` and `BOOKTAILOR_SHA256` refreshed from the release `.sha256` asset.
+
+            Merging this updates `infra/images/nextcloud/versions.env`; the image build
+            and digest-pin workflows then run automatically.

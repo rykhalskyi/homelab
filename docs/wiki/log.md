@@ -1,5 +1,20 @@
 # DevOps Wiki — Log
 
+## [2026-10-31] change | bake BookTailor into the Nextcloud image
+
+Extended the custom Nextcloud image pipeline to ship both apps: BookTailor v1.7.0
+is now pinned next to byebyemoneylist in
+`infra/images/nextcloud/versions.env`, downloaded and checksum-verified by
+`build-nextcloud-image.yml`, copied to `/opt/booktailor` in the image, and
+enabled by the HelmRelease `before-starting` hook. Added
+`update-booktailor-pin.yml`, the optional `booktailor` Langfuse Secret wiring
+(`BOOKTAILOR_LANGFUSE_*` from the in-cluster Langfuse web service), and a
+`booktailor-secret.example.yaml`. On the app side, added the tag-driven
+`release.yml`, a `set-version.sh` helper, deterministic packaging with a
+`booktailor/` top-level directory, and raised the declared Nextcloud support to
+35. Rewrote [[Releasing a new Nextcloud image (BookTailor + byebyemoneylist apps)]]
+and updated the index.
+
 ## [2026-10-30] change | retire the k3s tree and clean up references
 
 Deleted the retired k3s tree `infra/clusters/k8s/` (40 files) and removed every

@@ -1,16 +1,18 @@
 name: talos/nextcloud 2/3 Build Nextcloud image
 
-# Builds the custom Nextcloud image (official base + the pinned byebyemoneylist
-# release tarball) and pushes it to GHCR. The talos HelmRelease consumes the
-# image by tag + digest, and the "talos/nextcloud 3/3 Pin Nextcloud image"
-# workflow bumps that pin (via PR) after this one succeeds.
+# Builds the custom Nextcloud image (official base + the pinned BookTailor and
+# Bye Bye Money List release tarballs) and pushes it to GHCR. The talos
+# HelmRelease consumes the image by tag + digest, and the
+# "talos/nextcloud 3/3 Pin Nextcloud image" workflow bumps that pin (via PR)
+# after this one succeeds.
 #
 # Everything is driven by infra/images/nextcloud/versions.env:
-#   BYML_VERSION / BYML_SHA256 -> which app release tarball to bake
-#   NEXTCLOUD_VERSION          -> the official Nextcloud base tag
+#   BYML_VERSION / BYML_SHA256               -> Bye Bye Money List tarball
+#   BOOKTAILOR_VERSION / BOOKTAILOR_SHA256   -> BookTailor tarball
+#   NEXTCLOUD_VERSION                        -> the official Nextcloud base tag
 #
-# The tarball is downloaded and checksum-verified here, so the image always
-# contains exactly the reviewed release and the frontend is never rebuilt.
+# The tarballs are downloaded and checksum-verified here, so the image always
+# contains exactly the reviewed releases and the frontends are never rebuilt.
 
 on:
   push:
@@ -40,24 +42,45 @@ jobs:
         run: |
           set -euo pipefail
           set -a; . infra/images/nextcloud/versions.env; set +a
-          [ -n "${BYML_VERSION:-}" ] || { echo "::error::BYML_VERSION is empty"; exit 1; }
-          [ -n "${BYML_SHA256:-}" ] || { echo "::error::BYML_SHA256 is empty - run 'make nc-app-pin'"; exit 1; }
-          [ -n "${NEXTCLOUD_VERSION:-}" ] || { echo "::error::NEXTCLOUD_VERSION is empty"; exit 1; }
+          for key in BYML_VERSION BYML_SHA256 BOOKTAILOR_VERSION BOOKTAILOR_SHA256 NEXTCLOUD_VERSION; do
+            [ -n "${!key:-}" ] || { echo "::error::$key is empty"; exit 1; }
+          done
           {
-            echo "url=https://github.com/rykhalskyi/byebyemoneylist-ns/releases/download/v${BYML_VERSION}/byebyemoneylist-${BYML_VERSION}.tar.gz"
-            echo "sha256=${BYML_SHA256}"
             echo "byml_version=${BYML_VERSION}"
+            echo "booktailor_version=${BOOKTAILOR_VERSION}"
             echo "nextcloud_version=${NEXTCLOUD_VERSION}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Download and verify the release tarball
+      - name: Download and verify the release tarballs
         run: |
           set -euo pipefail
+          set -a; . infra/images/nextcloud/versions.env; set +a
+
+          download_app() {
+            app="$1"
+            repo="$2"
+            version="$3"
+            sha="$4"
+            url="https://github.com/${repo}/releases/download/v${version}/${app}-${version}.tar.gz"
+
+            echo "Downloading ${app} v${version} from ${url}"
+            curl -fsSL --retry 3 --retry-delay 2 -o "/tmp/${app}.tar.gz" "$url"
+            printf '%s  /tmp/%s.tar.gz\n' "$sha" "$app" | sha256sum -c -
+
+            tar -xzf "/tmp/${app}.tar.gz" -C build-context
+            test -f "build-context/${app}/appinfo/info.xml"
+
+            actual="$(grep -oP '(?<=<version>)[^<]+' "build-context/${app}/appinfo/info.xml")"
+            if [ "$actual" != "$version" ]; then
+              echo "::error::${app} tarball version '${actual}' does not match pin '${version}'"
+              exit 1
+            fi
+            echo "${app} v${actual} verified"
+          }
+
           mkdir -p build-context
-          curl -fsSL --retry 3 --retry-delay 2 -o /tmp/byml.tar.gz "${{ steps.pin.outputs.url }}"
-          printf '%s  /tmp/byml.tar.gz\n' "${{ steps.pin.outputs.sha256 }}" | sha256sum -c -
-          tar -xzf /tmp/byml.tar.gz -C build-context
-          test -f build-context/byebyemoneylist/appinfo/info.xml
+          download_app byebyemoneylist rykhalskyi/byebyemoneylist-ns "${BYML_VERSION}" "${BYML_SHA256}"
+          download_app booktailor rykhalskyi/booktailor "${BOOKTAILOR_VERSION}" "${BOOKTAILOR_SHA256}"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -80,5 +103,7 @@ jobs:
       - name: Show the digest to pin
         run: |
           echo "Pin this digest: ${{ steps.build.outputs.digest }}"
-          echo "App version baked: ${{ steps.pin.outputs.byml_version }}"
+          echo "Apps baked:"
+          echo "  byebyemoneylist: ${{ steps.pin.outputs.byml_version }}"
+          echo "  booktailor:      ${{ steps.pin.outputs.booktailor_version }}"
           echo "Nextcloud base:    ${{ steps.pin.outputs.nextcloud_version }}"
