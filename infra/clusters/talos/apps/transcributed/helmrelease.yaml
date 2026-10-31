@@ -22,8 +22,8 @@
 # supported`), while the inline NFS mounts used by Navidrome/Nextcloud work.
 #
 # Worker concurrency: KEDA creates one Job per queued message (queueLength 1),
-# up to two at a time (maxReplicaCount 2); preferred anti-affinity spreads
-# Jobs across the two nodes (one per node).
+# up to three at a time (maxReplicaCount 3); preferred anti-affinity spreads
+# Jobs across the three nodes (one per node).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -67,7 +67,7 @@ spec:
       image:
         tag: sha-193d40e29863451615fe96397689aba0521c3bc0@sha256:65f60cb697cf8588417ca66c22c066876f8deb66ffeb19fd95b673e0ef5e4133
       keda:
-        maxReplicaCount: 2
+        maxReplicaCount: 3
       resources:
         requests:
           cpu: "1"
