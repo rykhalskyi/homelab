@@ -6,7 +6,7 @@ source_count: 0
 
 # Ollama + Open WebUI on Talos (LAN-only, node-three)
 
-**Status: live since 2026-11-01; first-boot hotfix in review.**
+**Status: live and verified 2026-11-01.**
 Ollama is a local LLM runtime pinned to `node-three`, with Open WebUI as a
 browser chat UI and LiteLLM as a traced OpenAI-compatible proxy. All are served
 **LAN-only** through Traefik on the `192.168.2.240` VIP using the existing
@@ -262,6 +262,10 @@ kubectl -n litellm run --rm curl -- -s \
 Send one chat through Open WebUI or the LiteLLM curl above, then open
 `https://langfuse.lan.otakeessen.com` -> the project -> Tracing: a generation
 with the model, tokens and latency should appear within a few seconds.
+
+Langfuse v4 stores ingested spans in ClickHouse `events_core` / `events_full`;
+the UI's Tracing view is the authoritative check (the legacy `traces` table can
+stay empty).
 
 
 ## Caveats

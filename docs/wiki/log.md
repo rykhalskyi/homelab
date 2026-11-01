@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] verify | Ollama + LiteLLM + Langfuse end-to-end
+
+After merging #169, verified on the cluster: the Ollama initContainer pulled
+all four models onto the 50Gi PVC (`ollama list` shows ~8 GB) in ~11 minutes;
+Open WebUI and LiteLLM run with zero restarts; `GET /v1/models` through LiteLLM
+lists all four; a `POST /v1/chat/completions` for `llama3.2:3b` returned
+`hello from litellm` with 44 tokens; and Langfuse received the trace (two
+events, project id `cmvxv…`, `litellm_request`). Langfuse v4 stores ingested
+spans in ClickHouse `events_core`/`events_full`, so the legacy `traces` table
+can stay empty. Node memory was ~5 GiB of ~12 GiB, Open WebUI 0 restarts.
+Marked the page live and verified in the index.
+
 ## [2026-11-01] fix | Ollama model store + LiteLLM startup
 
 After the first deploy: (1) the Ollama initContainer pulled the models into its
