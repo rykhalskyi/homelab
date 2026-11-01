@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] fix | disable Open WebUI built-in agent tools
+
+The model was answering with JSON schemas instead of text. Langfuse showed why:
+every request carried a large `tools` array (tasks, notes, skills, automations,
+calendar, knowledge search, timestamp, ask-user). The pasted `{id, status}`
+schema is the `update_task` tool definition. Small local models cannot juggle
+that tool list and echo a schema instead of answering. Set
+`DEFAULT_MODEL_PARAMS='{"function_calling":"legacy"}'` and
+`DEFAULT_MODEL_METADATA='{"capabilities":{"builtin_tools":false}}'` so no
+built-in tools are sent. Existing chats are poisoned with schema-shaped
+assistant messages; start a new chat.
+
 ## [2026-11-01] fix | stable Open WebUI session key
 
 Open WebUI was signing session JWTs with a fresh auto-generated key on every

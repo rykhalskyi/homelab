@@ -43,6 +43,15 @@ spec:
             # bypass LiteLLM and Langfuse).
             - name: ENABLE_PERSISTENT_CONFIG
               value: "false"
+            # Disable Open WebUI's built-in agent tools (tasks, notes, skills,
+            # automations, calendar, knowledge, ...) for every model. Otherwise
+            # each request carries a large tools schema, and small local models
+            # echo a tool schema instead of answering (e.g. update_task's
+            # {id, status} object).
+            - name: DEFAULT_MODEL_PARAMS
+              value: '{"function_calling": "legacy"}'
+            - name: DEFAULT_MODEL_METADATA
+              value: '{"capabilities": {"builtin_tools": false}}'
             - name: ENABLE_OLLAMA_API
               value: "false"
             - name: OPENAI_API_BASE_URL

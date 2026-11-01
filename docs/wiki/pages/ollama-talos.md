@@ -174,7 +174,17 @@ allowlist middleware if LAN-wide access is too broad.
 - Long chats/tools can produce a large prompt (the first attempt sent 5.5k
   tokens and Ollama truncated it to 2048). On CPU that is ~45 s of prompt
   processing before the first token; a fresh chat is much faster.
-- The Deployment disables the prompt-heavy optional features:
+- Open WebUI v0.12 injects **built-in agent tools** (tasks, notes, skills,
+  automations, calendar, knowledge search, …) into every chat by default. That
+  is the real source of the ~5.5k-token prompt, and small local models often
+  echo a tool’s parameter schema instead of answering. The `{id, status}`-only
+  object, for example, is the `update_task` tool schema.
+  `DEFAULT_MODEL_PARAMS='{"function_calling":"legacy"}'` and
+  `DEFAULT_MODEL_METADATA='{"capabilities":{"builtin_tools":false}}'` disable
+  native built-in tools for all models.
+- After changing this, start a **new chat**: old chats contain assistant
+  messages full of JSON schemas, and the small model will keep imitating them.
+- The Deployment also disables the prompt-heavy optional features:
   `ENABLE_CODE_INTERPRETER`, `ENABLE_MEMORIES`, `ENABLE_MEMORY_SYSTEM_CONTEXT`,
   `ENABLE_WEB_SEARCH`, `ENABLE_IMAGE_GENERATION`, plus the background
   `ENABLE_TITLE_GENERATION`, `ENABLE_TAGS_GENERATION`,
