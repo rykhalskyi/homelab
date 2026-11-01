@@ -1,8 +1,10 @@
 # LAN-only HTTPS for the same OpenAI-compatible API, via the wildcard cert.
 # Remove this file if the traced API should stay in-cluster only.
 #
-# LiteLLM has no master key configured, so any bearer token is accepted. Keep
-# the host LAN-only and never add it to apps/cloudflared/configmap.yaml.
+# LiteLLM uses a fixed, non-secret master key (sk-litellm) because v1.106+
+# refuses to start without one. It is a LAN-only dummy, not a security
+# boundary. Keep the host LAN-only and never add it to
+# apps/cloudflared/configmap.yaml.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

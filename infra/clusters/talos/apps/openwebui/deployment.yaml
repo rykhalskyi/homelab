@@ -61,6 +61,14 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 15
+          # First boot downloads/loads the embedding model; it can take a few
+          # minutes on these nodes. Do not let liveness kill it mid-startup.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /health
