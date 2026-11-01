@@ -161,9 +161,19 @@ allowlist middleware if LAN-wide access is too broad.
 
 ## Open WebUI notes
 
-- Open WebUI has the direct Ollama connection disabled
-  (`ENABLE_OLLAMA_API=false`) and talks only to LiteLLM, so every chat is
-  traceable.
+- `ENABLE_PERSISTENT_CONFIG=false` is required. Open WebUI otherwise saves the
+  first-run Ollama connection in its database and ignores
+  `ENABLE_OLLAMA_API=false` / `OPENAI_API_BASE_URL`, so chats keep calling
+  `ollama:11434` directly, bypassing LiteLLM and Langfuse.
+- After changing the connection config, start a **new chat** so the model list
+  is fetched from LiteLLM. The running config can be checked with:
+  `kubectl -n openwebui exec deploy/openwebui -- env WEBUI_SECRET_KEY=test python -c 'import open_webui.config as c; print(c.ENABLE_PERSISTENT_CONFIG, c.ENABLE_OLLAMA_API, c.OPENAI_API_BASE_URLS)'`
+- `gemma3:1b` does not support tools. If Open WebUI sends a tools payload the
+  request fails with `... gemma3:1b does not support tools`; use
+  `llama3.2:3b` / `qwen2.5-coder:3b` for tool-enabled chats, or disable tools.
+- Long chats/tools can produce a large prompt (the first attempt sent 5.5k
+  tokens and Ollama truncated it to 2048). On CPU that is ~45 s of prompt
+  processing before the first token; a fresh chat is much faster.
 - The first account registered becomes the admin. After creating it, disable
   signups (`ENABLE_SIGNUP=false` in the Deployment) so nobody else can register.
 - `WEBUI_SECRET_KEY` is read from the optional `openwebui-secrets` Secret

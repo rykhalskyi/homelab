@@ -37,6 +37,12 @@ spec:
             - name: http
               containerPort: 8080
           env:
+            # Open WebUI otherwise keeps the first-run connections in its DB
+            # and ignores these env vars. Make the Deployment authoritative so
+            # the UI cannot fall back to calling Ollama directly (which would
+            # bypass LiteLLM and Langfuse).
+            - name: ENABLE_PERSISTENT_CONFIG
+              value: "false"
             - name: ENABLE_OLLAMA_API
               value: "false"
             - name: OPENAI_API_BASE_URL

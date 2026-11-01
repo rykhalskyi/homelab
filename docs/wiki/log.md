@@ -1,5 +1,15 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] fix | Open WebUI routed through LiteLLM
+
+Open WebUI had persisted its first-run Ollama connection in its database, so
+`ENABLE_OLLAMA_API=false` and `OPENAI_API_BASE_URL` were ignored: chats still
+called `http://ollama.ollama.svc.cluster.local:11434/api/chat`, bypassing
+LiteLLM and therefore Langfuse. Added `ENABLE_PERSISTENT_CONFIG=false` so the
+Deployment env is authoritative. Verified a chat POST went to
+`litellm:4000/v1/chat/completions` and a new `litellm_request` generation for
+`llama3.2:3b` appeared in Langfuse. Also recorded the `gemma3:1b does not
+support tools` error and why a 5.5k-token prompt takes ~45 s on CPU.
 ## [2026-11-01] verify | Ollama + LiteLLM + Langfuse end-to-end
 
 After merging #169, verified on the cluster: the Ollama initContainer pulled
