@@ -35,6 +35,10 @@ data:
       # for them) and served publicly.
       - hostname: "*.lan.otakeessen.com"
         service: http_status:404
+      # Apex of the public zone: the personal landing page (personalpage app).
+      # The wildcard below does not match the apex, so this rule is explicit.
+      - hostname: otakeessen.com
+        service: http://traefik.traefik.svc.cluster.local:80
       - hostname: "*.otakeessen.com"
         service: http://traefik.traefik.svc.cluster.local:80
       - service: http_status:404
