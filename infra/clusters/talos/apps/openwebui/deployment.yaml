@@ -47,9 +47,31 @@ spec:
               value: "false"
             - name: OPENAI_API_BASE_URL
               value: http://litellm.litellm.svc.cluster.local:4000/v1
-            # LiteLLM has no master key; any bearer token works.
+            # LiteLLM's fixed master key (a LAN-only dummy, not a secret).
             - name: OPENAI_API_KEY
               value: sk-litellm
+            # Keep prompts small for CPU inference. These features inject
+            # instructions/tool schemas into every request and/or trigger extra
+            # background generations (title, tags, follow-ups), which queue
+            # behind the main request because Ollama runs one at a time.
+            - name: ENABLE_CODE_INTERPRETER
+              value: "false"
+            - name: ENABLE_MEMORIES
+              value: "false"
+            - name: ENABLE_MEMORY_SYSTEM_CONTEXT
+              value: "false"
+            - name: ENABLE_WEB_SEARCH
+              value: "false"
+            - name: ENABLE_IMAGE_GENERATION
+              value: "false"
+            - name: ENABLE_TITLE_GENERATION
+              value: "false"
+            - name: ENABLE_TAGS_GENERATION
+              value: "false"
+            - name: ENABLE_FOLLOW_UP_GENERATION
+              value: "false"
+            - name: ENABLE_RETRIEVAL_QUERY_GENERATION
+              value: "false"
             - name: WEBUI_URL
               value: https://chat.lan.otakeessen.com
             - name: WEBUI_SECRET_KEY

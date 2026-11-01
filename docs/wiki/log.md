@@ -1,5 +1,18 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] change | trim Open WebUI prompt overhead
+
+The first chat sent ~5.5k prompt tokens for a 4-character message. The bulk was
+Open WebUI's optional built-ins (code interpreter, memory system context) and
+background title/tag/follow-up generations, all of which queue behind the main
+request because Ollama runs one slot. The Deployment now sets
+`ENABLE_CODE_INTERPRETER`, `ENABLE_MEMORIES`, `ENABLE_MEMORY_SYSTEM_CONTEXT`,
+`ENABLE_WEB_SEARCH`, `ENABLE_IMAGE_GENERATION`,
+`ENABLE_TITLE_GENERATION`, `ENABLE_TAGS_GENERATION`,
+`ENABLE_FOLLOW_UP_GENERATION` and `ENABLE_RETRIEVAL_QUERY_GENERATION` to
+`false`. This keeps a simple chat close to the raw message size; the model's
+own chat template remains.
+
 ## [2026-11-01] fix | Open WebUI routed through LiteLLM
 
 Open WebUI had persisted its first-run Ollama connection in its database, so

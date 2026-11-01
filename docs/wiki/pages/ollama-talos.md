@@ -174,6 +174,16 @@ allowlist middleware if LAN-wide access is too broad.
 - Long chats/tools can produce a large prompt (the first attempt sent 5.5k
   tokens and Ollama truncated it to 2048). On CPU that is ~45 s of prompt
   processing before the first token; a fresh chat is much faster.
+- The Deployment disables the prompt-heavy optional features:
+  `ENABLE_CODE_INTERPRETER`, `ENABLE_MEMORIES`, `ENABLE_MEMORY_SYSTEM_CONTEXT`,
+  `ENABLE_WEB_SEARCH`, `ENABLE_IMAGE_GENERATION`, plus the background
+  `ENABLE_TITLE_GENERATION`, `ENABLE_TAGS_GENERATION`,
+  `ENABLE_FOLLOW_UP_GENERATION`, `ENABLE_RETRIEVAL_QUERY_GENERATION`. This drops
+  the code-interpreter/tool payloads and the extra title/tag/follow-up
+  generations that otherwise queue behind the main request on a single-slot
+  Ollama. Re-enable an individual feature in the Deployment if needed.
+- Ollama's chat template and Open WebUI's minimal request framing remain; those
+  are small and cannot be removed without replacing the stack.
 - The first account registered becomes the admin. After creating it, disable
   signups (`ENABLE_SIGNUP=false` in the Deployment) so nobody else can register.
 - `WEBUI_SECRET_KEY` is read from the optional `openwebui-secrets` Secret
