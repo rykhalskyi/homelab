@@ -1,0 +1,26 @@
+# LAN-only HTTPS for the same OpenAI-compatible API, via the wildcard cert.
+# Remove this file if the traced API should stay in-cluster only.
+#
+# LiteLLM has no master key configured, so any bearer token is accepted. Keep
+# the host LAN-only and never add it to apps/cloudflared/configmap.yaml.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: litellm
+  namespace: litellm
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: llm.lan.otakeessen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: litellm
+                port:
+                  number: 4000

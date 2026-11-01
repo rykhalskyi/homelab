@@ -1,0 +1,8 @@
+# LiteLLM: an OpenAI-compatible proxy in front of Ollama.
+#
+# Every request routed through it is sent to Langfuse as a trace (prompt,
+# response, model, tokens, latency). Calls made directly to Ollama bypass it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: litellm
