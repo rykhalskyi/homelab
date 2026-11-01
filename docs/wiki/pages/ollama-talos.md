@@ -186,9 +186,31 @@ allowlist middleware if LAN-wide access is too broad.
   are small and cannot be removed without replacing the stack.
 - The first account registered becomes the admin. After creating it, disable
   signups (`ENABLE_SIGNUP=false` in the Deployment) so nobody else can register.
-- `WEBUI_SECRET_KEY` is read from the optional `openwebui-secrets` Secret
-  (key `webui-secret-key`). Without it, sessions may reset on restart.
-  Create it out of band (SOPS or `kubectl`), never in Git.
+- `WEBUI_SECRET_KEY` **must be stable**. It is read from the
+  `openwebui-secrets` Secret (key `webui-secret-key`, SOPS, out of band). If it
+  is missing, each new pod signs sessions with a fresh key, so every rollout
+  logs the browser out with “Session expired. Please sign in again” — often
+  right in the middle of a slow CPU answer. Generate a 32-byte hex key and
+  create the Secret before first login:
+
+  ```bash
+  key="$(openssl rand -hex 32)"
+  cat > infra/clusters/talos/apps/secrets/openwebui-secrets.sops.yaml <<EOF
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: openwebui-secrets
+    namespace: openwebui
+  type: Opaque
+  stringData:
+    webui-secret-key: "$key"
+  EOF
+  unset key
+  sops --encrypt --in-place infra/clusters/talos/apps/secrets/openwebui-secrets.sops.yaml
+  sops -d infra/clusters/talos/apps/secrets/openwebui-secrets.sops.yaml | kubectl -n openwebui apply -f -
+  kubectl -n openwebui rollout restart deploy/openwebui
+  ```
+
 - The pod is not node-pinned. `local-path` binds its PVC where it first
   schedules and keeps it there.
 

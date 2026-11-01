@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] fix | stable Open WebUI session key
+
+Open WebUI was signing session JWTs with a fresh auto-generated key on every
+pod start because `openwebui-secrets` did not exist. Any rollout (including the
+temporary live patch and Flux reverts) logged the browser out with “Session
+expired. Please sign in again”, sometimes killing an in-flight CPU answer. Added
+a SOPS-encrypted `openwebui-secrets` Secret with a 32-byte
+`webui-secret-key`, applied it, and restarted the pod; the running pod now sees
+a 64-character key. Also raised the probe timeouts (`timeoutSeconds: 5`) and
+liveness `failureThreshold` to 6 so CPU contention cannot kill the pod during a
+slow answer.
+
 ## [2026-11-01] change | trim Open WebUI prompt overhead
 
 The first chat sent ~5.5k prompt tokens for a 4-character message. The bulk was
