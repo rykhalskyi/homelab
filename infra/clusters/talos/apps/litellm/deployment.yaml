@@ -1,5 +1,10 @@
 # LiteLLM proxy. One stateless replica is enough for this LAN.
 #
+# LiteLLM v1.106+ refuses to start without a master key. We use a fixed,
+# non-secret dummy that matches Open WebUI's OPENAI_API_KEY: the proxy is
+# intentionally unauthenticated inside the LAN, so this is not a security
+# boundary (do not reuse it anywhere else).
+#
 # The Langfuse keys are optional: without the `litellm-langfuse` Secret the
 # proxy still serves requests, but no traces are exported. After creating and
 # applying the Secret, restart the Deployment to pick it up:
@@ -42,6 +47,8 @@ spec:
             - name: http
               containerPort: 4000
           env:
+            - name: LITELLM_MASTER_KEY
+              value: sk-litellm
             - name: LANGFUSE_PUBLIC_KEY
               valueFrom:
                 secretKeyRef:
@@ -66,6 +73,12 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 15
+          startupProbe:
+            httpGet:
+              path: /health/liveliness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /health/liveliness

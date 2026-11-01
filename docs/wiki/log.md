@@ -1,5 +1,16 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] fix | Ollama model store + LiteLLM startup
+
+After the first deploy: (1) the Ollama initContainer pulled the models into its
+ephemeral `/root/.ollama` because only the main container set
+`OLLAMA_MODELS=/models`, so `ollama list` was empty — both containers now set
+it. (2) LiteLLM v1.106.6 refuses to start without a master key, so the
+Deployment sets the fixed LAN-only dummy `LITELLM_MASTER_KEY=sk-litellm`
+(matching Open WebUI; not a security boundary). (3) Open WebUI and LiteLLM got
+startupProbes so slow first boots are not killed by liveness. Updated the wiki
+page and index.
+
 ## [2026-11-01] change | LiteLLM → Langfuse tracing for Ollama
 
 Added a stateless LiteLLM proxy in namespace `litellm` between Open WebUI/apps

@@ -6,7 +6,7 @@ source_count: 0
 
 # Ollama + Open WebUI on Talos (LAN-only, node-three)
 
-**Status: Ollama + Open WebUI live since 2026-11-01; LiteLLM/Langfuse tracing in a follow-up PR.**
+**Status: live since 2026-11-01; first-boot hotfix in review.**
 Ollama is a local LLM runtime pinned to `node-three`, with Open WebUI as a
 browser chat UI and LiteLLM as a traced OpenAI-compatible proxy. All are served
 **LAN-only** through Traefik on the `192.168.2.240` VIP using the existing
@@ -92,8 +92,10 @@ reconciles them after `infrastructure` (local-path and Traefik already exist).
 The model list lives in the `PULL_MODELS` env of
 `ollama/deployment.yaml`. On every pod start an initContainer runs a temporary
 `ollama serve`, checks `ollama show` for each entry, and pulls only the missing
-ones. The check keeps restarts fast and lets the pod boot without internet when
-the models are already on the PVC.
+ones. Both containers set `OLLAMA_MODELS=/models`, which is the mounted PVC;
+without that the init server writes to its ephemeral `/root/.ollama` and the
+downloads disappear when it exits. The check keeps restarts fast and lets the
+pod boot without internet when the models are already on the PVC.
 
 - **Quick, one-off:** `kubectl -n ollama exec deploy/ollama -- ollama pull <model>`
   (immediately usable and stored on the PVC).
@@ -131,7 +133,7 @@ curl http://ollama.ollama.svc.cluster.local:11434/v1/chat/completions \
   -d '{"model":"qwen2.5-coder:3b","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-Traced, OpenAI-compatible API (through LiteLLM; any bearer token works):
+Traced, OpenAI-compatible API (through LiteLLM; use the shared dummy key):
 
 ```bash
 curl http://litellm.litellm.svc.cluster.local:4000/v1/chat/completions \
@@ -151,7 +153,9 @@ curl --resolve llm.lan.otakeessen.com:443:192.168.2.240 \
   -H 'Authorization: Bearer sk-litellm'
 ```
 
-Neither API has **authentication**. Keep the ingresses LAN-only and never add
+Ollama has no authentication. LiteLLM requires the shared dummy key
+`sk-litellm` (it refuses to start without a master key), but that value is in
+Git and is not a security boundary. Keep both ingresses LAN-only and never add
 the hosts to `apps/cloudflared/configmap.yaml`. Add a Traefik BasicAuth or IP
 allowlist middleware if LAN-wide access is too broad.
 
@@ -182,6 +186,8 @@ flowchart LR
 
 - `litellm-config` maps each model name to `ollama/<tag>` at
   `http://ollama.ollama.svc.cluster.local:11434`.
+- LiteLLM v1.106+ refuses to start without a master key, so the Deployment sets
+  `LITELLM_MASTER_KEY=sk-litellm` (a fixed LAN-only dummy, not a secret).
 - `success_callback`/`failure_callback: ["langfuse_otel"]` export spans
   (prompt, response, model, tokens, latency) to the in-cluster Langfuse OTLP
   endpoint. The OTel path does not depend on the Langfuse SDK and does not

@@ -71,6 +71,10 @@ spec:
                 qwen2.5-coder:3b
                 gemma3:1b
                 qwen3.5:4b
+            # Without this the init server writes to /root/.ollama and the
+            # downloads are lost when the init container exits.
+            - name: OLLAMA_MODELS
+              value: /models
           volumeMounts:
             - name: models
               mountPath: /models
