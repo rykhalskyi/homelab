@@ -1,0 +1,17 @@
+# In-cluster API used by Open WebUI and other workloads:
+#   http://ollama.ollama.svc.cluster.local:11434
+#   http://ollama.ollama.svc.cluster.local:11434/v1   (OpenAI-compatible)
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: ollama
+  labels:
+    app: ollama
+spec:
+  selector:
+    app: ollama
+  ports:
+    - name: http
+      port: 11434
+      targetPort: http

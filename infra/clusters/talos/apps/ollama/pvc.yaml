@@ -1,0 +1,17 @@
+# Ollama model store (manifests + blobs) under OLLAMA_MODELS=/models.
+#
+# local-path binds the volume to node-three on first use. It is intentionally
+# not backed up: on a rebuild the initContainer re-pulls the models from the
+# registry.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: ollama
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi

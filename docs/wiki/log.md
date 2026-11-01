@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] ingest | Ollama + Open WebUI on Talos
+
+Added [[Ollama + Open WebUI on Talos (LAN-only, node-three)]]: Ollama pinned to
+`node-three` (i5-9500, ~12 GB, no GPU) with a 50Gi `local-path` model store and
+an initContainer that pulls `llama3.2:3b`, `qwen2.5-coder:3b`, `gemma3:1b` and
+`qwen3.5:4b`. Open WebUI is the LAN chat UI. Both hosts
+(`ollama.lan.otakeessen.com`, `chat.lan.otakeessen.com`) use the existing
+wildcard certificate and are 404'd at the Cloudflare tunnel. CPU is capped at
+4800m (80% of six cores), one model is loaded at a time, and the model
+add/update workflow is documented. Also records the planned stateless LiteLLM
+proxy that sends Ollama calls to Langfuse. Updated the index under Operations.
+
 ## [2026-10-31] update | Adding a node to the Talos cluster
 
 Added a boot/UEFI checklist after the `node-three` rack move: a “Waiting for

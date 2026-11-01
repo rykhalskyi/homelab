@@ -12,6 +12,8 @@ resources:
   - cloudflared
   - homepage
   - navidrome
+  - ollama
+  - openwebui
   - rabbitmq
   - transcributed
   - langfuse

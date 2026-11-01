@@ -1,0 +1,126 @@
+# Ollama on node-three (pinned; single replica).
+#
+# The initContainer starts a throwaway `ollama serve`, then pulls every model
+# listed in PULL_MODELS that is not already on the PVC. `ollama show` makes
+# restarts cheap and keeps the pod bootable without internet when the models
+# are present. Editing PULL_MODELS changes the pod template, so Flux rolls the
+# Deployment and the new model is pulled automatically.
+#
+# Resource policy for the i5-9500 (6 cores / 6 threads): CPU is capped at
+# 4800m (80%), leaving ~1.2 cores for etcd / kube-apiserver / system. Memory
+# is generous but still leaves headroom on the ~11 GiB node. Only one model is
+# kept loaded at a time; idle models unload after 5 minutes.
+#
+# On first boot the pull is ~8-9 GB, so the rollout deadline is raised.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ollama
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  progressDeadlineSeconds: 1800
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: node-three
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: pull-models
+          image: ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              set -eu
+              export OLLAMA_HOST=127.0.0.1:11434
+              ollama serve &
+              pid=$!
+              trap 'kill "$pid" 2>/dev/null || true' EXIT
+              for _ in $(seq 1 60); do
+                ollama list >/dev/null 2>&1 && break
+                sleep 1
+              done
+              printf '%s\n' "$PULL_MODELS" | while IFS= read -r model; do
+                [ -n "$model" ] || continue
+                if ollama show "$model" >/dev/null 2>&1; then
+                  echo "model already present: $model"
+                else
+                  echo "pulling model: $model"
+                  ollama pull "$model"
+                fi
+              done
+          env:
+            - name: PULL_MODELS
+              value: |
+                llama3.2:3b
+                qwen2.5-coder:3b
+                gemma3:1b
+                qwen3.5:4b
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 11434
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0:11434"
+            - name: OLLAMA_MODELS
+              value: /models
+            - name: OLLAMA_KEEP_ALIVE
+              value: "5m"
+            - name: OLLAMA_MAX_LOADED_MODELS
+              value: "1"
+            - name: OLLAMA_NUM_PARALLEL
+              value: "1"
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+            limits:
+              cpu: 4800m
+              memory: 9Gi
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models

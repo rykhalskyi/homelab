@@ -1,0 +1,9 @@
+# Ollama (local LLM runtime) on the talos cluster.
+#
+# Pinned to node-three (6-core i5-9500, ~12 GB RAM, no GPU) and LAN-only:
+# `*.lan.otakeessen.com` is 404'd by the Cloudflare tunnel, so the API never
+# leaves the LAN.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ollama
