@@ -1,5 +1,18 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] change | LiteLLM → Langfuse tracing for Ollama
+
+Added a stateless LiteLLM proxy in namespace `litellm` between Open WebUI/apps
+and Ollama. `litellm-config` maps the four Ollama models, and
+`success_callback`/`failure_callback: ["langfuse_otel"]` export prompt,
+response, tokens and latency to the in-cluster Langfuse at
+`http://langfuse-web.langfuse.svc.cluster.local:3000`. The proxy is exposed
+in-cluster at `litellm:4000/v1` and LAN-only at `llm.lan.otakeessen.com`.
+Open WebUI now disables its direct Ollama connection and chats through LiteLLM,
+so UI chats are traced. Langfuse keys are optional env vars read from the
+out-of-band `litellm-langfuse` Secret (SOPS, gitignored); the wiki documents the
+`apply.sh` flow and the restart. Direct `ollama:11434` calls remain untraced.
+
 ## [2026-11-01] ingest | Ollama + Open WebUI on Talos
 
 Added [[Ollama + Open WebUI on Talos (LAN-only, node-three)]]: Ollama pinned to

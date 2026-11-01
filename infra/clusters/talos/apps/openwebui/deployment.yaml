@@ -1,8 +1,8 @@
 # Open WebUI, served LAN-only at https://chat.lan.otakeessen.com.
 #
-# It reaches Ollama server-side over the in-cluster Service (no CORS and no
-# ingress round-trip). The image is pinned by tag + digest; bump both on
-# upgrade.
+# It talks to LiteLLM (not Ollama directly) over the in-cluster Service, so
+# every chat is traced in Langfuse. The direct Ollama connection is disabled.
+# The image is pinned by tag + digest; bump both on upgrade.
 #
 # First boot: register the first account (it becomes the admin), then disable
 # signups. WEBUI_SECRET_KEY is optional; create the `openwebui-secrets` Secret
@@ -37,8 +37,13 @@ spec:
             - name: http
               containerPort: 8080
           env:
-            - name: OLLAMA_BASE_URL
-              value: http://ollama.ollama.svc.cluster.local:11434
+            - name: ENABLE_OLLAMA_API
+              value: "false"
+            - name: OPENAI_API_BASE_URL
+              value: http://litellm.litellm.svc.cluster.local:4000/v1
+            # LiteLLM has no master key; any bearer token works.
+            - name: OPENAI_API_KEY
+              value: sk-litellm
             - name: WEBUI_URL
               value: https://chat.lan.otakeessen.com
             - name: WEBUI_SECRET_KEY
