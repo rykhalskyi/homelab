@@ -224,8 +224,19 @@ Langfuse keys are optional in the Deployment, so the proxy starts even without
 the Secret; after creating it, restart to pick it up:
 
 ```bash
+kubectl -n litellm get secret litellm-langfuse
 kubectl -n litellm rollout restart deploy/litellm
 ```
+
+`stringData:` must stay a YAML **mapping** (one indented key per line, as in
+the heredoc above). If it is written as a JSON/YAML string or a `|` block,
+`sops` encrypts the whole map as one value and Kubernetes rejects the manifest:
+
+```text
+cannot unmarshal string into Go struct field Secret.stringData of type map[string]string
+```
+
+Recreate the file from the heredoc if that happens.
 
 ## Verify
 

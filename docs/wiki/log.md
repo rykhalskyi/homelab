@@ -9,7 +9,9 @@ it. (2) LiteLLM v1.106.6 refuses to start without a master key, so the
 Deployment sets the fixed LAN-only dummy `LITELLM_MASTER_KEY=sk-litellm`
 (matching Open WebUI; not a security boundary). (3) Open WebUI and LiteLLM got
 startupProbes so slow first boots are not killed by liveness. Updated the wiki
-page and index.
+page and index. Also documented the `litellm-langfuse` failure mode where
+`stringData` is encrypted as a single string (Kubernetes rejects it) and must
+be recreated as a YAML mapping.
 
 ## [2026-11-01] change | LiteLLM → Langfuse tracing for Ollama
 
