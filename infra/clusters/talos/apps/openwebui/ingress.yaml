@@ -1,0 +1,24 @@
+# LAN-only HTTPS via the Let's Encrypt wildcard (*.lan.otakeessen.com).
+# Pi-hole resolves the name to Traefik's LoadBalancer VIP (192.168.2.240);
+# the Cloudflare tunnel 404s the whole `lan` sub-zone.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openwebui
+  namespace: openwebui
+  annotations:
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: chat.lan.otakeessen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: openwebui
+                port:
+                  number: 8080

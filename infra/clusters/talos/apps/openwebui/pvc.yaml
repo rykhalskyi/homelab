@@ -1,0 +1,14 @@
+# Open WebUI state: SQLite DB, chat history, uploads and cached embedding
+# models. local-path (RWO), so the Deployment uses the Recreate strategy.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: openwebui-data
+  namespace: openwebui
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

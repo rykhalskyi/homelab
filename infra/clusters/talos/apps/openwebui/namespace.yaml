@@ -1,0 +1,8 @@
+# Open WebUI - a browser chat UI for the LAN Ollama instance.
+#
+# It talks to Ollama over the in-cluster Service; the browser only reaches this
+# pod through Traefik on the `lan` sub-zone, so no traffic leaves the LAN.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openwebui
