@@ -174,11 +174,53 @@ allowlist middleware if LAN-wide access is too broad.
 - Long chats/tools can produce a large prompt (the first attempt sent 5.5k
   tokens and Ollama truncated it to 2048). On CPU that is ~45 s of prompt
   processing before the first token; a fresh chat is much faster.
+- Open WebUI v0.12 injects **built-in agent tools** (tasks, notes, skills,
+  automations, calendar, knowledge search, …) into every chat by default. That
+  is the real source of the ~5.5k-token prompt, and small local models often
+  echo a tool’s parameter schema instead of answering. The `{id, status}`-only
+  object, for example, is the `update_task` tool schema.
+  `DEFAULT_MODEL_PARAMS='{"function_calling":"legacy"}'` and
+  `DEFAULT_MODEL_METADATA='{"capabilities":{"builtin_tools":false}}'` disable
+  native built-in tools for all models.
+- After changing this, start a **new chat**: old chats contain assistant
+  messages full of JSON schemas, and the small model will keep imitating them.
+- The Deployment also disables the prompt-heavy optional features:
+  `ENABLE_CODE_INTERPRETER`, `ENABLE_MEMORIES`, `ENABLE_MEMORY_SYSTEM_CONTEXT`,
+  `ENABLE_WEB_SEARCH`, `ENABLE_IMAGE_GENERATION`, plus the background
+  `ENABLE_TITLE_GENERATION`, `ENABLE_TAGS_GENERATION`,
+  `ENABLE_FOLLOW_UP_GENERATION`, `ENABLE_RETRIEVAL_QUERY_GENERATION`. This drops
+  the code-interpreter/tool payloads and the extra title/tag/follow-up
+  generations that otherwise queue behind the main request on a single-slot
+  Ollama. Re-enable an individual feature in the Deployment if needed.
+- Ollama's chat template and Open WebUI's minimal request framing remain; those
+  are small and cannot be removed without replacing the stack.
 - The first account registered becomes the admin. After creating it, disable
   signups (`ENABLE_SIGNUP=false` in the Deployment) so nobody else can register.
-- `WEBUI_SECRET_KEY` is read from the optional `openwebui-secrets` Secret
-  (key `webui-secret-key`). Without it, sessions may reset on restart.
-  Create it out of band (SOPS or `kubectl`), never in Git.
+- `WEBUI_SECRET_KEY` **must be stable**. It is read from the
+  `openwebui-secrets` Secret (key `webui-secret-key`, SOPS, out of band). If it
+  is missing, each new pod signs sessions with a fresh key, so every rollout
+  logs the browser out with “Session expired. Please sign in again” — often
+  right in the middle of a slow CPU answer. Generate a 32-byte hex key and
+  create the Secret before first login:
+
+  ```bash
+  key="$(openssl rand -hex 32)"
+  cat > infra/clusters/talos/apps/secrets/openwebui-secrets.sops.yaml <<EOF
+  apiVersion: v1
+  kind: Secret
+  metadata:
+    name: openwebui-secrets
+    namespace: openwebui
+  type: Opaque
+  stringData:
+    webui-secret-key: "$key"
+  EOF
+  unset key
+  sops --encrypt --in-place infra/clusters/talos/apps/secrets/openwebui-secrets.sops.yaml
+  sops -d infra/clusters/talos/apps/secrets/openwebui-secrets.sops.yaml | kubectl -n openwebui apply -f -
+  kubectl -n openwebui rollout restart deploy/openwebui
+  ```
+
 - The pod is not node-pinned. `local-path` binds its PVC where it first
   schedules and keeps it there.
 

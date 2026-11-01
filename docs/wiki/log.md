@@ -1,5 +1,42 @@
 # DevOps Wiki — Log
 
+## [2026-11-01] fix | disable Open WebUI built-in agent tools
+
+The model was answering with JSON schemas instead of text. Langfuse showed why:
+every request carried a large `tools` array (tasks, notes, skills, automations,
+calendar, knowledge search, timestamp, ask-user). The pasted `{id, status}`
+schema is the `update_task` tool definition. Small local models cannot juggle
+that tool list and echo a schema instead of answering. Set
+`DEFAULT_MODEL_PARAMS='{"function_calling":"legacy"}'` and
+`DEFAULT_MODEL_METADATA='{"capabilities":{"builtin_tools":false}}'` so no
+built-in tools are sent. Existing chats are poisoned with schema-shaped
+assistant messages; start a new chat.
+
+## [2026-11-01] fix | stable Open WebUI session key
+
+Open WebUI was signing session JWTs with a fresh auto-generated key on every
+pod start because `openwebui-secrets` did not exist. Any rollout (including the
+temporary live patch and Flux reverts) logged the browser out with “Session
+expired. Please sign in again”, sometimes killing an in-flight CPU answer. Added
+a SOPS-encrypted `openwebui-secrets` Secret with a 32-byte
+`webui-secret-key`, applied it, and restarted the pod; the running pod now sees
+a 64-character key. Also raised the probe timeouts (`timeoutSeconds: 5`) and
+liveness `failureThreshold` to 6 so CPU contention cannot kill the pod during a
+slow answer.
+
+## [2026-11-01] change | trim Open WebUI prompt overhead
+
+The first chat sent ~5.5k prompt tokens for a 4-character message. The bulk was
+Open WebUI's optional built-ins (code interpreter, memory system context) and
+background title/tag/follow-up generations, all of which queue behind the main
+request because Ollama runs one slot. The Deployment now sets
+`ENABLE_CODE_INTERPRETER`, `ENABLE_MEMORIES`, `ENABLE_MEMORY_SYSTEM_CONTEXT`,
+`ENABLE_WEB_SEARCH`, `ENABLE_IMAGE_GENERATION`,
+`ENABLE_TITLE_GENERATION`, `ENABLE_TAGS_GENERATION`,
+`ENABLE_FOLLOW_UP_GENERATION` and `ENABLE_RETRIEVAL_QUERY_GENERATION` to
+`false`. This keeps a simple chat close to the raw message size; the model's
+own chat template remains.
+
 ## [2026-11-01] fix | Open WebUI routed through LiteLLM
 
 Open WebUI had persisted its first-run Ollama connection in its database, so

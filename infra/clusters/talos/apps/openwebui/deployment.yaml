@@ -43,13 +43,44 @@ spec:
             # bypass LiteLLM and Langfuse).
             - name: ENABLE_PERSISTENT_CONFIG
               value: "false"
+            # Disable Open WebUI's built-in agent tools (tasks, notes, skills,
+            # automations, calendar, knowledge, ...) for every model. Otherwise
+            # each request carries a large tools schema, and small local models
+            # echo a tool schema instead of answering (e.g. update_task's
+            # {id, status} object).
+            - name: DEFAULT_MODEL_PARAMS
+              value: '{"function_calling": "legacy"}'
+            - name: DEFAULT_MODEL_METADATA
+              value: '{"capabilities": {"builtin_tools": false}}'
             - name: ENABLE_OLLAMA_API
               value: "false"
             - name: OPENAI_API_BASE_URL
               value: http://litellm.litellm.svc.cluster.local:4000/v1
-            # LiteLLM has no master key; any bearer token works.
+            # LiteLLM's fixed master key (a LAN-only dummy, not a secret).
             - name: OPENAI_API_KEY
               value: sk-litellm
+            # Keep prompts small for CPU inference. These features inject
+            # instructions/tool schemas into every request and/or trigger extra
+            # background generations (title, tags, follow-ups), which queue
+            # behind the main request because Ollama runs one at a time.
+            - name: ENABLE_CODE_INTERPRETER
+              value: "false"
+            - name: ENABLE_MEMORIES
+              value: "false"
+            - name: ENABLE_MEMORY_SYSTEM_CONTEXT
+              value: "false"
+            - name: ENABLE_WEB_SEARCH
+              value: "false"
+            - name: ENABLE_IMAGE_GENERATION
+              value: "false"
+            - name: ENABLE_TITLE_GENERATION
+              value: "false"
+            - name: ENABLE_TAGS_GENERATION
+              value: "false"
+            - name: ENABLE_FOLLOW_UP_GENERATION
+              value: "false"
+            - name: ENABLE_RETRIEVAL_QUERY_GENERATION
+              value: "false"
             - name: WEBUI_URL
               value: https://chat.lan.otakeessen.com
             - name: WEBUI_SECRET_KEY
@@ -67,6 +98,7 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 15
+            timeoutSeconds: 5
           # First boot downloads/loads the embedding model; it can take a few
           # minutes on these nodes. Do not let liveness kill it mid-startup.
           startupProbe:
@@ -74,6 +106,7 @@ spec:
               path: /health
               port: http
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 30
           livenessProbe:
             httpGet:
@@ -81,6 +114,8 @@ spec:
               port: http
             initialDelaySeconds: 30
             periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             requests:
               cpu: 100m
