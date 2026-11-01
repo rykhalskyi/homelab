@@ -6,6 +6,7 @@ resources:
   - nextcloud
   - eurooffice
   - pullini
+  - personalpage
   - ragatool
   - forgejo
   - forgejo-runner

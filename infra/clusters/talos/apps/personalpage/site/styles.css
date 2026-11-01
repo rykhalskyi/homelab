@@ -1,0 +1,125 @@
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, Aptos, Roboto, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+
+  --rgb-background: 251, 250, 249;
+  --rgb-ink: 35, 28, 51;
+  --rgb-accent: 0, 116, 228;
+
+  --color-background: rgb(var(--rgb-background));
+  --color-text: rgb(var(--rgb-ink));
+  --color-text-subtle: rgba(var(--rgb-ink), 0.66);
+  --color-accent: rgb(var(--rgb-accent));
+  --color-red: rgb(var(--rgb-red));
+  --color-border: rgba(var(--rgb-ink), 0.15);
+
+  --content-width: 40rem;
+
+  --space-small: 0.5rem;
+  --space-medium: 1rem;
+  --space-neutral: 1.5rem;
+  --space-large: 2rem;
+  --space-x-large: 3rem;
+  --space-xx-large: 4.5rem;
+
+  --transition: 0.15s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --rgb-background: 27, 39, 51;
+    --rgb-ink: 236, 233, 230;
+    --rgb-accent: 80, 162, 255;
+    --rgb-red: 242, 32, 4;
+  }
+}
+
+html {
+  color-scheme: light dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: var(--space-xx-large) var(--space-large);
+
+  background-color: var(--color-background);
+  color: var(--color-text);
+
+  font-family: var(--font-family);
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 2 * var(--space-xx-large));
+  max-width: var(--content-width);
+  margin-inline: auto;
+  text-align: center;
+}
+
+.logo {
+  display: block;
+  width: clamp(153px, 38.25vw, 238px);
+  height: auto;
+  margin: 0 auto var(--space-x-large);
+}
+
+.headline {
+  margin: 0 0 var(--space-x-large);
+  font-size: clamp(2.25rem, 8vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: var(--color-accent);
+  text-wrap: balance;
+}
+
+.construction {
+  margin: var(--space-medium) 0 var(--space-x-large);
+  font-size: clamp(1.75rem, 6vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--color-red);
+  text-wrap: balance;
+}
+
+.intro {
+  margin: 0 0 var(--space-medium);
+  max-width: 34rem;
+  color: var(--color-text-subtle);
+  text-wrap: balance;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.15em;
+  transition: color var(--transition);
+}
+
+a:visited {
+  color: var(--color-accent);
+}
+
+@media (hover: hover) {
+  a:hover {
+    color: var(--color-text);
+  }
+}
+
+@media screen and (max-width: 40rem) {
+  body {
+    padding: var(--space-large) var(--space-neutral);
+    font-size: 17px;
+    word-wrap: break-word;
+  }
+
+  .page {
+    min-height: calc(100vh - 2 * var(--space-large));
+  }
+}
