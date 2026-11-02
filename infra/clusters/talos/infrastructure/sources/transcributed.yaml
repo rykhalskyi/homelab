@@ -1,10 +1,11 @@
 # Transcributed's Helm chart is published as an OCI artifact by the app repo's
-# "Lint and publish chart" workflow. 0.2.5 adds the web UI and drops the invalid
-# KEDA ScaledJob `cooldownPeriod` field.
+# "Lint and publish chart" workflow. 0.3.0 adds the frame extraction workflow;
+# 0.2.5 added the web UI and dropped the invalid KEDA ScaledJob
+# `cooldownPeriod` field.
 #
 # The chart's image tags default to `<appVersion>` while the published images are
-# tagged `v<appVersion>` / `sha-<commit>`; the HelmRelease pins all three tags
-# explicitly.
+# tagged `v<appVersion>` / `sha-<commit>`; the HelmRelease pins all four tags
+# explicitly; 0.3.0 adds the frame-worker tag to that set.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -14,4 +15,4 @@ spec:
   interval: 1h
   url: oci://ghcr.io/rykhalskyi/charts/transcributed
   ref:
-    tag: "0.2.6"
+    tag: "0.3.0"
