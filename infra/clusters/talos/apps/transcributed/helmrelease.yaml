@@ -45,7 +45,7 @@ spec:
   values:
     ui:
       image:
-        tag: sha-feed3f4e602d18f0082e562916759ac79f43312a@sha256:a6feacc53a02394d57e54cf19b33f51c8aff5a32b701f764ae8be8876608945c
+        tag: sha-ae55fd7cfbc155d219b451364df199f268e95a81@sha256:5fff2277a877d6e399ab4f1c04969062fac12184ddeccb72b7a5d990b82b3d92
       ingress:
         enabled: true
         className: traefik
@@ -59,14 +59,14 @@ spec:
                 pathType: Prefix
     api:
       image:
-        tag: sha-feed3f4e602d18f0082e562916759ac79f43312a@sha256:bcb76e45602ccbab391240012c646830bb08894151469f59cf365b2257ce13bb
+        tag: sha-ae55fd7cfbc155d219b451364df199f268e95a81@sha256:26c49f957cdcb87efdf689a1fda83a2507a7e9ed4c2d5663191d9e3306f6dacf
       # The UI proxies API traffic on the same host; enabling this too would
       # create two Ingress routers for transcributed.lan.otakeessen.com.
       ingress:
         enabled: false
     worker:
       image:
-        tag: sha-feed3f4e602d18f0082e562916759ac79f43312a@sha256:2728569924df5aa2fcf8befbc39f1556da6a0e1378e8339e67c3840442f024df
+        tag: sha-ae55fd7cfbc155d219b451364df199f268e95a81@sha256:1fa2d33488c368cc523598686122055e56933cbf26d955158bad48d593e697b0
       keda:
         maxReplicaCount: 3
       resources:
@@ -87,7 +87,7 @@ spec:
                     app.kubernetes.io/component: worker
     frameWorker:
       image:
-        tag: sha-feed3f4e602d18f0082e562916759ac79f43312a@sha256:c12d02ad02686592111b47e907c3881c43c00d26edca0a52b1d888cdcefd3ee0
+        tag: sha-ae55fd7cfbc155d219b451364df199f268e95a81@sha256:83aa66f487fa259ceead47c6c3ebf9f32b9a222836f32d76c2e434f7846c9e6e
     migrations:
       backoffLimit: 6
       activeDeadlineSeconds: 900
