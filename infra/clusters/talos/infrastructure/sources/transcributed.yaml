@@ -15,4 +15,4 @@ spec:
   interval: 1h
   url: oci://ghcr.io/rykhalskyi/charts/transcributed
   ref:
-    tag: "0.2.6"
+    tag: "0.3.0"
