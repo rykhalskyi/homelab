@@ -1,9 +1,10 @@
 # Transcributed web UI, control plane, and Faster-Whisper worker.
 #
-# The chart is published as an OCI artifact by the app repo. Chart 0.2.5 adds
-# the UI Deployment/Service/Ingress. Its images are tagged `v<version>` and
-# `sha-<commit>`, while the chart defaults to `<version>`, so all three tags are
-# pinned explicitly (the pin workflow maintains them) to avoid ImagePullBackOff.
+# The chart is published as an OCI artifact by the app repo. Chart 0.3.0 adds
+# the frame extraction workflow; 0.2.5 added the UI Deployment/Service/Ingress.
+# Its images are tagged `v<version>` and `sha-<commit>`, while the chart defaults
+# to `<version>`, so all four image tags are pinned explicitly (the pin workflow
+# maintains them) to avoid ImagePullBackOff.
 #
 # The UI is the only LAN ingress. It serves the SPA and proxies /api, /healthz
 # and /readyz to the API Service, so it uses a single origin and the API
@@ -84,6 +85,9 @@ spec:
                 labelSelector:
                   matchLabels:
                     app.kubernetes.io/component: worker
+    frameWorker:
+      image:
+        tag: sha-feed3f4e602d18f0082e562916759ac79f43312a@sha256:c12d02ad02686592111b47e907c3881c43c00d26edca0a52b1d888cdcefd3ee0
     migrations:
       backoffLimit: 6
       activeDeadlineSeconds: 900
