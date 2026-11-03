@@ -1,0 +1,17 @@
+# llama.cpp GGUF store.
+#
+# The models are downloaded from pinned Hugging Face commits by the
+# Deployment's initContainer, so this volume is disposable: a rebuild on a
+# fresh local-path PV re-pulls the files.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llamacpp-models
+  namespace: llamacpp
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi

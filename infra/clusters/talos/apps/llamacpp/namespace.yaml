@@ -1,0 +1,10 @@
+# llama.cpp on node-three: a second, independent CPU inference runtime next to
+# Ollama, used for manual A/B testing through LiteLLM.
+#
+# The server runs in router mode: one process serves all four presets and keeps
+# a single model resident (`--models-max 1`) so it fits next to Ollama on the
+# ~12 GB node.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llamacpp

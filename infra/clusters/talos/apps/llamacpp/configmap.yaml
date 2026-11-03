@@ -1,0 +1,46 @@
+# llama.cpp router presets.
+#
+# Section names are the model IDs advertised on /v1/models. LiteLLM and the
+# clients (Open WebUI, VS Code) use the same names, so `llama3.2-3b-cpp` here is
+# also the LiteLLM model_name and the VS Code model id.
+#
+# Keep the IDs free of `:` on purpose: llama.cpp canonicalizes the tag after
+# the last colon (for example `3b-cpp` becomes `3b-CPP`), which would make the
+# advertised ID differ from the LiteLLM alias.
+#
+# `c = 4096` matches Ollama's OLLAMA_CONTEXT_LENGTH so manual A/B tests use the
+# same window. `t = 6` uses the i5-9500's 6 cores, `np = 1` mirrors Ollama's
+# OLLAMA_NUM_PARALLEL=1, and `jinja = true` enables tool calling for the
+# models that support it.
+#
+# The files are downloaded by the Deployment's initContainer to /models. To
+# load one model at startup instead of lazily on first request, add
+# `load-on-startup = true` to that model's section. With `--models-max 1` it is
+# still unloaded when another model is requested.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llamacpp-presets
+  namespace: llamacpp
+data:
+  models.ini: |
+    version = 1
+
+    [*]
+    c = 4096
+    t = 6
+    np = 1
+    flash-attn = auto
+    jinja = true
+
+    [llama3.2-3b-cpp]
+    model = /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf
+
+    [qwen2.5-coder-3b-cpp]
+    model = /models/qwen2.5-coder-3b-instruct-q4_k_m.gguf
+
+    [gemma3-1b-cpp]
+    model = /models/gemma-3-1b-it-Q4_K_M.gguf
+
+    [qwen3.5-4b-cpp]
+    model = /models/Qwen3.5-4B-Q4_K_M.gguf

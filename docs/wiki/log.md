@@ -1,5 +1,19 @@
 # DevOps Wiki — Log
 
+## [2026-11-03] ingest | llama.cpp router on Talos
+
+Added [[llama.cpp router on Talos (LAN-only, node-three)]]. A second CPU
+inference runtime next to Ollama on `node-three`: one `llama-server` in native
+router mode (`--models-preset`, `--models-max 1`) serves four pinned Q4_K_M
+GGUFs downloaded from Hugging Face into a 20Gi `local-path` PVC. The preset
+section names (`llama3.2-3b-cpp`, `qwen2.5-coder-3b-cpp`, `gemma3-1b-cpp`,
+`qwen3.5-4b-cpp`) are the model IDs; LiteLLM exposes them beside the existing
+Ollama aliases through `llm.lan.otakeessen.com/v1`, so Open WebUI and a VS Code
+OpenAI-compatible add-in can switch runtimes manually. Both sides use a
+4096-token context (`OLLAMA_CONTEXT_LENGTH=4096` and `c = 4096`). The router
+keeps one model resident, so switching models pays a cold-load. No benchmark
+automation was added; the page documents usage, verification, and caveats.
+
 ## [2026-11-01] fix | Open WebUI routed through LiteLLM
 
 Open WebUI had persisted its first-run Ollama connection in its database, so

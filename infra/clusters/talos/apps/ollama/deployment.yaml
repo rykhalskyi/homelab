@@ -102,6 +102,10 @@ spec:
               value: "1"
             - name: OLLAMA_NUM_PARALLEL
               value: "1"
+            # Pinned so the manual A/B test against llama.cpp uses the same
+            # context window as the llamacpp router preset (c = 4096).
+            - name: OLLAMA_CONTEXT_LENGTH
+              value: "4096"
           volumeMounts:
             - name: models
               mountPath: /models

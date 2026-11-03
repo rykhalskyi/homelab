@@ -1,0 +1,142 @@
+# llama.cpp router on node-three (pinned; single replica, CPU-only).
+#
+# `llama-server` is started without `-m`, which enables router mode: it lists
+# every preset on /v1/models and starts a child llama-server on demand. With
+# `--models-max 1` only one child/model is resident, which keeps the ~12 GiB
+# node usable next to Ollama. Router-controlled flags (host, port) stay on the
+# router; per-model flags live in the llamacpp-presets ConfigMap.
+#
+# The initContainer downloads the four pinned Q4_K_M GGUFs from Hugging Face
+# into /models and skips files that are already present. First boot moves
+# ~7.7 GB, so the rollout deadline is raised. A missing file makes the router
+# list the preset but fail to load it; the initContainer prevents that.
+#
+# Bump homelab/llamacpp-preset-version when models.ini changes so Flux rolls the
+# pod (the router does not watch the mounted ConfigMap).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llamacpp
+  namespace: llamacpp
+  labels:
+    app: llamacpp
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  progressDeadlineSeconds: 1800
+  selector:
+    matchLabels:
+      app: llamacpp
+  template:
+    metadata:
+      labels:
+        app: llamacpp
+      annotations:
+        homelab/llamacpp-preset-version: "1"
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: node-three
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: download-models
+          image: curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            # The local-path volume is world-writable, but root avoids any
+            # surprise if the provisioner creates it with a different mode.
+            runAsUser: 0
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              set -eu
+              fetch() {
+                name="$1"
+                url="$2"
+                out="/models/$name"
+                if [ -s "$out" ]; then
+                  echo "model already present: $name"
+                  return 0
+                fi
+                echo "downloading: $name"
+                curl -fL --retry 5 --retry-delay 10 --connect-timeout 20 \
+                  -o "$out.part" "$url"
+                mv "$out.part" "$out"
+              }
+              fetch Llama-3.2-3B-Instruct-Q4_K_M.gguf \
+                https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/5ab33fa94d1d04e903623ae72c95d1696f09f9e8/Llama-3.2-3B-Instruct-Q4_K_M.gguf
+              fetch qwen2.5-coder-3b-instruct-q4_k_m.gguf \
+                https://huggingface.co/Qwen/Qwen2.5-Coder-3B-Instruct-GGUF/resolve/f74adce6aa16316c625447af059dbebe4983757c/qwen2.5-coder-3b-instruct-q4_k_m.gguf
+              fetch gemma-3-1b-it-Q4_K_M.gguf \
+                https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/f0b45be0aac41bd6a100a4b5734cad5f67255bfb/gemma-3-1b-it-Q4_K_M.gguf
+              fetch Qwen3.5-4B-Q4_K_M.gguf \
+                https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      containers:
+        - name: llama-server
+          image: ghcr.io/ggml-org/llama.cpp:server@sha256:10a38e6cc91760ab157f0a0a8546218d35f4a314432a70298abfa3d096829ad7
+          imagePullPolicy: IfNotPresent
+          args:
+            - --models-preset
+            - /config/models.ini
+            - --models-max
+            - "1"
+            - --host
+            - "0.0.0.0"
+            - --port
+            - "8080"
+            - --no-webui
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: presets
+              mountPath: /config
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: "1"
+              memory: 4Gi
+            limits:
+              cpu: 4800m
+              memory: 9Gi
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: llamacpp-models
+        - name: presets
+          configMap:
+            name: llamacpp-presets

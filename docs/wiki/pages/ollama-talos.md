@@ -13,6 +13,9 @@ browser chat UI and LiteLLM as a traced OpenAI-compatible proxy. All are served
 `*.lan.otakeessen.com` wildcard certificate. The Cloudflare tunnel 404s the
 whole `lan` sub-zone, so prompts and completions never leave the LAN.
 
+For a second CPU runtime on the same node, see
+[[llama.cpp router on Talos (LAN-only, node-three)]].
+
 ## Working setup
 
 | Piece | Value |
@@ -27,6 +30,7 @@ whole `lan` sub-zone, so prompts and completions never leave the LAN.
 | Models | `llama3.2:3b`, `qwen2.5-coder:3b`, `gemma3:1b`, `qwen3.5:4b` (~8–9 GB) |
 | Storage | 50Gi `local-path` PVC `ollama/ollama-models` -> `/models`; 5Gi `openwebui-data` |
 | Ollama resources | requests `1 CPU / 4Gi`; limits `4800m` (80% of 6 cores) / `9Gi` |
+| Context | `OLLAMA_CONTEXT_LENGTH=4096` (matches the llama.cpp router) |
 | Open WebUI resources | requests `100m / 256Mi`; limits `1 CPU / 1Gi` |
 | LiteLLM resources | requests `100m / 256Mi`; limits `1 CPU / 1Gi` |
 | TLS | `traefik/lan-wildcard-tls` served as Traefik's default certificate; no per-app Certificate |
@@ -172,8 +176,9 @@ allowlist middleware if LAN-wide access is too broad.
   request fails with `... gemma3:1b does not support tools`; use
   `llama3.2:3b` / `qwen2.5-coder:3b` for tool-enabled chats, or disable tools.
 - Long chats/tools can produce a large prompt (the first attempt sent 5.5k
-  tokens and Ollama truncated it to 2048). On CPU that is ~45 s of prompt
-  processing before the first token; a fresh chat is much faster.
+  tokens). `OLLAMA_CONTEXT_LENGTH=4096` pins the window, so larger prompts are
+  truncated. On CPU that is tens of seconds of prompt processing before the
+  first token; a fresh chat is much faster.
 - The first account registered becomes the admin. After creating it, disable
   signups (`ENABLE_SIGNUP=false` in the Deployment) so nobody else can register.
 - `WEBUI_SECRET_KEY` is read from the optional `openwebui-secrets` Secret

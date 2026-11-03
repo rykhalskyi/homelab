@@ -1,0 +1,19 @@
+# In-cluster OpenAI-compatible API for the llama.cpp router:
+#   http://llamacpp.llamacpp.svc.cluster.local:8080/v1
+#
+# Keep this ClusterIP-only. LiteLLM is the LAN entry point; llama.cpp has no
+# authentication of its own.
+apiVersion: v1
+kind: Service
+metadata:
+  name: llamacpp
+  namespace: llamacpp
+  labels:
+    app: llamacpp
+spec:
+  selector:
+    app: llamacpp
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

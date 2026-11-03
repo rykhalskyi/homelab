@@ -12,6 +12,9 @@
 #   kubectl -n litellm rollout restart deploy/litellm
 #
 # The image is pinned by tag + digest; bump both on upgrade.
+#
+# Bump homelab/litellm-config-version when config.yaml changes so Flux rolls the
+# pod and LiteLLM reloads the ConfigMap.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -30,6 +33,8 @@ spec:
     metadata:
       labels:
         app: litellm
+      annotations:
+        homelab/litellm-config-version: "2"
     spec:
       securityContext:
         seccompProfile:
