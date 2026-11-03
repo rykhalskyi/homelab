@@ -14,7 +14,8 @@ LiteLLM. The point is manual A/B testing in Open WebUI and a VS Code
 OpenAI-compatible add-in; there is no benchmark automation.
 
 The router loads one model at a time (`--models-max 1`) and unloads the previous
-one when a different model is requested. Both runtimes use a 4096-token context.
+one when a different model is requested. The llama.cpp preset pins a
+4096-token context; Ollama is unchanged.
 
 ## Working setup
 
@@ -32,9 +33,8 @@ one when a different model is requested. Both runtimes use a 4096-token context.
 | Residency | `--models-max 1`: one llama.cpp model loaded at a time |
 | Auth | none on llama.cpp; keep the Service ClusterIP-only |
 
-Ollama sets `OLLAMA_CONTEXT_LENGTH=4096` so the manual comparison uses the same
-window on both runtimes. Everything stays LAN-only: the Cloudflare tunnel 404s
-the whole `lan` sub-zone.
+The llama.cpp preset pins `c = 4096`; Ollama keeps its current default.
+Everything stays LAN-only: the Cloudflare tunnel 404s the whole `lan` sub-zone.
 
 ## Architecture
 
@@ -125,8 +125,8 @@ Notes for coding add-ins:
 
 - `qwen2.5-coder-3b-cpp` and `llama3.2-3b-cpp` support tool calling through
   llama.cpp's Jinja template; `gemma3-1b-cpp` does not.
-- The 4096-token context is shared with Ollama. Large editor context can still
-  be truncated; keep the add-in's context small on CPU.
+- The llama.cpp context is 4096; Ollama keeps its own default. Large editor
+  context can still be truncated; keep the add-in's context small on CPU.
 - `qwen3.5-4b-cpp` is the strongest of the four but also the slowest on CPU.
 
 ### OpenAI-compatible API

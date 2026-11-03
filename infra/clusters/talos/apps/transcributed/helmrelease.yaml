@@ -1,9 +1,10 @@
 # Transcributed web UI, control plane, and Faster-Whisper worker.
 #
-# The chart is published as an OCI artifact by the app repo. Chart 0.2.5 adds
-# the UI Deployment/Service/Ingress. Its images are tagged `v<version>` and
-# `sha-<commit>`, while the chart defaults to `<version>`, so all three tags are
-# pinned explicitly (the pin workflow maintains them) to avoid ImagePullBackOff.
+# The chart is published as an OCI artifact by the app repo. Chart 0.3.0 adds
+# the frame extraction workflow; 0.2.5 added the UI Deployment/Service/Ingress.
+# Its images are tagged `v<version>` and `sha-<commit>`, while the chart defaults
+# to `<version>`, so all four image tags are pinned explicitly (the pin workflow
+# maintains them) to avoid ImagePullBackOff.
 #
 # The UI is the only LAN ingress. It serves the SPA and proxies /api, /healthz
 # and /readyz to the API Service, so it uses a single origin and the API
@@ -44,7 +45,7 @@ spec:
   values:
     ui:
       image:
-        tag: sha-193d40e29863451615fe96397689aba0521c3bc0@sha256:7ef3681ea97f4bb24fbdd4c2373e01c78d294f6f99479c0593cc23ad9fc53ed3
+        tag: sha-ae55fd7cfbc155d219b451364df199f268e95a81@sha256:5fff2277a877d6e399ab4f1c04969062fac12184ddeccb72b7a5d990b82b3d92
       ingress:
         enabled: true
         className: traefik
@@ -58,14 +59,14 @@ spec:
                 pathType: Prefix
     api:
       image:
-        tag: sha-193d40e29863451615fe96397689aba0521c3bc0@sha256:a95fe1b866ce49e51b79d549a2faf1afd37026f256fcd81c1cf2e4e8f9523c64
+        tag: sha-ae55fd7cfbc155d219b451364df199f268e95a81@sha256:26c49f957cdcb87efdf689a1fda83a2507a7e9ed4c2d5663191d9e3306f6dacf
       # The UI proxies API traffic on the same host; enabling this too would
       # create two Ingress routers for transcributed.lan.otakeessen.com.
       ingress:
         enabled: false
     worker:
       image:
-        tag: sha-193d40e29863451615fe96397689aba0521c3bc0@sha256:65f60cb697cf8588417ca66c22c066876f8deb66ffeb19fd95b673e0ef5e4133
+        tag: sha-ae55fd7cfbc155d219b451364df199f268e95a81@sha256:1fa2d33488c368cc523598686122055e56933cbf26d955158bad48d593e697b0
       keda:
         maxReplicaCount: 3
       resources:
@@ -84,6 +85,9 @@ spec:
                 labelSelector:
                   matchLabels:
                     app.kubernetes.io/component: worker
+    frameWorker:
+      image:
+        tag: sha-ae55fd7cfbc155d219b451364df199f268e95a81@sha256:83aa66f487fa259ceead47c6c3ebf9f32b9a222836f32d76c2e434f7846c9e6e
     migrations:
       backoffLimit: 6
       activeDeadlineSeconds: 900

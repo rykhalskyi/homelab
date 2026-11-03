@@ -8,8 +8,8 @@
 # the last colon (for example `3b-cpp` becomes `3b-CPP`), which would make the
 # advertised ID differ from the LiteLLM alias.
 #
-# `c = 4096` matches Ollama's OLLAMA_CONTEXT_LENGTH so manual A/B tests use the
-# same window. `t = 6` uses the i5-9500's 6 cores, `np = 1` mirrors Ollama's
+# `c = 4096` is the llama.cpp context window; Ollama keeps its own default.
+# `t = 6` uses the i5-9500's 6 cores, `np = 1` mirrors Ollama's
 # OLLAMA_NUM_PARALLEL=1, and `jinja = true` enables tool calling for the
 # models that support it.
 #
