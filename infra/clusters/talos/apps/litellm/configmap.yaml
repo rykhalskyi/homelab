@@ -1,8 +1,8 @@
 # Model aliases presented to clients.
 #
-# The unprefixed names are backed by the LAN Ollama Service; the `-cpp` names
-# are backed by the node-three llama.cpp router. Both are OpenAI-compatible, so
-# Open WebUI and VS Code can switch between them for a manual A/B test.
+# Every model is backed by the node-three llama.cpp router. The router is
+# OpenAI-compatible, so Open WebUI and VS Code talk to it through LiteLLM and
+# every call is traced in Langfuse.
 #
 # `drop_params: true` lets OpenAI clients send parameters a backend does not
 # support without failing the request. `langfuse_otel` exports spans to
@@ -16,22 +16,6 @@ metadata:
 data:
   config.yaml: |
     model_list:
-      - model_name: llama3.2:3b
-        litellm_params:
-          model: ollama/llama3.2:3b
-          api_base: http://ollama.ollama.svc.cluster.local:11434
-      - model_name: qwen2.5-coder:3b
-        litellm_params:
-          model: ollama/qwen2.5-coder:3b
-          api_base: http://ollama.ollama.svc.cluster.local:11434
-      - model_name: gemma3:1b
-        litellm_params:
-          model: ollama/gemma3:1b
-          api_base: http://ollama.ollama.svc.cluster.local:11434
-      - model_name: qwen3.5:4b
-        litellm_params:
-          model: ollama/qwen3.5:4b
-          api_base: http://ollama.ollama.svc.cluster.local:11434
       # llama.cpp router on node-three (one model resident at a time). The
       # router advertises these exact preset names on /v1/models.
       - model_name: llama3.2-3b-cpp

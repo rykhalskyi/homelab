@@ -6,16 +6,16 @@ source_count: 0
 
 # llama.cpp router on Talos (LAN-only, node-three)
 
-**Status: manifests prepared 2026-11-03; not yet reconciled/verified.**
-A second CPU inference runtime on `node-three`, next to
-[[Ollama + Open WebUI on Talos (LAN-only, node-three)]]. It uses llama.cpp's
-native **router mode** so one Deployment serves all four models through
-LiteLLM. The point is manual A/B testing in Open WebUI and a VS Code
-OpenAI-compatible add-in; there is no benchmark automation.
+**Status: live and verified 2026-11-03. Ollama was removed on 2026-11-03, so
+llama.cpp is now the only CPU inference runtime.** It uses llama.cpp's native
+**router mode** so one Deployment serves all four models through LiteLLM.
+Open WebUI and a VS Code OpenAI-compatible add-in talk to it through
+`llm.lan.otakeessen.com/v1`. In a local A/B test it was about 10% faster than
+the Ollama setup it replaced; there is no benchmark automation.
 
 The router loads one model at a time (`--models-max 1`) and unloads the previous
 one when a different model is requested. The llama.cpp preset pins a
-4096-token context; Ollama is unchanged.
+4096-token context.
 
 ## Working setup
 
@@ -28,13 +28,13 @@ one when a different model is requested. The llama.cpp preset pins a
 | Node | `node-three` (`192.168.2.235`), i5-9500 (6 cores / 6 threads), ~12 GB RAM, no GPU |
 | Image | `ghcr.io/ggml-org/llama.cpp:server@sha256:10a38e6c…` (build `b12063`) |
 | Models | four Q4_K_M GGUFs, ~7.7 GB total, on a 20Gi `local-path` PVC |
-| Resources | requests `1 CPU / 4Gi`; limits `4800m` / `9Gi` (same as Ollama) |
+| Resources | requests `1 CPU / 4Gi`; limits `4800m` / `9Gi` |
 | Runtime flags | `c = 4096`, `t = 6`, `np = 1`, `flash-attn = auto`, `jinja = true` |
 | Residency | `--models-max 1`: one llama.cpp model loaded at a time |
 | Auth | none on llama.cpp; keep the Service ClusterIP-only |
 
-The llama.cpp preset pins `c = 4096`; Ollama keeps its current default.
-Everything stays LAN-only: the Cloudflare tunnel 404s the whole `lan` sub-zone.
+The llama.cpp preset pins `c = 4096`. Everything stays LAN-only: the Cloudflare
+tunnel 404s the whole `lan` sub-zone.
 
 ## Architecture
 
@@ -43,7 +43,6 @@ flowchart LR
   web["Open WebUI<br/>chat.lan.otakeessen.com"] -->|"LiteLLM Service"| llm["LiteLLM :4000"]
   vsc["VS Code add-in<br/>llm.lan.otakeessen.com/v1"] -->|"HTTPS /v1"| traefik["Traefik<br/>192.168.2.240:443"]
   traefik --> llm
-  llm -->|"ollama/<model>"| ollama["Ollama :11434"]
   llm -->|"openai/<model>-cpp"| router["llama.cpp router :8080"]
   router --> child["one child llama-server<br/>loaded on demand"]
   child --> models[("PVC llamacpp-models<br/>/models/*.gguf")]
@@ -58,9 +57,9 @@ so every call is also traced in Langfuse.
 ## Models and pinned sources
 
 The initContainer downloads these exact files into `/models`; the preset file
-references the same names. The IDs use hyphens instead of the Ollama-style
-colon because llama.cpp canonicalizes the tag after the last `:` in a preset
-name (`3b-cpp` would become `3b-CPP`), which would break the LiteLLM mapping.
+references the same names. The IDs use hyphens rather than a colon because
+llama.cpp canonicalizes the tag after the last `:` in a preset name (`3b-cpp`
+would become `3b-CPP`), which would break the LiteLLM mapping.
 
 | Model ID | Hugging Face repo / commit | File | Size |
 |---|---|---|---|
@@ -69,9 +68,8 @@ name (`3b-cpp` would become `3b-CPP`), which would break the LiteLLM mapping.
 | `gemma3-1b-cpp` | `unsloth/gemma-3-1b-it-GGUF` @ `f0b45be…` | `gemma-3-1b-it-Q4_K_M.gguf` | 0.81 GB |
 | `qwen3.5-4b-cpp` | `unsloth/Qwen3.5-4B-GGUF` @ `e87f176…` | `Qwen3.5-4B-Q4_K_M.gguf` | 2.74 GB |
 
-Full pinned URLs are in `llamacpp/deployment.yaml`. `llama3.2` and `gemma3`
-match the size of Ollama's blobs exactly; `qwen2.5-coder` and `qwen3.5` are
-Q4_K_M but not byte-identical to Ollama's artifacts.
+Full pinned URLs are in `llamacpp/deployment.yaml`. All four are Q4_K_M GGUF
+builds; the exact quant and file are pinned per model.
 
 `qwen3.5` and `gemma3` can take images, but vision needs an `mmproj` file in a
 per-model subdirectory. The initial setup is text-only; the text weights and
@@ -104,7 +102,6 @@ the file at start and does not watch the mounted ConfigMap. `POST
 
 Start a **new chat** and pick `llama3.2-3b-cpp` (or another `-cpp` model). The
 first request to a cold model loads it, so it takes longer than the next one.
-Switch to `llama3.2:3b` for the Ollama version.
 
 ### VS Code add-in
 
@@ -116,7 +113,7 @@ API key:  sk-litellm
 Model:    llama3.2-3b-cpp   (or qwen2.5-coder-3b-cpp / gemma3-1b-cpp / qwen3.5-4b-cpp)
 ```
 
-Use `llama3.2:3b` etc. for Ollama. The machine must resolve
+The machine must resolve
 `llm.lan.otakeessen.com` to `192.168.2.240` (Pi-hole) and trust the Let's
 Encrypt wildcard; use the VPN if you are off-LAN. Set a generous request
 timeout for the first cold start.
@@ -125,8 +122,8 @@ Notes for coding add-ins:
 
 - `qwen2.5-coder-3b-cpp` and `llama3.2-3b-cpp` support tool calling through
   llama.cpp's Jinja template; `gemma3-1b-cpp` does not.
-- The llama.cpp context is 4096; Ollama keeps its own default. Large editor
-  context can still be truncated; keep the add-in's context small on CPU.
+- The llama.cpp context is 4096. Large editor context can still be truncated;
+  keep the add-in's context small on CPU.
 - `qwen3.5-4b-cpp` is the strongest of the four but also the slowest on CPU.
 
 ### OpenAI-compatible API
@@ -152,7 +149,7 @@ kubectl -n llamacpp logs deploy/llamacpp -c llama-server
 # The router lists all four preset IDs.
 kubectl -n llamacpp run --rm curl -- -s http://llamacpp:8080/v1/models
 
-# LiteLLM lists both the Ollama and the -cpp models.
+# LiteLLM lists the four -cpp models.
 kubectl -n litellm run --rm curl -- -s \
   http://litellm:4000/v1/models -H 'Authorization: Bearer sk-litellm'
 ```
@@ -164,16 +161,14 @@ a different model and check that the previous child is stopped.
 ## Caveats
 
 - One llama.cpp model is resident at a time. Switching models pays a cold-start
-  load; everything else in the node (Ollama model store, Open WebUI, LiteLLM)
-  is unaffected.
-- Do not run a heavy Ollama generation and a llama.cpp generation at the same
-  time on this 6-core node; the CPU limit is shared and both will slow down.
+  load; Open WebUI and LiteLLM are unaffected.
+- A heavy generation saturates the 6-core node; concurrent generations share
+  the CPU limit and both slow down.
 - `--models-memory-margin` only helps device memory; host (CPU) memory is
   treated as unlimited. `--models-max 1` is what protects the ~12 GB node.
 - The router has no authentication. Keep `llamacpp` ClusterIP-only and never add
   it to `apps/cloudflared/configmap.yaml`.
 - `local-path` is node-bound and not backed up. Losing `node-three` means
   re-downloading the GGUFs (the initContainer does this automatically).
-- This setup is for manual comparison, not benchmarking. Model artifacts and
-  runtime defaults differ slightly between Ollama and llama.cpp, so treat
-  observed speed differences as indicative.
+- The ~10% speedup over the old Ollama setup was a manual, single-node
+  observation, not a controlled benchmark; treat it as indicative.

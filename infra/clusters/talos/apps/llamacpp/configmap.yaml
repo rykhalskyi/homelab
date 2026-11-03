@@ -8,10 +8,9 @@
 # the last colon (for example `3b-cpp` becomes `3b-CPP`), which would make the
 # advertised ID differ from the LiteLLM alias.
 #
-# `c = 4096` is the llama.cpp context window; Ollama keeps its own default.
-# `t = 6` uses the i5-9500's 6 cores, `np = 1` mirrors Ollama's
-# OLLAMA_NUM_PARALLEL=1, and `jinja = true` enables tool calling for the
-# models that support it.
+# `c = 4096` is the llama.cpp context window.
+# `t = 6` uses the i5-9500's 6 cores, `np = 1` keeps one request in flight, and
+# `jinja = true` enables tool calling for the models that support it.
 #
 # The files are downloaded by the Deployment's initContainer to /models. To
 # load one model at startup instead of lazily on first request, add
