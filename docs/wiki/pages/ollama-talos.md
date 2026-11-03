@@ -26,7 +26,7 @@ For a second CPU runtime on the same node, see
 | LiteLLM API (LAN) | `https://llm.lan.otakeessen.com` -> Traefik -> `litellm.litellm:4000` |
 | LiteLLM API (in cluster) | `http://litellm.litellm.svc.cluster.local:4000/v1` (OpenAI-compatible, traced) |
 | Node | `node-three` (`192.168.2.235`), i5-9500 (6 cores / 6 threads), ~12 GB RAM, no GPU |
-| Images | `ollama/ollama:0.40.13@sha256:b2f0122c…`, `ghcr.io/open-webui/open-webui:v0.12.5@sha256:03443b8d…`, `ghcr.io/berriai/litellm:v1.106.6@sha256:37e2dafb…` |
+| Images | `ollama/ollama:0.40.13@sha256:b2f0122c…`, `ghcr.io/open-webui/open-webui:v0.13.0@sha256:2272b0fb…`, `ghcr.io/berriai/litellm:v1.106.6@sha256:37e2dafb…` |
 | Models | `llama3.2:3b`, `qwen2.5-coder:3b`, `gemma3:1b`, `qwen3.5:4b` (~8–9 GB) |
 | Storage | 50Gi `local-path` PVC `ollama/ollama-models` -> `/models`; 5Gi `openwebui-data` |
 | Ollama resources | requests `1 CPU / 4Gi`; limits `4800m` (80% of 6 cores) / `9Gi` |

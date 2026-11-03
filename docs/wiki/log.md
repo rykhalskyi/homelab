@@ -1,5 +1,12 @@
 # DevOps Wiki — Log
 
+## [2026-11-03] update | Open WebUI v0.13.0
+
+Bumped the pinned Open WebUI image in
+[[Ollama on Talos (LAN-only, node-three)]] from `v0.12.5` to `v0.13.0`, updating
+both the tag and the digest (`sha256:2272b0fb…`). State stays on the
+`openwebui-data` PVC; the `Recreate` strategy means a short restart.
+
 ## [2026-11-03] ingest | llama.cpp router on Talos
 
 Added [[llama.cpp router on Talos (LAN-only, node-three)]]. A second CPU
