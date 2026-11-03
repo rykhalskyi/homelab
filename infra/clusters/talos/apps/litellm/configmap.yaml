@@ -1,6 +1,10 @@
-# Model aliases presented to clients, all backed by the LAN Ollama Service.
+# Model aliases presented to clients.
 #
-# `drop_params: true` lets OpenAI clients send parameters Ollama does not
+# The unprefixed names are backed by the LAN Ollama Service; the `-cpp` names
+# are backed by the node-three llama.cpp router. Both are OpenAI-compatible, so
+# Open WebUI and VS Code can switch between them for a manual A/B test.
+#
+# `drop_params: true` lets OpenAI clients send parameters a backend does not
 # support without failing the request. `langfuse_otel` exports spans to
 # Langfuse's OTLP endpoint; it does not depend on the Langfuse SDK and stays
 # quiet when the keys are absent.
@@ -28,6 +32,32 @@ data:
         litellm_params:
           model: ollama/qwen3.5:4b
           api_base: http://ollama.ollama.svc.cluster.local:11434
+      # llama.cpp router on node-three (one model resident at a time). The
+      # router advertises these exact preset names on /v1/models.
+      - model_name: llama3.2-3b-cpp
+        litellm_params:
+          model: openai/llama3.2-3b-cpp
+          api_base: http://llamacpp.llamacpp.svc.cluster.local:8080/v1
+          api_key: dummy
+          timeout: 600
+      - model_name: qwen2.5-coder-3b-cpp
+        litellm_params:
+          model: openai/qwen2.5-coder-3b-cpp
+          api_base: http://llamacpp.llamacpp.svc.cluster.local:8080/v1
+          api_key: dummy
+          timeout: 600
+      - model_name: gemma3-1b-cpp
+        litellm_params:
+          model: openai/gemma3-1b-cpp
+          api_base: http://llamacpp.llamacpp.svc.cluster.local:8080/v1
+          api_key: dummy
+          timeout: 600
+      - model_name: qwen3.5-4b-cpp
+        litellm_params:
+          model: openai/qwen3.5-4b-cpp
+          api_base: http://llamacpp.llamacpp.svc.cluster.local:8080/v1
+          api_key: dummy
+          timeout: 600
 
     litellm_settings:
       drop_params: true

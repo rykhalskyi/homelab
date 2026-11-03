@@ -13,6 +13,9 @@ browser chat UI and LiteLLM as a traced OpenAI-compatible proxy. All are served
 `*.lan.otakeessen.com` wildcard certificate. The Cloudflare tunnel 404s the
 whole `lan` sub-zone, so prompts and completions never leave the LAN.
 
+For a second CPU runtime on the same node, see
+[[llama.cpp router on Talos (LAN-only, node-three)]].
+
 ## Working setup
 
 | Piece | Value |
