@@ -1,0 +1,19 @@
+# Static site content is generated into the `personalpage-site` ConfigMap; the
+# hash suffix is what makes Flux roll the Deployment when a file changes. The
+# generator's explicit `namespace` is required for kustomize's nameReference to
+# rewrite the Deployment's volume reference (the resources pin their own
+# namespace, so the generator must match it).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+configMapGenerator:
+  - name: personalpage-site
+    namespace: personalpage
+    files:
+      - site/index.html
+      - site/styles.css
+      - site/logo.png
