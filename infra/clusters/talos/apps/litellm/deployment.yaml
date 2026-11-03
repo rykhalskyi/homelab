@@ -34,7 +34,7 @@ spec:
       labels:
         app: litellm
       annotations:
-        homelab/litellm-config-version: "2"
+        homelab/litellm-config-version: "3"
     spec:
       securityContext:
         seccompProfile:

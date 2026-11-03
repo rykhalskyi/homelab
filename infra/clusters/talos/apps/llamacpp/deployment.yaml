@@ -3,8 +3,8 @@
 # `llama-server` is started without `-m`, which enables router mode: it lists
 # every preset on /v1/models and starts a child llama-server on demand. With
 # `--models-max 1` only one child/model is resident, which keeps the ~12 GiB
-# node usable next to Ollama. Router-controlled flags (host, port) stay on the
-# router; per-model flags live in the llamacpp-presets ConfigMap.
+# node usable. Router-controlled flags (host, port) stay on the router;
+# per-model flags live in the llamacpp-presets ConfigMap.
 #
 # The initContainer downloads the four pinned Q4_K_M GGUFs from Hugging Face
 # into /models and skips files that are already present. First boot moves

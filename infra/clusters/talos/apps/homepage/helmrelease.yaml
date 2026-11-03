@@ -72,10 +72,6 @@ spec:
                 icon: nextcloud.png
                 href: https://cloud.otakeessen.com/
                 description: Files and collaboration
-            - Wiki:
-                icon: bookstack.png
-                href: https://wiki.otakeessen.com/
-                description: DevOps wiki
             - Forgejo:
                 icon: forgejo.png
                 href: https://git.otakeessen.com/
@@ -88,6 +84,15 @@ spec:
                 icon: navidrome.png
                 href: https://music.lan.otakeessen.com/
                 description: Music streaming
+            - Open WebUI:
+                icon: https://raw.githubusercontent.com/open-webui/open-webui/main/static/favicon.png
+                href: https://chat.lan.otakeessen.com/
+                description: Chat UI for the local llama.cpp models
+        - Own Applications:
+            - Pullini:
+                icon: bookstack.png
+                href: https://wiki.otakeessen.com/
+                description: DevOps wiki
             - Transcributed:
                 icon: https://raw.githubusercontent.com/rykhalskyi/transcributed/main/ui/public/icon-192.png
                 href: https://transcributed.lan.otakeessen.com/
@@ -96,20 +101,13 @@ spec:
                 icon: https://raw.githubusercontent.com/rykhalskyi/ragatool/main/frontend/src/assets/ragatouille_logo1_sm.png
                 href: https://ragatool.lan.otakeessen.com/
                 description: Local RAG knowledge base and MCP server
-            - Open WebUI:
-                icon: https://raw.githubusercontent.com/open-webui/open-webui/main/static/favicon.png
-                href: https://chat.lan.otakeessen.com/
-                description: Chat UI for the local Ollama models
-            - Ollama:
-                icon: https://ollama.com/public/ollama.png
-                href: https://ollama.lan.otakeessen.com/
-                description: Local LLM runtime API
       settingsString: |
         title: Homelab
         headerStyle: boxed
         layout:
           Infrastructure:
           Applications:
+          Own Applications:
     # Homepage returns 400 for any Host not listed here. Keep it to the LAN
     # hostname; add more (comma-separated) only if another ingress host is added.
     env:

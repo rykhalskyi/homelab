@@ -1,7 +1,7 @@
 # Open WebUI, served LAN-only at https://chat.lan.otakeessen.com.
 #
-# It talks to LiteLLM (not Ollama directly) over the in-cluster Service, so
-# every chat is traced in Langfuse. The direct Ollama connection is disabled.
+# It talks to LiteLLM over the in-cluster Service, so every chat is traced in
+# Langfuse. The direct Ollama connection is disabled (Ollama is not deployed).
 # The image is pinned by tag + digest; bump both on upgrade.
 #
 # First boot: register the first account (it becomes the admin), then disable
@@ -39,7 +39,7 @@ spec:
           env:
             # Open WebUI otherwise keeps the first-run connections in its DB
             # and ignores these env vars. Make the Deployment authoritative so
-            # the UI cannot fall back to calling Ollama directly (which would
+            # the UI cannot fall back to calling a runtime directly (which would
             # bypass LiteLLM and Langfuse).
             - name: ENABLE_PERSISTENT_CONFIG
               value: "false"
@@ -62,7 +62,7 @@ spec:
             # Keep prompts small for CPU inference. These features inject
             # instructions/tool schemas into every request and/or trigger extra
             # background generations (title, tags, follow-ups), which queue
-            # behind the main request because Ollama runs one at a time.
+            # behind the main request because llama.cpp runs one model at a time.
             - name: ENABLE_CODE_INTERPRETER
               value: "false"
             - name: ENABLE_MEMORIES

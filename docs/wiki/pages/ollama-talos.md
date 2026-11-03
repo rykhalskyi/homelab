@@ -1,20 +1,23 @@
 ---
-tags: [ollama, open-webui, llm, talos, kubernetes, flux, lan, node-three, traefik, deployment]
+tags: [ollama, removed, open-webui, llm, talos, kubernetes, flux, lan, node-three, traefik, deployment]
 date: 2026-11-01
 source_count: 0
 ---
 
 # Ollama + Open WebUI on Talos (LAN-only, node-three)
 
-**Status: live and verified 2026-11-01.**
-Ollama is a local LLM runtime pinned to `node-three`, with Open WebUI as a
-browser chat UI and LiteLLM as a traced OpenAI-compatible proxy. All are served
+> **Removed 2026-11-03.** Ollama, its namespace, model store, Service and
+> ingress were deleted from the cluster; the chat stack now runs on
+> [[llama.cpp router on Talos (LAN-only, node-three)]]. This page is kept as a
+> historical record of the old setup. Open WebUI and LiteLLM remain, but LiteLLM
+> now fronts llama.cpp only.
+
+**Status: removed 2026-11-03 (was live and verified 2026-11-01).**
+Ollama was a local LLM runtime pinned to `node-three`, with Open WebUI as a
+browser chat UI and LiteLLM as a traced OpenAI-compatible proxy. All were served
 **LAN-only** through Traefik on the `192.168.2.240` VIP using the existing
 `*.lan.otakeessen.com` wildcard certificate. The Cloudflare tunnel 404s the
-whole `lan` sub-zone, so prompts and completions never leave the LAN.
-
-For a second CPU runtime on the same node, see
-[[llama.cpp router on Talos (LAN-only, node-three)]].
+whole `lan` sub-zone, so prompts and completions never left the LAN.
 
 ## Working setup
 

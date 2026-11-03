@@ -1,5 +1,16 @@
 # DevOps Wiki — Log
 
+## [2026-11-03] update | remove Ollama, keep llama.cpp
+
+Deleted the `ollama` app (namespace, 50Gi model PVC, Deployment, Service and
+`ollama.lan.otakeessen.com` ingress) and dropped it from
+`apps/kustomization.yaml`. LiteLLM now fronts only the four `-cpp` models on
+[[llama.cpp router on Talos (LAN-only, node-three)]]; Open WebUI still chats
+through LiteLLM, so Langfuse tracing is unchanged. Homepage lost the Ollama
+tile and gained an "Own Applications" group for Pullini, Transcributed and
+Ragatool. [[Ollama + Open WebUI on Talos (LAN-only, node-three)]] is marked
+removed and kept as history.
+
 ## [2026-11-03] update | Open WebUI v0.13.0
 
 Bumped the pinned Open WebUI image in

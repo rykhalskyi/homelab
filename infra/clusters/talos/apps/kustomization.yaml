@@ -12,7 +12,6 @@ resources:
   - cloudflared
   - homepage
   - navidrome
-  - ollama
   - llamacpp
   - openwebui
   - litellm
