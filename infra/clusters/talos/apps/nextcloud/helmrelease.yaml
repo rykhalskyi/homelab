@@ -86,6 +86,12 @@ spec:
                             readOnly: true
                           - name: nas-nextcloud
                             mountPath: /nas
+                          # The chart mounts each extra config.php fragment
+                          # individually. Keep that mount when replacing the
+                          # list, otherwise configs never reach the container.
+                          - name: nextcloud-config
+                            mountPath: /var/www/html/config/booktailor-langfuse.config.php
+                            subPath: booktailor-langfuse.config.php
           - target:
               kind: CronJob
               name: nextcloud-cron
@@ -114,6 +120,9 @@ spec:
                                 mountPath: /var/www/tmp
                               - name: nas-nextcloud
                                 mountPath: /nas
+                              - name: nextcloud-config
+                                mountPath: /var/www/html/config/booktailor-langfuse.config.php
+                                subPath: booktailor-langfuse.config.php
   values:
     image:
       registry: ghcr.io
