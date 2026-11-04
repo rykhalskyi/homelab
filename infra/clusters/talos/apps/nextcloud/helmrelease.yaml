@@ -130,6 +130,17 @@ spec:
         - cloud.lan.otakeessen.com
         - nextcloud.nextcloud.svc.cluster.local
         - nextcloud
+      # Nextcloud's HTTP client refuses private addresses by default, which
+      # blocks BookTailor from reaching the in-cluster Langfuse service
+      # (http://langfuse-web.langfuse.svc.cluster.local:3000). Langfuse is
+      # LAN-only, and the URL is set by an administrator, so allow Nextcloud
+      # to reach local servers.
+      configs:
+        booktailor-langfuse.config.php: |-
+          <?php
+          $CONFIG = array (
+            'allow_local_remote_servers' => true,
+          );
       datadir: /var/www/html/data
       existingSecret:
         enabled: true
@@ -208,6 +219,12 @@ spec:
                 echo "$app: app:enable failed, will retry on next boot"
             fi
           done
+          # Text can leave an orphaned files_lock lock behind when an editor
+          # session ends ungracefully. The files_lock default keeps those locks
+          # forever, and BookTailor writes then fail with ManuallyLockedException.
+          # Expire abandoned locks after 24 hours.
+          php /var/www/html/occ config:app:set files_lock lock_timeout --value=1440 >/dev/null 2>&1 || \
+            echo "files_lock: could not set lock_timeout"
       extraInitContainers:
         # The database is a CloudNativePG Cluster, not a HelmRelease, so there is
         # no `dependsOn`. Wait for it before the entrypoint runs
