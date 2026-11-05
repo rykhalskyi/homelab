@@ -60,8 +60,8 @@ kubectl -n llamacpp scale deploy/llamacpp --replicas=1
 
 ## Access
 
-The VM is fully isolated by `networkpolicy.yaml` (deny all ingress/egress);
-the VNC console is the only channel:
+The VNC console is the only inbound channel; the guest has public internet
+access but cannot reach the LAN or the cluster:
 
 ```bash
 virtctl vnc omarchy -n vms
@@ -71,26 +71,25 @@ A USB tablet (`devices.inputs`) is attached so the guest receives absolute
 pointer coordinates; without it the default PS/2 mouse is relative and the VNC
 cursor drifts/offsets from the guest pointer.
 
-## Network isolation
+## Network policy (internet only)
 
 `networkpolicy.yaml` selects the launcher pod (`kubevirt.io/domain: omarchy`)
-and denies **all** ingress and egress. The guest cannot reach the LAN, other
-pods/services, the Kubernetes API, or the internet. VNC still works because
-`virtctl vnc` uses kubelet port-forward, not the pod network.
+and denies all ingress. Egress is limited to the public internet: `0.0.0.0/0`
+minus `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` and
+`100.64.0.0/10`, on TCP 80/443 and DNS. The guest cannot reach the LAN, other
+pods/services, or the Kubernetes API. Cluster DNS (`kube-dns` at `10.96.0.10`)
+is the one private exception, since the guest resolves through it. VNC still
+works because `virtctl vnc` uses kubelet port-forward, not the pod network.
 
-If the installer or updates need connectivity, temporarily lift it:
+To restore full isolation, remove the `egress` rules from the policy (an empty
+egress section denies everything). To allow LAN access temporarily, delete the
+policy and re-apply it after:
 
 ```bash
 kubectl -n vms delete networkpolicy omarchy-isolated
 # install / update
 kubectl apply -k infra/clusters/talos/apps/vms
 ```
-
-For "internet only" (block private ranges, allow public egress), replace the
-deny-all policy with an egress allow-list using `ipBlock` and `except` for
-`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` and
-`100.64.0.0/10`. Keep DNS in mind: the guest uses cluster DNS, so either allow
-that explicitly or point the guest at a public resolver.
 
 ## Notes / risks
 
