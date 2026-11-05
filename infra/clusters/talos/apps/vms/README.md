@@ -1,14 +1,18 @@
-# Windows 11 on KubeVirt (Talos cluster)
+# VMs on KubeVirt (Talos cluster)
 
 KubeVirt + CDI are installed from `infra/clusters/talos/infrastructure/` and the
-VM lives here. VMs are pinned to `node-three` (`kubernetes.io/hostname`), the
+VMs live here. VMs are pinned to `node-three` (`kubernetes.io/hostname`), the
 only node where VT-x, `/dev/kvm` and nested virt were validated.
+
+- `windows/` — Windows 11, persistent install (6 GiB, heavy).
+- `linux/` — Fedora Workstation live ISO, disposable desktop (4 GiB, light).
 
 ## Capacity
 
 `node-three` has 6 vCPU / 12 GiB and already runs `llamacpp`
-(requests: 1 CPU / 4 GiB). The Windows VM requests 4 CPU / 6 GiB, so the two do
-not fit together. Before starting Windows, free the node:
+(requests: 1 CPU / 4 GiB). The Linux live VM requests 2 CPU / 4 GiB and fits
+alongside it. The Windows VM requests 4 CPU / 6 GiB, so `llamacpp` must be
+scaled down before starting Windows:
 
 ```bash
 kubectl -n llamacpp scale deploy/llamacpp --replicas=0
@@ -65,6 +69,24 @@ kubectl -n vms port-forward vmi/win11 3389:3389
 # then RDP to localhost:3389
 ```
 
+## Fedora Workstation live (disposable)
+
+No disk, no install: the ISO boots straight to a GNOME desktop in RAM and
+resets on every reboot. Unlike Windows there is no driver step.
+
+```bash
+virtctl image-upload dv fedora-iso -n vms --size=8Gi \
+  --image-path=~/isos/Fedora-Workstation-Live-x86_64.iso \
+  --no-create --insecure
+
+kubectl -n vms get dv fedora-iso -w   # wait for Succeeded
+virtctl start fedora-live -n vms
+virtctl vnc fedora-live -n vms
+```
+
+To make it persistent, add a blank DataVolume, a `disk` (bus: virtio) and a
+matching volume, then install from the live session.
+
 ## Notes / risks
 
 - **Windows 11** needs UEFI + Secure Boot + vTPM; the manifest enables all
@@ -77,6 +99,5 @@ kubectl -n vms port-forward vmi/win11 3389:3389
   misbehaves, this is the first suspect.
 - `local-path` is RWO and node-local: no live migration, and the VM is tied to
   `node-three`.
-- A Linux GUI VM can be added later with the same pattern (cloud image +
-  `ubuntu-desktop`/`fedora-workstation` via cloud-init), but it shares the same
-  RAM/CPU budget as Windows.
+- The Fedora live VM is disposable by design. For a persistent Linux desktop,
+  add a disk and install from the live session (still no virtio driver step).

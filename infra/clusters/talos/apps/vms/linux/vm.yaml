@@ -1,0 +1,49 @@
+# Fedora Workstation live desktop, running from the ISO in RAM.
+#
+# There is no hard disk on purpose: this is a disposable live environment for
+# validating KubeVirt + VNC. Reboot and everything resets. To make it
+# persistent later, add a blank DataVolume, a `disk` entry (bus: virtio) and a
+# matching volume, then install from the live session.
+#
+# Linux has virtio-blk/virtio-net built in, so (unlike Windows) there is no
+# "Load driver" step. UEFI without Secure Boot is used for broad ISO support.
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: fedora-live
+  namespace: vms
+spec:
+  runStrategy: Halted
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: fedora-live
+    spec:
+      domain:
+        machine:
+          type: q35
+        firmware:
+          bootloader:
+            efi: {}
+        cpu:
+          cores: 2
+        resources:
+          requests:
+            cpu: "2"
+            memory: 4Gi
+        devices:
+          disks:
+            - name: iso
+              cdrom:
+                bus: sata
+              bootOrder: 1
+          interfaces:
+            - name: default
+              masquerade: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: iso
+          dataVolume:
+            name: fedora-iso

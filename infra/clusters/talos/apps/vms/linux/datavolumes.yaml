@@ -1,0 +1,25 @@
+# Fedora Workstation live ISO. `source.upload` keeps the volume waiting for
+# `virtctl image-upload`, so the ISO stays on the workstation and never enters
+# Git or the cluster until you upload it:
+#
+#   virtctl image-upload dv fedora-iso -n vms --size=8Gi \
+#     --image-path=~/isos/Fedora-Workstation-Live-x86_64.iso \
+#     --no-create --insecure
+#
+# 8 GiB covers Fedora (~2.5 GiB) and Ubuntu Desktop (~6 GiB).
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: fedora-iso
+  namespace: vms
+spec:
+  source:
+    upload: {}
+  contentType: iso
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: local-path
+    resources:
+      requests:
+        storage: 8Gi
