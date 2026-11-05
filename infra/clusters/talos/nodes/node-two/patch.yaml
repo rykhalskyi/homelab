@@ -33,3 +33,17 @@ $patch: delete
 apiVersion: v1alpha1
 kind: KubeProxyConfig
 enabled: false
+---
+# 4. Dedicated 256 GB SATA SSD (SanDisk SD8TB8U2) as a Talos user volume for
+#    Kubernetes local storage. Talos creates partition `u-ssd` and mounts it at
+#    /var/mnt/ssd (automatically propagated into kubelet).
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: ssd
+provisioning:
+  diskSelector:
+    match: disk.wwid == "naa.5001b448b4848c13"
+  minSize: 200GiB
+  grow: true
+filesystem:
+  type: xfs
