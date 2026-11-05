@@ -67,6 +67,10 @@ the VNC console is the only channel:
 virtctl vnc omarchy -n vms
 ```
 
+A USB tablet (`devices.inputs`) is attached so the guest receives absolute
+pointer coordinates; without it the default PS/2 mouse is relative and the VNC
+cursor drifts/offsets from the guest pointer.
+
 ## Network isolation
 
 `networkpolicy.yaml` selects the launcher pod (`kubevirt.io/domain: omarchy`)
@@ -97,5 +101,7 @@ that explicitly or point the guest at a public resolver.
   daily-driver desktop would want GPU passthrough or bare metal.
 - **Talos caveat**: KubeVirt's `virt-launcher` userland is RHEL-based; upstream
   warns about very new host kernels. Kernel here is `6.18.57-talos`.
-- `local-path` is RWO and node-local: no live migration; the VM is tied to
-  `node-three`.
+- `local-path` is RWO and node-local: no live migration; the VM is pinned to
+  `node-three`. Because of that, CDI's workload is pinned there too
+  (`infrastructure/cdi/cdi-cr.yaml`) — otherwise an uploaded/imported volume can
+  land on another node and the VM stays unschedulable.
