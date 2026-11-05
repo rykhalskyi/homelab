@@ -1,0 +1,32 @@
+# Hard network isolation for the Omarchy VM.
+#
+# Selects the virt-launcher pod (it inherits the VM template's
+# `kubevirt.io/domain: omarchy` label) and denies all ingress and egress on the
+# pod network. The guest cannot reach the LAN (192.168.2.0/24), other cluster
+# pods/services, the Kubernetes API, or the internet.
+#
+# `virtctl vnc omarchy -n vms` still works: it uses kubelet port-forward, which
+# does not traverse the pod network / CNI policy.
+#
+# If the Omarchy installer or updates need network access, temporarily remove
+# the policy, then re-apply it from Git:
+#
+#   kubectl -n vms delete networkpolicy omarchy-isolated
+#   ... install/update ...
+#   kubectl apply -k infra/clusters/talos/apps/vms
+#
+# For "internet only" (block private ranges but allow public egress), replace
+# this with an egress allow-list using ipBlock and `except` for 10.0.0.0/8,
+# 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16 and 100.64.0.0/10.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: omarchy-isolated
+  namespace: vms
+spec:
+  podSelector:
+    matchLabels:
+      kubevirt.io/domain: omarchy
+  policyTypes:
+    - Ingress
+    - Egress
