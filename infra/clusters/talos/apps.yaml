@@ -17,19 +17,19 @@ spec:
   # a halted VM keeps Ready=False ("VMI does not exist"), and the ISO
   # DataVolume stays UploadReady until someone uploads it. Treat those expected
   # states as healthy; only hard KubeVirt/CDI errors fail the check.
-  # `has()` guards are required: Flux evaluates these against freshly applied
-  # objects before their status is populated, and an unguarded field access
-  # makes CEL error out ("no such attribute"), which Flux treats as Unknown and
-  # then waits for the full timeout.
+  # CEL expressions are evaluated against the resource object itself, so fields
+  # are top-level: `status.phase`, not `self.status.phase`. Referencing a path
+  # that does not exist makes CEL error out, which Flux treats as Unknown and
+  # waits on until the timeout.
   healthCheckExprs:
     - apiVersion: cdi.kubevirt.io/v1beta1
       kind: DataVolume
-      current: "has(self.status.phase) && (self.status.phase == 'Succeeded' || self.status.phase == 'UploadReady')"
-      failed: "has(self.status.phase) && self.status.phase == 'Failed'"
+      current: "status.phase == 'Succeeded' || status.phase == 'UploadReady'"
+      failed: "status.phase == 'Failed'"
     - apiVersion: kubevirt.io/v1
       kind: VirtualMachine
-      current: "has(self.status.printableStatus) && self.status.printableStatus in ['Stopped', 'Provisioning', 'Starting', 'Running', 'Paused', 'Migrating']"
-      failed: "has(self.status.printableStatus) && self.status.printableStatus in ['ErrorUnschedulable', 'ErrorPvcNotFound', 'DataVolumeError', 'CrashLoopBackOff']"
+      current: "status.printableStatus in ['Stopped', 'Provisioning', 'Starting', 'Running', 'Paused', 'Migrating']"
+      failed: "status.printableStatus in ['ErrorUnschedulable', 'ErrorPvcNotFound', 'DataVolumeError', 'CrashLoopBackOff']"
   dependsOn:
     - name: infrastructure
   sourceRef:
