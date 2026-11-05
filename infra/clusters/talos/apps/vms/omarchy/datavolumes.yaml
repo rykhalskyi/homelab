@@ -1,0 +1,43 @@
+# Omarchy 4.5.0 x86 install ISO (6.1 GiB). `source.upload` keeps the volume
+# waiting for `virtctl image-upload`, so the ISO stays on the workstation and
+# never enters Git:
+#
+#   virtctl image-upload dv omarchy-iso -n vms --size=8Gi \
+#     --image-path=~/isos/omarchy-4.5.0-x86.iso \
+#     --no-create --insecure
+#
+# 8 GiB is large enough for the 6.1 GiB ISO.
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: omarchy-iso
+  namespace: vms
+spec:
+  source:
+    upload: {}
+  contentType: iso
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: local-path
+    resources:
+      requests:
+        storage: 8Gi
+---
+# Persistent Omarchy system disk. The installer defaults to full-disk
+# encryption; 60 GiB leaves room for the OS, packages and personal files.
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: omarchy-disk
+  namespace: vms
+spec:
+  source:
+    blank: {}
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: local-path
+    resources:
+      requests:
+        storage: 60Gi

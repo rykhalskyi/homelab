@@ -1,24 +1,20 @@
-# VMs on KubeVirt (Talos cluster)
+# Omarchy on KubeVirt (Talos cluster)
 
-KubeVirt + CDI are installed from `infra/clusters/talos/infrastructure/` and the
-VMs live here. VMs are pinned to `node-three` (`kubernetes.io/hostname`), the
-only node where VT-x, `/dev/kvm` and nested virt were validated.
-
-- `windows/` — Windows 11, persistent install (6 GiB, heavy).
-- `linux/` — Fedora Workstation live ISO, disposable desktop (4 GiB, light).
+KubeVirt + CDI live in `infra/clusters/talos/infrastructure/`; the Omarchy VM
+lives here. VMs are pinned to `node-three` (`kubernetes.io/hostname`), the only
+node where VT-x, `/dev/kvm` and nested virt were validated.
 
 ## Capacity
 
 `node-three` has 6 vCPU / 12 GiB and already runs `llamacpp`
-(requests: 1 CPU / 4 GiB). The Linux live VM requests 2 CPU / 4 GiB and fits
-alongside it. The Windows VM requests 4 CPU / 6 GiB, so `llamacpp` must be
-scaled down before starting Windows:
+(requests: 1 CPU / 4 GiB). The Omarchy VM requests 4 CPU / 6 GiB, so the two do
+not fit together. Before starting Omarchy, free the node:
 
 ```bash
 kubectl -n llamacpp scale deploy/llamacpp --replicas=0
 ```
 
-Restore it after the VM is stopped (or moved to `node-two`, which has 20 GiB):
+Restore it after the VM is stopped (or move `llamacpp` to `node-two`, 20 GiB):
 
 ```bash
 kubectl -n llamacpp scale deploy/llamacpp --replicas=1
@@ -26,78 +22,59 @@ kubectl -n llamacpp scale deploy/llamacpp --replicas=1
 
 ## Install flow
 
-1. Upload the Windows ISO from the workstation (never committed to Git):
+1. Download the ISO to the workstation (6.1 GiB):
+
+   <https://iso.omarchy.org/omarchy-4.5.0-x86.iso>
+
+   Verify the published SHA-256/signature from <https://omarchy.org/>.
+
+2. Upload it into `omarchy-iso` (never committed to Git):
 
    ```bash
-   virtctl image-upload dv win11-iso -n vms --size=10Gi \
-     --image-path=/path/to/Win11.iso --no-create --insecure
+   virtctl image-upload dv omarchy-iso -n vms --size=8Gi \
+     --image-path=~/isos/omarchy-4.5.0-x86.iso \
+     --no-create --insecure
+
+   kubectl -n vms get dv omarchy-iso -w   # wait for Succeeded
    ```
 
-   The virtio-win ISO imports automatically from the upstream URL.
+3. Start the VM and open the console:
 
    ```bash
-   kubectl -n vms get dv
-   # win11-iso and virtio-win-iso should reach Succeeded
+   virtctl start omarchy -n vms
+   kubectl -n vms get vmi -w
+   virtctl vnc omarchy -n vms
    ```
 
-2. Start the VM and open its console:
+4. In the Omarchy installer:
 
-   ```bash
-   virtctl start win11 -n vms
-   kubectl -n vms get vmi -w          # wait for Running
-   virtctl vnc win11 -n vms           # opens virt-viewer
-   ```
+   - Secure Boot and TPM are already off (UEFI with Secure Boot disabled, no
+     vTPM), as Omarchy requires.
+   - Select the 60 GiB `harddrive` for a full-disk install.
+   - The installer defaults to full-disk encryption; set a passphrase.
+   - Arch has virtio drivers in-kernel, so the disk is detected normally.
 
-3. In Windows Setup, the disk is invisible until the virtio driver is loaded:
-   **Load driver** -> browse the virtio-win CD -> `viostor\w11\amd64` (or
-   `vioscsi\w11\amd64`). The disk then appears and Setup can continue.
-
-4. After first boot, run `virtio-win-guest-tools.exe` from the virtio-win CD to
-   install the network, balloon and guest-agent drivers.
-
-5. Make the disk boot first: set `bootOrder: 1` on `harddrive` in `vm.yaml`
-   (and remove/stop using the ISO disk), then commit and let Flux reconcile, or
-   edit the VM in-cluster for now.
+5. After installation, boot from the disk: set `bootOrder: 1` on `harddrive`
+   and drop the ISO's boot order in `omarchy/vm.yaml` (commit and let Flux
+   apply), or edit it in-cluster with `kubectl -n vms edit vm omarchy`.
 
 ## Access
 
-The VM is on the pod network behind masquerade (NAT). Do not expose RDP
-publicly. For ad-hoc access, port-forward the VMI:
+Masquerade networking (NAT) on the pod network; nothing is reachable inbound
+unless you add a Service/port-forward. Console:
 
 ```bash
-kubectl -n vms port-forward vmi/win11 3389:3389
-# then RDP to localhost:3389
+virtctl vnc omarchy -n vms
 ```
-
-## Fedora Workstation live (disposable)
-
-No disk, no install: the ISO boots straight to a GNOME desktop in RAM and
-resets on every reboot. Unlike Windows there is no driver step.
-
-```bash
-virtctl image-upload dv fedora-iso -n vms --size=8Gi \
-  --image-path=~/isos/Fedora-Workstation-Live-x86_64.iso \
-  --no-create --insecure
-
-kubectl -n vms get dv fedora-iso -w   # wait for Succeeded
-virtctl start fedora-live -n vms
-virtctl vnc fedora-live -n vms
-```
-
-To make it persistent, add a blank DataVolume, a `disk` (bus: virtio) and a
-matching volume, then install from the live session.
 
 ## Notes / risks
 
-- **Windows 11** needs UEFI + Secure Boot + vTPM; the manifest enables all
-  three. TPM state is not persistent until the `VMPersistentState` feature gate
-  and a `vmStateStorageClass` are enabled (needed for BitLocker).
-- **Windows 10** is lighter: remove `devices.tpm`, replace the EFI bootloader
-  with a BIOS one, and it will fit more comfortably in 6 GiB.
+- Omarchy explicitly requires Secure Boot and TPM **off**; this manifest uses
+  UEFI with `secureBoot: false` and no TPM device.
+- **Hyprland needs GL.** This VM has no GPU passthrough, so expect software
+  rendering (llvmpipe) and a sluggish VNC desktop. The installer is fine; a
+  daily-driver desktop would want GPU passthrough or bare metal.
 - **Talos caveat**: KubeVirt's `virt-launcher` userland is RHEL-based; upstream
-  warns about very new host kernels. Kernel here is `6.18.57-talos`. If the VM
-  misbehaves, this is the first suspect.
-- `local-path` is RWO and node-local: no live migration, and the VM is tied to
+  warns about very new host kernels. Kernel here is `6.18.57-talos`.
+- `local-path` is RWO and node-local: no live migration; the VM is tied to
   `node-three`.
-- The Fedora live VM is disposable by design. For a persistent Linux desktop,
-  add a disk and install from the live session (still no virtio driver step).
