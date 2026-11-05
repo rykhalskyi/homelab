@@ -35,7 +35,13 @@ spec:
       repository: docker.io/rancher/local-path-provisioner
       tag: v0.0.37
     # Data lives under /var (writable) instead of the default /opt (read-only).
+    # node-two has a dedicated 256 GB SATA SSD mounted at /var/mnt/ssd by Talos
+    # (UserVolumeConfig u-ssd), so new PVCs scheduled there use it instead of
+    # the NVMe EPHEMERAL partition.
     nodePathMap:
+      - node: node-two
+        paths:
+          - /var/mnt/ssd/local-path-provisioner
       - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
         paths:
           - /var/local-path-provisioner
