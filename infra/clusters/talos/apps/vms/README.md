@@ -60,12 +60,33 @@ kubectl -n llamacpp scale deploy/llamacpp --replicas=1
 
 ## Access
 
-Masquerade networking (NAT) on the pod network; nothing is reachable inbound
-unless you add a Service/port-forward. Console:
+The VM is fully isolated by `networkpolicy.yaml` (deny all ingress/egress);
+the VNC console is the only channel:
 
 ```bash
 virtctl vnc omarchy -n vms
 ```
+
+## Network isolation
+
+`networkpolicy.yaml` selects the launcher pod (`kubevirt.io/domain: omarchy`)
+and denies **all** ingress and egress. The guest cannot reach the LAN, other
+pods/services, the Kubernetes API, or the internet. VNC still works because
+`virtctl vnc` uses kubelet port-forward, not the pod network.
+
+If the installer or updates need connectivity, temporarily lift it:
+
+```bash
+kubectl -n vms delete networkpolicy omarchy-isolated
+# install / update
+kubectl apply -k infra/clusters/talos/apps/vms
+```
+
+For "internet only" (block private ranges, allow public egress), replace the
+deny-all policy with an egress allow-list using `ipBlock` and `except` for
+`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` and
+`100.64.0.0/10`. Keep DNS in mind: the guest uses cluster DNS, so either allow
+that explicitly or point the guest at a public resolver.
 
 ## Notes / risks
 
