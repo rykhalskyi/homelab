@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - datavolumes.yaml
   - vm.yaml
+  - networkpolicy.yaml
