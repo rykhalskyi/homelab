@@ -1,0 +1,64 @@
+# Windows 11 on KubeVirt.
+#
+# Starts Halted on purpose: upload the install ISO first, then start it with
+# `virtctl start win11 -n vms`. Windows 11 requires UEFI + Secure Boot + a
+# vTPM, hence the firmware/tpm settings below (a Windows 10 guest can drop
+# those and use machine type q35 with a BIOS bootloader).
+#
+# The hard disk and the NIC are virtio; Windows Setup needs the drivers from
+# the virtio-win ISO (`Load driver` -> viostor\w11\amd64), and the NIC driver
+# is installed afterwards by virtio-win-guest-tools.exe.
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: win11
+  namespace: vms
+spec:
+  runStrategy: Halted
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: win11
+    spec:
+      domain:
+        machine:
+          type: q35
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: true
+        devices:
+          tpm: {}
+          disks:
+            - name: harddrive
+              disk:
+                bus: virtio
+            - name: winiso
+              cdrom:
+                bus: sata
+              bootOrder: 1
+            - name: virtio-win
+              cdrom:
+                bus: sata
+          interfaces:
+            - name: default
+              masquerade: {}
+        cpu:
+          cores: 4
+        resources:
+          requests:
+            cpu: "4"
+            memory: 6Gi
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: harddrive
+          dataVolume:
+            name: win11-disk
+        - name: winiso
+          dataVolume:
+            name: win11-iso
+        - name: virtio-win
+          dataVolume:
+            name: virtio-win-iso

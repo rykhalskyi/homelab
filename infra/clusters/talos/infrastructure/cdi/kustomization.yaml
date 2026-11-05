@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# operator.yaml is the upstream CDI v1.66.1 release manifest, vendored verbatim
+# (it contains the `cdi` Namespace, CRDs, RBAC and the operator Deployment).
+resources:
+  - operator.yaml
+  - cdi-cr.yaml

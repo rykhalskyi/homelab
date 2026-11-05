@@ -30,3 +30,7 @@ resources:
   - cnpg
   - metrics-server
   - keda
+  # VM stack: KubeVirt (virt-handler/launcher) + CDI (DataVolume imports).
+  # Pinned to node-three, which is the only node with KVM validated.
+  - kubevirt
+  - cdi

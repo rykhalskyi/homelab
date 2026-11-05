@@ -1,0 +1,22 @@
+# KubeVirt instance. The operator (operator.yaml, pinned to the upstream
+# v1.9.1 release) installs virt-api, virt-controller, virt-handler and the
+# virt-launcher plumbing.
+#
+# `workloads.nodePlacement` restricts virt-handler (and therefore the VMs) to
+# node-three, the only node where VT-x + /dev/kvm were validated. Without it,
+# virt-handler would land on every node and a VM could be scheduled somewhere
+# it cannot run.
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+spec:
+  certificateRotateStrategy: {}
+  configuration: {}
+  customizeComponents: {}
+  imagePullPolicy: IfNotPresent
+  workloads:
+    nodePlacement:
+      nodeSelector:
+        kubernetes.io/hostname: node-three
