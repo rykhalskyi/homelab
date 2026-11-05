@@ -1,0 +1,60 @@
+# Omarchy 4.5 on KubeVirt (Arch + Hyprland/Quickshell).
+#
+# Starts Halted: upload the ISO first, then `virtctl start omarchy -n vms`.
+#
+# Omarchy requires Secure Boot and TPM to be OFF. The VM therefore uses UEFI
+# with Secure Boot disabled (`efi: {}`, which defaults to secureBoot: false)
+# and has no vTPM device. TPM is not needed for the Omarchy installer.
+#
+# The disk and NIC are virtio; Arch's kernel has virtio-blk/virtio-net built
+# in, so the installer sees the disk with no driver step.
+#
+# First boot: ISO boots (bootOrder 1) and the full-disk installer targets
+# `harddrive`. After install, swap the boot order so the disk is first.
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: omarchy
+  namespace: vms
+spec:
+  runStrategy: Halted
+  template:
+    metadata:
+      labels:
+        kubevirt.io/domain: omarchy
+    spec:
+      domain:
+        machine:
+          type: q35
+        firmware:
+          bootloader:
+            efi: {}
+        cpu:
+          cores: 4
+        resources:
+          requests:
+            cpu: "4"
+            memory: 6Gi
+        devices:
+          disks:
+            - name: harddrive
+              disk:
+                bus: virtio
+              bootOrder: 2
+            - name: iso
+              cdrom:
+                bus: sata
+              bootOrder: 1
+          interfaces:
+            - name: default
+              masquerade: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: harddrive
+          dataVolume:
+            name: omarchy-disk
+        - name: iso
+          dataVolume:
+            name: omarchy-iso

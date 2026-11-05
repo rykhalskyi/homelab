@@ -1,0 +1,8 @@
+# CDI (Containerized Data Importer) instance. CDI imports ISO/disk images into
+# PVCs from an HTTP(S) URL or an upload, and provides the DataVolume CRD used by
+# the VM manifests under apps/vms.
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: CDI
+metadata:
+  name: cdi
+spec: {}

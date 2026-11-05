@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# operator.yaml is the upstream KubeVirt v1.9.1 release manifest, vendored
+# verbatim (it contains the `kubevirt` Namespace, CRDs, RBAC and the operator
+# Deployment). kubevirt-cr.yaml is the local instance configuration.
+resources:
+  - operator.yaml
+  - kubevirt-cr.yaml
