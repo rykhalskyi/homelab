@@ -35,8 +35,11 @@ spec:
       annotations:
         homelab/llamacpp-preset-version: "1"
     spec:
+      # node-two has the RAM to run alongside the Omarchy VM (which must stay on
+      # node-three for KVM). The model PVC is re-provisioned here by local-path
+      # and the init container re-downloads the GGUF files.
       nodeSelector:
-        kubernetes.io/hostname: node-three
+        kubernetes.io/hostname: node-two
       securityContext:
         seccompProfile:
           type: RuntimeDefault
