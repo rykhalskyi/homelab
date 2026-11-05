@@ -10,8 +10,10 @@
 # The disk and NIC are virtio; Arch's kernel has virtio-blk/virtio-net built
 # in, so the installer sees the disk with no driver step.
 #
-# First boot: ISO boots (bootOrder 1) and the full-disk installer targets
-# `harddrive`. After install, swap the boot order so the disk is first.
+# The install is done: the disk boots first and the ISO stays attached only as
+# a fallback. A USB tablet is attached for absolute pointer positioning, which
+# keeps the VNC cursor aligned with the guest (the default PS/2 mouse is
+# relative and drifts/offsets in virt-viewer).
 apiVersion: kubevirt.io/v1
 kind: VirtualMachine
 metadata:
@@ -24,6 +26,8 @@ spec:
       labels:
         kubevirt.io/domain: omarchy
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: node-three
       domain:
         machine:
           type: q35
@@ -42,11 +46,14 @@ spec:
             - name: harddrive
               disk:
                 bus: virtio
-              bootOrder: 2
+              bootOrder: 1
             - name: iso
               cdrom:
                 bus: sata
-              bootOrder: 1
+          inputs:
+            - name: tablet
+              type: tablet
+              bus: usb
           interfaces:
             - name: default
               masquerade: {}

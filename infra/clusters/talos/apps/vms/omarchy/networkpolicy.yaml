@@ -1,23 +1,21 @@
-# Hard network isolation for the Omarchy VM.
+# Network policy for the Omarchy VM: internet only.
 #
 # Selects the virt-launcher pod (it inherits the VM template's
-# `kubevirt.io/domain: omarchy` label) and denies all ingress and egress on the
-# pod network. The guest cannot reach the LAN (192.168.2.0/24), other cluster
-# pods/services, the Kubernetes API, or the internet.
+# `kubevirt.io/domain: omarchy` label). Ingress is denied entirely; egress is
+# limited to the public internet, with every private/overlay range excluded, so
+# the guest cannot reach the LAN (192.168.2.0/24), other pods/services, or the
+# Kubernetes API. Cluster DNS is the one exception: the guest resolves through
+# kube-dns (10.96.0.10), so port 53 is allowed to it.
 #
 # `virtctl vnc omarchy -n vms` still works: it uses kubelet port-forward, which
 # does not traverse the pod network / CNI policy.
 #
-# If the Omarchy installer or updates need network access, temporarily remove
-# the policy, then re-apply it from Git:
+# To restore full isolation, remove the `egress` rules below (empty egress
+# denies everything). To allow LAN access temporarily, delete this policy:
 #
 #   kubectl -n vms delete networkpolicy omarchy-isolated
 #   ... install/update ...
 #   kubectl apply -k infra/clusters/talos/apps/vms
-#
-# For "internet only" (block private ranges but allow public egress), replace
-# this with an egress allow-list using ipBlock and `except` for 10.0.0.0/8,
-# 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16 and 100.64.0.0/10.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -30,3 +28,40 @@ spec:
   policyTypes:
     - Ingress
     - Egress
+  ingress: []
+  egress:
+    # Public internet: 0.0.0.0/0 minus all private/overlay ranges.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Cluster DNS only. The ipBlock covers pre-DNAT enforcement, the pod
+    # selector covers post-DNAT (backend CoreDNS pods).
+    - to:
+        - ipBlock:
+            cidr: 10.96.0.10/32
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

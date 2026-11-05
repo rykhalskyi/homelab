@@ -5,4 +5,10 @@ apiVersion: cdi.kubevirt.io/v1beta1
 kind: CDI
 metadata:
   name: cdi
-spec: {}
+spec:
+  # VMs only run on node-three (the only node with KVM) and local-path volumes
+  # are node-local. Pin CDI's import/upload/clone pods there too, otherwise a
+  # DataVolume can be provisioned on another node and the VM never schedules.
+  workload:
+    nodeSelector:
+      kubernetes.io/hostname: node-three
