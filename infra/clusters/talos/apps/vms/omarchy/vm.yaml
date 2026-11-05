@@ -3,8 +3,9 @@
 # Starts Halted: upload the ISO first, then `virtctl start omarchy -n vms`.
 #
 # Omarchy requires Secure Boot and TPM to be OFF. The VM therefore uses UEFI
-# with Secure Boot disabled (`efi: {}`, which defaults to secureBoot: false)
-# and has no vTPM device. TPM is not needed for the Omarchy installer.
+# with Secure Boot explicitly disabled (`secureBoot: false`; an empty `efi: {}`
+# is interpreted as Secure Boot on, which also demands SMM) and has no vTPM
+# device. TPM is not needed for the Omarchy installer.
 #
 # The disk and NIC are virtio; Arch's kernel has virtio-blk/virtio-net built
 # in, so the installer sees the disk with no driver step.
@@ -28,7 +29,8 @@ spec:
           type: q35
         firmware:
           bootloader:
-            efi: {}
+            efi:
+              secureBoot: false
         cpu:
           cores: 4
         resources:
