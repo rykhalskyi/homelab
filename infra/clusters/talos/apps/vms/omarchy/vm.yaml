@@ -1,6 +1,9 @@
 # Omarchy 4.5 on KubeVirt (Arch + Hyprland/Quickshell).
 #
-# Starts Halted: upload the ISO first, then `virtctl start omarchy -n vms`.
+# Run state is Manual: upload the ISO first, then `virtctl start omarchy -n vms`.
+# Do not use Halted here — Flux reconciles this file every 10m, so a `virtctl
+# start` (which flips the VM to Always) is reverted to Halted and the running
+# VM is shut down mid-session. Manual leaves start/stop to virtctl.
 #
 # Omarchy requires Secure Boot and TPM to be OFF. The VM therefore uses UEFI
 # with Secure Boot explicitly disabled (`secureBoot: false`; an empty `efi: {}`
@@ -20,7 +23,7 @@ metadata:
   name: omarchy
   namespace: vms
 spec:
-  runStrategy: Halted
+  runStrategy: Manual
   template:
     metadata:
       labels:
