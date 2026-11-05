@@ -48,12 +48,12 @@ embed the cluster secrets plus node-specific network/hostname):
 nodes/
 ├── node-two/               # 192.168.2.234
 │   ├── controlplane.yaml   # generated; gitignored (static IP, hostname, install disk)
-│   └── patch.yaml          # committed: static network + CNI switch + CP taint removal
+│   └── patch.yaml          # committed: static network + CNI switch + CP taint removal + SSD user volume
 ├── node-one/               # 192.168.2.233
 │   ├── controlplane.yaml   # generated; gitignored
 │   └── patch.yaml          # committed (interface = enp1s0 on this box)
 └── node-three/             # 192.168.2.235
-    └── patch.yaml          # committed (interface = enp1s0, disk /dev/sda)
+    └── patch.yaml          # committed (interface = enp2s0, disk /dev/nvme0n1)
 ```
 
 `node-two` is a control plane, so there is no `worker.yaml` here — generate one
