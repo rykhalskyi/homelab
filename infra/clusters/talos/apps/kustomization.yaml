@@ -11,6 +11,7 @@ resources:
   - forgejo-runner
   - cloudflared
   - homepage
+  - personalpage
   - navidrome
   - llamacpp
   - openwebui

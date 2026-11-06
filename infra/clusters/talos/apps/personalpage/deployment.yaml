@@ -1,0 +1,82 @@
+# Personal site, LAN-only at https://jaro.lan.otakeessen.com.
+#
+# The site image is built by the personalpage repo's Forgejo Actions workflow
+# and pushed to GHCR. The repo also pushes :latest for the first deploy; pin
+# the digest here after the first successful build:
+#
+#   image: ghcr.io/rykhalskyi/personalpage:sha-<commit>@sha256:<digest>
+#   imagePullPolicy: IfNotPresent
+#
+# The GHCR package is private. Create `ghcr-auth` in the personalpage namespace
+# out of band (SOPS or kubectl); see secret.example.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: personalpage
+  namespace: personalpage
+  labels:
+    app: personalpage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: personalpage
+  template:
+    metadata:
+      labels:
+        app: personalpage
+    spec:
+      imagePullSecrets:
+        - name: ghcr-auth
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: ghcr.io/rykhalskyi/personalpage:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+          volumeMounts:
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
