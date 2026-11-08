@@ -127,7 +127,7 @@ spec:
     image:
       registry: ghcr.io
       repository: rykhalskyi/homelab-nextcloud
-      tag: "sha-b1a14610ff81a726cc7f49a3046eb5c528ec74ed@sha256:e9aa23ffae0f5edf302bbd6533414f1dc549a6cbf4f5578980ae307a81abb3e1"
+      tag: "sha-a19c53c114f905e194a6ac92f01bd38764c612c9@sha256:d06d2477d232836c0a835f245a7bf3054ddd63e94a01835b8000255feba8835f"
     replicaCount: 1
     nextcloud:
       # Canonical public hostname (k8s is inactive; talos is now the only
