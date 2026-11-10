@@ -25,7 +25,7 @@ one when a different model is requested. The llama.cpp preset pins a
 | llama.cpp LAN entry | through LiteLLM only: `https://llm.lan.otakeessen.com/v1` |
 | LiteLLM key | `sk-litellm` (LAN-only dummy, not a security boundary) |
 | Model IDs | `llama3.2-3b-cpp`, `qwen2.5-coder-3b-cpp`, `gemma3-1b-cpp`, `qwen3.5-4b-cpp` |
-| Node | `node-three` (`192.168.2.235`), i5-9500 (6 cores / 6 threads), ~12 GB RAM, no GPU |
+| Node | `node-three` (`192.168.2.235`), i5-9500 (6 cores / 6 threads), ~24 GB RAM, no GPU |
 | Image | `ghcr.io/ggml-org/llama.cpp:server@sha256:10a38e6c…` (build `b12063`) |
 | Models | four Q4_K_M GGUFs, ~7.7 GB total, on a 20Gi `local-path` PVC |
 | Resources | requests `1 CPU / 4Gi`; limits `4800m` / `9Gi` |
@@ -160,12 +160,15 @@ a different model and check that the previous child is stopped.
 
 ## Caveats
 
+- It shares `node-three` with the Omarchy VM (requests: 4 CPU / 6 GiB). With
+  llama.cpp's 1 CPU / 4 GiB request the node's 6 vCPU / ~24 GiB holds both, so
+  neither needs to be scaled down.
 - One llama.cpp model is resident at a time. Switching models pays a cold-start
   load; Open WebUI and LiteLLM are unaffected.
 - A heavy generation saturates the 6-core node; concurrent generations share
   the CPU limit and both slow down.
 - `--models-memory-margin` only helps device memory; host (CPU) memory is
-  treated as unlimited. `--models-max 1` is what protects the ~12 GB node.
+  treated as unlimited. `--models-max 1` is what protects the ~24 GB node.
 - The router has no authentication. Keep `llamacpp` ClusterIP-only and never add
   it to `apps/cloudflared/configmap.yaml`.
 - `local-path` is node-bound and not backed up. Losing `node-three` means

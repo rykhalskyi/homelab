@@ -2,7 +2,7 @@
 #
 # `llama-server` is started without `-m`, which enables router mode: it lists
 # every preset on /v1/models and starts a child llama-server on demand. With
-# `--models-max 1` only one child/model is resident, which keeps the ~12 GiB
+# `--models-max 1` only one child/model is resident, which keeps the ~24 GiB
 # node usable. Router-controlled flags (host, port) stay on the router;
 # per-model flags live in the llamacpp-presets ConfigMap.
 #
@@ -35,11 +35,13 @@ spec:
       annotations:
         homelab/llamacpp-preset-version: "1"
     spec:
-      # node-two has the RAM to run alongside the Omarchy VM (which must stay on
-      # node-three for KVM). The model PVC is re-provisioned here by local-path
-      # and the init container re-downloads the GGUF files.
+      # node-three has the most RAM (~24 GiB) and is the only node with KVM, so
+      # llama.cpp and the Omarchy VM share it: 1 CPU / 4Gi for llama.cpp plus
+      # 4 CPU / 6Gi for the VM fits within 6 vCPU / ~24 GiB. The model PVC is
+      # re-provisioned here by local-path and the init container re-downloads
+      # the GGUF files.
       nodeSelector:
-        kubernetes.io/hostname: node-two
+        kubernetes.io/hostname: node-three
       securityContext:
         seccompProfile:
           type: RuntimeDefault
