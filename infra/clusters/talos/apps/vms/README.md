@@ -6,9 +6,12 @@ node where VT-x, `/dev/kvm` and nested virt were validated.
 
 ## Capacity
 
-`node-three` has 6 vCPU / ~24 GiB and runs `llamacpp` (requests: 1 CPU / 4 GiB)
-alongside the Omarchy VM (requests: 4 CPU / 6 GiB). That is 5 of 6 vCPU and 10
-of ~24 GiB requested, so no scaling down is needed.
+`node-three` has 6 vCPU / ~24 GiB allocatable (~5950m CPU) and runs `llamacpp`
+(requests: 1 CPU / 4 GiB) alongside the Omarchy VM. The VM has 4 vCPUs but
+requests only 2 CPU / 6 GiB and sets a 4-CPU limit. The node's other workloads
+request ~2.5 CPU, so total requests are ~5.5 of 5950m, leaving ~455m headroom.
+CPU is shared when both are busy; the VM can use up to 4 CPU when llama.cpp is
+idle.
 
 ## Install flow
 

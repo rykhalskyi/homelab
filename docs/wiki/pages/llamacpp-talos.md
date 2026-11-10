@@ -160,9 +160,10 @@ a different model and check that the previous child is stopped.
 
 ## Caveats
 
-- It shares `node-three` with the Omarchy VM (requests: 4 CPU / 6 GiB). With
-  llama.cpp's 1 CPU / 4 GiB request the node's 6 vCPU / ~24 GiB holds both, so
-  neither needs to be scaled down.
+- It shares `node-three` with the Omarchy VM. The VM has 4 vCPUs but requests
+  2 CPU / 6 GiB with a 4-CPU limit; llama.cpp requests 1 CPU / 4 GiB. That fits
+  within the node's ~5950m CPU / ~24 GiB, leaving ~455m CPU headroom. CPU is
+  shared when both are busy, but they are rarely used at the same time.
 - One llama.cpp model is resident at a time. Switching models pays a cold-start
   load; Open WebUI and LiteLLM are unaffected.
 - A heavy generation saturates the 6-core node; concurrent generations share
