@@ -6,19 +6,9 @@ node where VT-x, `/dev/kvm` and nested virt were validated.
 
 ## Capacity
 
-`node-three` has 6 vCPU / 12 GiB and already runs `llamacpp`
-(requests: 1 CPU / 4 GiB). The Omarchy VM requests 4 CPU / 6 GiB, so the two do
-not fit together. Before starting Omarchy, free the node:
-
-```bash
-kubectl -n llamacpp scale deploy/llamacpp --replicas=0
-```
-
-Restore it after the VM is stopped (or move `llamacpp` to `node-two`, 20 GiB):
-
-```bash
-kubectl -n llamacpp scale deploy/llamacpp --replicas=1
-```
+`node-three` has 6 vCPU / ~24 GiB and runs `llamacpp` (requests: 1 CPU / 4 GiB)
+alongside the Omarchy VM (requests: 4 CPU / 6 GiB). That is 5 of 6 vCPU and 10
+of ~24 GiB requested, so no scaling down is needed.
 
 ## Install flow
 

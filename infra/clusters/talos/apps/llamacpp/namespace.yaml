@@ -1,7 +1,7 @@
 # llama.cpp on node-three: the CPU inference runtime behind LiteLLM.
 #
 # The server runs in router mode: one process serves all four presets and keeps
-# a single model resident (`--models-max 1`) so it fits on the ~12 GB node.
+# a single model resident (`--models-max 1`) so it fits on the ~24 GB node.
 apiVersion: v1
 kind: Namespace
 metadata:
