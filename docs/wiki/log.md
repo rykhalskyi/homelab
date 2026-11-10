@@ -8,6 +8,20 @@ from `node-two` back to `node-three` and co-resides with the Omarchy VM: 1 CPU /
 4 GiB + 4 CPU / 6 GiB fits within 6 vCPU / ~24 GiB. Updated the Node row and
 capacity caveat. The `local-path` PVC is node-bound, so the move re-provisions
 `llamacpp-models` and the initContainer re-downloads the GGUFs.
+## [2026-11-10] change | upgrade Talos to v1.14.5
+
+Rolled the three control planes from Talos `v1.14.4` to `v1.14.5`
+(`node-three`, `node-one`, `node-two` last) with the empty-schematic installer
+image. Kernel 6.18.57 → 6.18.58 and etcd 3.7.2 → 3.7.3; **Kubernetes stays
+v1.37.1**, so no `upgrade-k8s` was needed. Used `--drain=false`: the singleton
+CloudNativePG clusters have `minAvailable: 1` PDBs with zero allowed
+disruptions, so a default drain would time out before rebooting. The node
+shutdowns left a handful of `Failed` pods behind; cleaned them with
+`kubectl delete pods -A --field-selector status.phase=Failed`. Persisted the new
+installer image in `UnattendedInstallConfig.installer.image` on all three nodes
+(the upgrade does not do that) and bumped the committed pin in
+`nodes/node-three/patch.yaml`. Recorded the runbook in
+[[Talos CLI: common commands (dashboard, status, shutdown)]].
 
 ## [2026-11-03] update | remove Ollama, keep llama.cpp
 
