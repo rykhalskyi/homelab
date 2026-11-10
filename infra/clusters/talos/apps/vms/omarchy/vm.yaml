@@ -40,10 +40,16 @@ spec:
               secureBoot: false
         cpu:
           cores: 4
+        # node-three has 5950m of allocatable CPU and llama.cpp already requests
+        # 1 CPU, so the VM's original 4-CPU request made it unschedulable.
+        # Request 2 CPU but keep 4 vCPUs and cap the guest at 4 CPU: it gets a
+        # fair cgroup share when llama.cpp is busy and can use more when idle.
         resources:
           requests:
-            cpu: "4"
+            cpu: "2"
             memory: 6Gi
+          limits:
+            cpu: "4"
         devices:
           disks:
             - name: harddrive

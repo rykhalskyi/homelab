@@ -1,13 +1,23 @@
 # DevOps Wiki — Log
 
+## [2026-11-10] fix | lower Omarchy CPU request, keep 4-CPU limit
+
+The Omarchy VM was `ErrorUnschedulable` on `node-three`: its 4-CPU request plus
+the node's existing ~3.5 CPU of requests exceeded the 5950m allocatable. Kept 4
+vCPUs but lowered the scheduling request to 2 CPU and set a 4-CPU limit (the
+virt-launcher previously had no CPU limit), so it fits alongside
+[[llama.cpp router on Talos (LAN-only, node-three)]] with ~455m headroom. Also
+corrected the earlier note: the node-bound `local-path` PVC does not
+re-provision automatically; it was recreated by hand.
 ## [2026-11-10] update | move llama.cpp back to node-three
 
 `node-three` now has ~24 GiB RAM (the most in the cluster), so
 [[llama.cpp router on Talos (LAN-only, node-three)]] moves its `nodeSelector`
-from `node-two` back to `node-three` and co-resides with the Omarchy VM: 1 CPU /
-4 GiB + 4 CPU / 6 GiB fits within 6 vCPU / ~24 GiB. Updated the Node row and
-capacity caveat. The `local-path` PVC is node-bound, so the move re-provisions
-`llamacpp-models` and the initContainer re-downloads the GGUFs.
+from `node-two` back to `node-three` and co-resides with the Omarchy VM. The
+move was based on RAM (1 CPU / 4 GiB + 4 CPU / 6 GiB within ~24 GiB); the CPU
+requests did not actually fit, see the fix above. Updated the Node row and
+capacity caveat. The `local-path` PVC is node-bound, so `llamacpp-models` had
+to be recreated by hand; the initContainer re-downloaded the GGUFs.
 ## [2026-11-10] change | upgrade Talos to v1.14.5
 
 Rolled the three control planes from Talos `v1.14.4` to `v1.14.5`
