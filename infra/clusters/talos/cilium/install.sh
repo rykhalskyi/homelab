@@ -7,7 +7,7 @@
 # apps are live (no cert rotation, no partial-rotation outage).
 #
 #   ./install.sh
-#   CILIUM_VERSION=1.20.3 ./install.sh
+#   CILIUM_VERSION=1.20.4 ./install.sh
 #   CTX=talos ./install.sh
 #
 # Adding nodes needs none of this: Cilium is cluster-wide, so the cilium
@@ -15,7 +15,7 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-CILIUM_VERSION="${CILIUM_VERSION:-1.20.2}"
+CILIUM_VERSION="${CILIUM_VERSION:-1.20.4}"
 CTX="${CTX:-talos}"
 
 helm repo add cilium https://helm.cilium.io/ >/dev/null 2>&1 || true
