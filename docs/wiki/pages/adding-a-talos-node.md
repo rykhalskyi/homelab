@@ -40,7 +40,7 @@ contains cluster secrets.
 apiVersion: v1alpha1
 kind: UnattendedInstallConfig
 installer:
-  image: factory.talos.dev/metal-installer/<schematic>:v1.14.4
+  image: factory.talos.dev/metal-installer/<schematic>:v1.14.5
 provisioning:
   diskSelector:
     match: disk.dev_path == "/dev/<disk>"

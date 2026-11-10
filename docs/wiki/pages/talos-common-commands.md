@@ -105,10 +105,42 @@ talosctl patch mc --patch @some-patch.yaml  # apply a patch
 
 ```bash
 talosctl reset                   # WIPE the node (disks/OS) -> reinstall needed
-talosctl upgrade --image <installer-image>   # upgrade the Talos OS
 ```
 
-Both are irreversible/risky — confirm the target node with `--nodes` first.
+`talosctl reset` is irreversible; confirm the target node with `--nodes` first.
+
+## Upgrading Talos OS (rolling, one node at a time)
+
+A Talos OS upgrade does **not** upgrade Kubernetes. Check the target release's
+default Kubernetes version first; if it matches the running cluster, there is
+nothing to do. Kubernetes is bumped separately with
+`talosctl upgrade-k8s --to <version>`.
+
+Install a `talosctl` matching the target version, then pass the release's
+installer image explicitly. These nodes have **no system extensions**, so they
+use the empty Image Factory schematic:
+
+```bash
+IMG=factory.talos.dev/metal-installer/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:v1.14.5
+talosctl upgrade -n <node-ip> --image "$IMG" --drain=false --wait
+```
+
+> **Use `--drain=false` here.** The six CloudNativePG clusters are
+> single-instance with `minAvailable: 1` PDBs (`ALLOWED DISRUPTIONS 0`), so the
+> default drain waits out `--drain-timeout` (5m) and aborts before rebooting.
+> Pods restart when the node returns; the kubelet may leave old pods in
+> `Failed` state — clean them with
+> `kubectl delete pods -A --field-selector status.phase=Failed`.
+
+Upgrade one control plane at a time (2/3 etcd quorum) and verify between
+nodes: `talosctl -n <node-ip> version`, `talosctl etcd status`,
+`talosctl health`, `kubectl get nodes`, and the CNPG clusters. Order used for
+these three control planes: `node-three`, `node-one`, then `node-two` last (the
+API endpoint, most workloads, and the SSD-backed `local-path` volumes).
+
+The upgrade does **not** persist the new installer image, so bump
+`UnattendedInstallConfig.installer.image` afterwards (and the committed pin in
+`infra/clusters/talos/nodes/node-three/patch.yaml` for future installs).
 
 ## Handy one-liners
 

@@ -1,8 +1,8 @@
 # node-three machine patch, applied when generating this node's config:
 #   --config-patch @nodes/node-three/patch.yaml
 #
-# 0. Pin the installer to the cluster's Talos version (the local talosctl is
-#    v1.14.2 while the cluster runs v1.14.4) and set the node name explicitly.
+# 0. Pin the installer to the cluster's Talos version (local talosctl and the
+#    cluster both run v1.14.5) and set the node name explicitly.
 # 1. Allow workloads on this control plane: delete the
 #    node-role.kubernetes.io/control-plane:NoSchedule taint.
 # 2. Static network on 192.168.2.235. NIC confirmed as enp2s0 in maintenance
@@ -13,7 +13,7 @@
 apiVersion: v1alpha1
 kind: UnattendedInstallConfig
 installer:
-  image: factory.talos.dev/metal-installer/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:v1.14.4
+  image: factory.talos.dev/metal-installer/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:v1.14.5
 provisioning:
   diskSelector:
     match: disk.dev_path == "/dev/nvme0n1"
