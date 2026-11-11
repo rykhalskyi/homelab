@@ -34,7 +34,7 @@ spec:
       labels:
         app: litellm
       annotations:
-        homelab/litellm-config-version: "3"
+        homelab/litellm-config-version: "4"
     spec:
       securityContext:
         seccompProfile:
@@ -68,6 +68,12 @@ spec:
                   optional: true
             - name: LANGFUSE_HOST
               value: http://langfuse-web.langfuse.svc.cluster.local:3000
+            # DeepSeek cloud model (model_list entry `deepseek-chat`).
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-deepseek
+                  key: api-key
           volumeMounts:
             - name: config
               mountPath: /app/config

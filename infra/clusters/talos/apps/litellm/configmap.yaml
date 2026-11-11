@@ -42,6 +42,24 @@ data:
           api_base: http://llamacpp.llamacpp.svc.cluster.local:8080/v1
           api_key: dummy
           timeout: 600
+      # DeepSeek cloud model for n8n Assistant/Agents, whose prompts are far
+      # larger than the 4096-token local llama.cpp windows. The API key comes
+      # from the out-of-band `litellm-deepseek` Secret (DEEPSEEK_API_KEY).
+      - model_name: deepseek-chat
+        litellm_params:
+          model: deepseek/deepseek-chat
+          api_key: os.environ/DEEPSEEK_API_KEY
+          timeout: 600
+
+    # The local llama.cpp models have a 4096-token window. n8n Assistant sends
+    # much larger prompts (~34k tokens), so route context-overflow requests to
+    # DeepSeek instead of failing.
+    router_settings:
+      context_window_fallbacks:
+        - llama3.2-3b-cpp: ["deepseek-chat"]
+        - qwen2.5-coder-3b-cpp: ["deepseek-chat"]
+        - gemma3-1b-cpp: ["deepseek-chat"]
+        - qwen3.5-4b-cpp: ["deepseek-chat"]
 
     litellm_settings:
       drop_params: true
