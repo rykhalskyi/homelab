@@ -1,0 +1,14 @@
+# Dedicated namespace for the n8n sandbox data plane.
+#
+# The in-cluster runner is a privileged Docker-in-Docker StatefulSet (Sysbox
+# cannot run on Talos' immutable rootfs), so this namespace is explicitly
+# privileged. Keep it separate from the n8n namespace so a runner escape does
+# not share a security boundary with the n8n Deployment.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: n8n-sandbox
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
