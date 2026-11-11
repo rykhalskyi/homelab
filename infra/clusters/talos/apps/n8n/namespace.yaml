@@ -1,0 +1,8 @@
+# n8n workflow automation, LAN-only at https://n8n.lan.otakeessen.com.
+#
+# Self-contained namespace: the Deployment, its Postgres Cluster, the data PVC
+# and the ingress all live here (same layout as navidrome/openwebui).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: n8n

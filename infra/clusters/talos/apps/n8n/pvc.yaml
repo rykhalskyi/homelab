@@ -1,0 +1,15 @@
+# n8n state that is not in Postgres: the config file, binary data (uploaded
+# files) and any local cache. local-path is RWO, so the Deployment uses the
+# Recreate strategy.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-data
+  namespace: n8n
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
