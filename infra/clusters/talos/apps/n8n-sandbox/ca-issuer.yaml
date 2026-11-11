@@ -1,0 +1,41 @@
+# Internal CA for the sandbox's mTLS links (API <-> runner, API <-> n8n).
+# These certificates only need to be valid inside the cluster, so a
+# cert-manager self-signed CA is used instead of Let's Encrypt.
+#
+# The chart's tls.mode=certManager issues the four workload Certificates from
+# the `n8n-sandbox-ca` Issuer below.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: n8n-sandbox-selfsigned
+  namespace: n8n-sandbox
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: n8n-sandbox-ca
+  namespace: n8n-sandbox
+spec:
+  secretName: n8n-sandbox-ca
+  commonName: n8n-sandbox-ca
+  isCA: true
+  duration: 87600h # 10y
+  renewBefore: 8760h # 1y
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: n8n-sandbox-selfsigned
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: n8n-sandbox-ca
+  namespace: n8n-sandbox
+spec:
+  ca:
+    secretName: n8n-sandbox-ca

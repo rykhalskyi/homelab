@@ -13,6 +13,7 @@ resources:
   - homepage
   - navidrome
   - n8n
+  - n8n-sandbox
   - llamacpp
   - openwebui
   - litellm

@@ -1,0 +1,19 @@
+# n8n Sandbox Service publishes its Helm chart inside the Git repo under
+# `charts/n8n-sandbox-service`, not on a Helm index. Flux consumes the chart
+# directly from a pinned tag, same pattern as local-path-provisioner.
+#
+# The tag also pins the API, runner and sandbox images together (chart
+# appVersion == the service release); bumping it upgrades all three.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: n8n-sandbox-service
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://github.com/n8n-io/n8n-sandbox-service
+  ref:
+    tag: service/v1.15.0
+  ignore: |
+    /*
+    !/charts

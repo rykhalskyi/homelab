@@ -81,6 +81,22 @@ spec:
               value: "true"
             - name: N8N_DIAGNOSTICS_ENABLED
               value: "false"
+            # Shared code sandbox for Assistant and Agents (apps/n8n-sandbox).
+            # n8n authenticates with one of the keys in the sandbox API's
+            # `api-keys` Secret entry.
+            - name: N8N_INSTANCE_AI_SANDBOX_ENABLED
+              value: "true"
+            - name: N8N_INSTANCE_AI_SANDBOX_PROVIDER
+              value: n8n-sandbox
+            - name: N8N_SANDBOX_SERVICE_URL
+              value: http://sandbox-api.n8n-sandbox.svc.cluster.local:8080
+            - name: N8N_SANDBOX_SERVICE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-sandbox-auth
+                  key: api-keys
+            - name: N8N_AGENTS_AI_SANDBOX_ENABLED
+              value: "true"
             - name: GENERIC_TIMEZONE
               value: Europe/Berlin
             - name: TZ

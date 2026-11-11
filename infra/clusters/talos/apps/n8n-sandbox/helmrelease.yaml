@@ -1,0 +1,87 @@
+# n8n Sandbox Service: the API + privileged Docker-in-Docker runner used by
+# n8n Assistant and Agents to execute generated code.
+#
+# Talos uses an immutable rootfs and does not allow Sysbox, so the chart runs
+# the privileged isolation. The runner is pinned to node-two to keep it off
+# node-three, which hosts llama.cpp and the Omarchy VM.
+#
+# n8n reaches the API in-cluster at:
+#   http://sandbox-api.n8n-sandbox.svc.cluster.local:8080
+#
+# Auth comes from the out-of-band SOPS Secret `n8n-sandbox-auth`; TLS is issued
+# by the cert-manager CA in ca-issuer.yaml.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: n8n-sandbox
+  namespace: n8n-sandbox
+spec:
+  interval: 1h
+  timeout: 10m
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  chart:
+    spec:
+      chart: ./charts/n8n-sandbox-service
+      sourceRef:
+        kind: GitRepository
+        name: n8n-sandbox-service
+        namespace: flux-system
+  values:
+    # Stable short names: sandbox-api and sandbox-privileged-runner, which are
+    # also the DNS SANs in the chart-issued certificates.
+    fullnameOverride: sandbox
+
+    dataPlane:
+      mode: in-cluster
+
+    auth:
+      existingSecret: n8n-sandbox-auth
+
+    tls:
+      mode: certManager
+      certManager:
+        issuerRef:
+          name: n8n-sandbox-ca
+          kind: Issuer
+          group: cert-manager.io
+
+    api:
+      replicaCount: 1
+      persistence:
+        enabled: true
+        storageClass: local-path
+        size: 1Gi
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          memory: 512Mi
+
+    runner:
+      isolation: privileged
+      acknowledgePrivileged: true
+      replicaCount: 1
+      # Bounded inner-Docker data root. The default chart value is 64Gi; 20Gi
+      # is plenty for a homelab sandbox and leaves headroom on node-two.
+      dockerDataRoot:
+        emptyDir:
+          sizeLimit: 20Gi
+      config:
+        capacityTotal: "50"
+      privileged:
+        scheduling:
+          nodeSelector:
+            kubernetes.io/hostname: node-two
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
