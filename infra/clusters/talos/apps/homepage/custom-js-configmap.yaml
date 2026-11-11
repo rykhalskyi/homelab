@@ -1,0 +1,56 @@
+# Homepage custom.js, mounted into the Homepage Pod by the postRenderer in
+# helmrelease.yaml. Homepage sorts the Kubernetes widget nodes lexicographically
+# (node-one, node-three, node-two), so this reorders the rendered node blocks
+# to the physical/logical order: node-one, node-two, node-three.
+#
+# The chart only mounts its six YAML config files, so custom.js is provided by
+# this separate ConfigMap and added as a subPath mount in the postRenderer.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-custom-js
+  namespace: homepage
+data:
+  custom.js: |
+    (() => {
+      const order = ["node-one", "node-two", "node-three"];
+
+      const rank = (el) => {
+        const text = el.textContent || "";
+        const index = order.findIndex((name) => text.includes(name));
+        return index === -1 ? 0 : index + 1; // cluster/unknown stays first
+      };
+
+      const reorder = () => {
+        document
+          .querySelectorAll(".information-widget-kubernetes")
+          .forEach((widget) => {
+            const row = widget.querySelector(
+              ":scope > div.flex.flex-row.self-center.flex-wrap.justify-between",
+            );
+            if (!row) return;
+
+            const nodes = Array.from(row.children);
+            const sorted = [...nodes].sort((a, b) => rank(a) - rank(b));
+            if (nodes.every((el, index) => el === sorted[index])) return;
+
+            sorted.forEach((el) => row.appendChild(el));
+          });
+      };
+
+      let scheduled = false;
+      const schedule = () => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+          scheduled = false;
+          reorder();
+        });
+      };
+
+      new MutationObserver(schedule).observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+      schedule();
+    })();
