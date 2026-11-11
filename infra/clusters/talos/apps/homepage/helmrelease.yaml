@@ -20,6 +20,34 @@ metadata:
   namespace: homepage
 spec:
   interval: 1h
+  # Mount custom.js (from custom-js-configmap.yaml) at /app/config/custom.js.
+  # The chart only mounts its six YAML config files; this postRenderer adds the
+  # extra subPath mount used to reorder the Kubernetes widget nodes.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: homepage
+            patch: |
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: homepage
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: homepage
+                        volumeMounts:
+                          - name: homepage-custom-js
+                            mountPath: /app/config/custom.js
+                            subPath: custom.js
+                            readOnly: true
+                    volumes:
+                      - name: homepage-custom-js
+                        configMap:
+                          name: homepage-custom-js
   chart:
     spec:
       chart: homepage
@@ -88,6 +116,10 @@ spec:
                 icon: https://raw.githubusercontent.com/open-webui/open-webui/main/static/favicon.png
                 href: https://chat.lan.otakeessen.com/
                 description: Chat UI for the local llama.cpp models
+            - n8n:
+                icon: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/n8n.png
+                href: https://n8n.lan.otakeessen.com/
+                description: Workflow automation and AI agents
         - Own Applications:
             - Pullini:
                 icon: bookstack.png
