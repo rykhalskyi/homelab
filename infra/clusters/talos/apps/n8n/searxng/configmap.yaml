@@ -1,0 +1,29 @@
+# SearXNG settings for n8n Assistant/Agent web search.
+#
+# use_default_settings keeps the upstream engine/plugin defaults; the only
+# change needed is enabling the JSON output format, because n8n calls the
+# search API rather than the HTML UI.
+#
+# The service is ClusterIP-only: no ingress, so only in-cluster clients can
+# query it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searxng-config
+  namespace: n8n
+data:
+  settings.yml: |
+    use_default_settings: true
+
+    general:
+      instance_name: "n8n search"
+
+    server:
+      limiter: false
+      image_proxy: false
+
+    search:
+      safe_search: 0
+      formats:
+        - html
+        - json

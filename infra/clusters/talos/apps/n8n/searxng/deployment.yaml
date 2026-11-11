@@ -1,0 +1,91 @@
+# SearXNG for n8n web search, reachable only inside the cluster:
+#   http://searxng.n8n.svc.cluster.local:8080
+#
+# The image is pinned by tag + digest; bump both on upgrade. It runs as the
+# image's searxng user (977). The config directory is a read-only ConfigMap;
+# the cache/favicon volume is an emptyDir because all state is disposable.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  namespace: n8n
+  labels:
+    app: searxng
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: searxng
+  template:
+    metadata:
+      labels:
+        app: searxng
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 977
+        runAsGroup: 977
+        fsGroup: 977
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: searxng
+          image: docker.io/searxng/searxng:2026.11.11-626105eec@sha256:606fc8852a53f0be4ac05116950ff480f6f56b8ef7d77b366868cc76478036e5
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SEARXNG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-searxng
+                  key: SEARXNG_SECRET
+            - name: SEARXNG_BASE_URL
+              value: http://searxng.n8n.svc.cluster.local:8080/
+            - name: SEARXNG_LIMITER
+              value: "false"
+            # The ConfigMap mount is root-owned and read-only; do not try to
+            # chown it. The cache emptyDir is writable through fsGroup.
+            - name: FORCE_OWNERSHIP
+              value: "false"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/searxng
+              readOnly: true
+            - name: cache
+              mountPath: /var/cache/searxng
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: config
+          configMap:
+            name: searxng-config
+        - name: cache
+          emptyDir: {}
