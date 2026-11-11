@@ -97,6 +97,9 @@ spec:
                   key: api-keys
             - name: N8N_AGENTS_AI_SANDBOX_ENABLED
               value: "true"
+            # Self-hosted web search for Assistant/Agents (apps/n8n/searxng).
+            - name: N8N_INSTANCE_AI_SEARXNG_URL
+              value: http://searxng.n8n.svc.cluster.local:8080
             - name: GENERIC_TIMEZONE
               value: Europe/Berlin
             - name: TZ
