@@ -1,0 +1,7 @@
+# Personal landing page: a static nginx site served at the apex of the public
+# zone, https://otakeessen.com. Content lives in `site/` and is baked into a
+# ConfigMap by kustomize; there is no database, PVC or build step.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: personalpage

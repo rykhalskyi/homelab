@@ -1,0 +1,21 @@
+# Public: TLS terminates at Cloudflare, which forwards the apex hostname through
+# the tunnel to the talos Traefik (see apps/cloudflared/configmap.yaml and the
+# matching `otakeessen.com` DNS record in Cloudflare).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: personalpage
+  namespace: personalpage
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: otakeessen.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: personalpage
+                port:
+                  number: 80
