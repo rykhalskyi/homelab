@@ -30,7 +30,7 @@ spec:
       # this to a non-root user.
       containers:
         - name: frontend
-          image: ghcr.io/rykhalskyi/ragatool-frontend:sha-af91471dab6ec829e12d203ac2d08df4804509f3@sha256:d547a4295e59a70c07575b586c2cba5ca2f2f124ca15f02a9802b9cc2051121f
+          image: ghcr.io/rykhalskyi/ragatool-frontend:sha-149bb240bd6e0d40d50d8f5cc84dd9ceb45c2c21@sha256:5b2145716d5a7c82672f8465c53c82a110080000e74db84353cdcf3259751957
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
