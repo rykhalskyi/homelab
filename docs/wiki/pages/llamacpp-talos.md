@@ -1,14 +1,15 @@
 ---
 tags: [llama-cpp, llm, litellm, open-webui, vscode, talos, kubernetes, flux, lan, node-three, deployment]
-date: 2026-11-03
+date: 2026-11-18
 source_count: 0
 ---
 
 # llama.cpp router on Talos (LAN-only, node-three)
 
-**Status: live and verified 2026-11-03. Ollama was removed on 2026-11-03, so
-llama.cpp is now the only CPU inference runtime.** It uses llama.cpp's native
-**router mode** so one Deployment serves all four models through LiteLLM.
+**Status: live and verified 2026-11-03; `gemma3-4b-cpp` added 2026-11-18.
+Ollama was removed on 2026-11-03, so llama.cpp is now the only CPU inference
+runtime.** It uses llama.cpp's native
+**router mode** so one Deployment serves all five models through LiteLLM.
 Open WebUI and a VS Code OpenAI-compatible add-in talk to it through
 `llm.lan.otakeessen.com/v1`. In a local A/B test it was about 10% faster than
 the Ollama setup it replaced; there is no benchmark automation.
@@ -24,10 +25,10 @@ one when a different model is requested. The llama.cpp preset pins a
 | llama.cpp API (in cluster) | `http://llamacpp.llamacpp.svc.cluster.local:8080/v1` (OpenAI-compatible) |
 | llama.cpp LAN entry | through LiteLLM only: `https://llm.lan.otakeessen.com/v1` |
 | LiteLLM key | `sk-litellm` (LAN-only dummy, not a security boundary) |
-| Model IDs | `llama3.2-3b-cpp`, `qwen2.5-coder-3b-cpp`, `gemma3-1b-cpp`, `qwen3.5-4b-cpp` |
+| Model IDs | `llama3.2-3b-cpp`, `qwen2.5-coder-3b-cpp`, `gemma3-1b-cpp`, `gemma3-4b-cpp`, `qwen3.5-4b-cpp` |
 | Node | `node-three` (`192.168.2.235`), i5-9500 (6 cores / 6 threads), ~24 GB RAM, no GPU |
 | Image | `ghcr.io/ggml-org/llama.cpp:server@sha256:10a38e6c…` (build `b12063`) |
-| Models | four Q4_K_M GGUFs, ~7.7 GB total, on a 20Gi `local-path` PVC |
+| Models | five Q4_K_M GGUFs, ~10.2 GB total, on a 20Gi `local-path` PVC |
 | Resources | requests `1 CPU / 4Gi`; limits `4800m` / `9Gi` |
 | Runtime flags | `c = 4096`, `t = 6`, `np = 1`, `flash-attn = auto`, `jinja = true` |
 | Residency | `--models-max 1`: one llama.cpp model loaded at a time |
@@ -66,9 +67,10 @@ would become `3b-CPP`), which would break the LiteLLM mapping.
 | `llama3.2-3b-cpp` | `bartowski/Llama-3.2-3B-Instruct-GGUF` @ `5ab33fa…` | `Llama-3.2-3B-Instruct-Q4_K_M.gguf` | 2.02 GB |
 | `qwen2.5-coder-3b-cpp` | `Qwen/Qwen2.5-Coder-3B-Instruct-GGUF` @ `f74adce…` | `qwen2.5-coder-3b-instruct-q4_k_m.gguf` | 2.10 GB |
 | `gemma3-1b-cpp` | `unsloth/gemma-3-1b-it-GGUF` @ `f0b45be…` | `gemma-3-1b-it-Q4_K_M.gguf` | 0.81 GB |
+| `gemma3-4b-cpp` | `unsloth/gemma-3-4b-it-GGUF` @ `5a3566e…` | `gemma-3-4b-it-Q4_K_M.gguf` | 2.49 GB |
 | `qwen3.5-4b-cpp` | `unsloth/Qwen3.5-4B-GGUF` @ `e87f176…` | `Qwen3.5-4B-Q4_K_M.gguf` | 2.74 GB |
 
-Full pinned URLs are in `llamacpp/deployment.yaml`. All four are Q4_K_M GGUF
+Full pinned URLs are in `llamacpp/deployment.yaml`. All five are Q4_K_M GGUF
 builds; the exact quant and file are pinned per model.
 
 `qwen3.5` and `gemma3` can take images, but vision needs an `mmproj` file in a
@@ -89,7 +91,7 @@ All paths are under `infra/clusters/talos/apps/llamacpp/`:
 | `kustomization.yaml` | resources |
 
 `apps/kustomization.yaml` lists `llamacpp` so Flux reconciles it after
-`infrastructure`. LiteLLM gets four `-cpp` aliases from
+`infrastructure`. LiteLLM gets five `-cpp` aliases from
 `litellm/configmap.yaml`; bump `homelab/litellm-config-version` on the LiteLLM
 Deployment when that ConfigMap changes. Likewise, bump
 `homelab/llamacpp-preset-version` when `models.ini` changes: the router reads
@@ -110,7 +112,7 @@ Any extension that speaks the OpenAI API (Continue, Cline, Roo Code, …):
 ```text
 Base URL: https://llm.lan.otakeessen.com/v1
 API key:  sk-litellm
-Model:    llama3.2-3b-cpp   (or qwen2.5-coder-3b-cpp / gemma3-1b-cpp / qwen3.5-4b-cpp)
+Model:    llama3.2-3b-cpp   (or qwen2.5-coder-3b-cpp / gemma3-1b-cpp / gemma3-4b-cpp / qwen3.5-4b-cpp)
 ```
 
 The machine must resolve
@@ -121,10 +123,10 @@ timeout for the first cold start.
 Notes for coding add-ins:
 
 - `qwen2.5-coder-3b-cpp` and `llama3.2-3b-cpp` support tool calling through
-  llama.cpp's Jinja template; `gemma3-1b-cpp` does not.
+  llama.cpp's Jinja template; `gemma3-1b-cpp` and `gemma3-4b-cpp` do not.
 - The llama.cpp context is 4096. Large editor context can still be truncated;
   keep the add-in's context small on CPU.
-- `qwen3.5-4b-cpp` is the strongest of the four but also the slowest on CPU.
+- `qwen3.5-4b-cpp` is the strongest of the five but also the slowest on CPU.
 
 ### OpenAI-compatible API
 
@@ -146,10 +148,10 @@ kubectl -n llamacpp get pod -o wide
 kubectl -n llamacpp logs deploy/llamacpp -c download-models
 kubectl -n llamacpp logs deploy/llamacpp -c llama-server
 
-# The router lists all four preset IDs.
+# The router lists all five preset IDs.
 kubectl -n llamacpp run --rm curl -- -s http://llamacpp:8080/v1/models
 
-# LiteLLM lists the four -cpp models.
+# LiteLLM lists the five -cpp models.
 kubectl -n litellm run --rm curl -- -s \
   http://litellm:4000/v1/models -H 'Authorization: Bearer sk-litellm'
 ```
