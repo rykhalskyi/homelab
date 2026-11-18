@@ -1,5 +1,16 @@
 # DevOps Wiki — Log
 
+## [2026-11-18] update | add gemma3-4b-cpp to the llama.cpp router
+
+Added the `gemma3-4b-cpp` preset to
+[[llama.cpp router on Talos (LAN-only, node-three)]]
+(`unsloth/gemma-3-4b-it-GGUF` @ `5a3566e…`, `gemma-3-4b-it-Q4_K_M.gguf`,
+2.49 GB). The initContainer now downloads five Q4_K_M GGUFs (~10.2 GB total);
+LiteLLM gets a matching alias and context-window fallback. Text-only (no
+`mmproj`) and no tool calling, like `gemma3-1b-cpp`. Bumped
+`homelab/llamacpp-preset-version` and `homelab/litellm-config-version` so Flux
+rolls both Deployments.
+
 ## [2026-11-10] fix | lower Omarchy CPU request, keep 4-CPU limit
 
 The Omarchy VM was `ErrorUnschedulable` on `node-three`: its 4-CPU request plus

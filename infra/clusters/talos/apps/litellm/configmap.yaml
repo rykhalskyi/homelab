@@ -36,6 +36,12 @@ data:
           api_base: http://llamacpp.llamacpp.svc.cluster.local:8080/v1
           api_key: dummy
           timeout: 600
+      - model_name: gemma3-4b-cpp
+        litellm_params:
+          model: openai/gemma3-4b-cpp
+          api_base: http://llamacpp.llamacpp.svc.cluster.local:8080/v1
+          api_key: dummy
+          timeout: 600
       - model_name: qwen3.5-4b-cpp
         litellm_params:
           model: openai/qwen3.5-4b-cpp
@@ -59,6 +65,7 @@ data:
         - llama3.2-3b-cpp: ["deepseek-chat"]
         - qwen2.5-coder-3b-cpp: ["deepseek-chat"]
         - gemma3-1b-cpp: ["deepseek-chat"]
+        - gemma3-4b-cpp: ["deepseek-chat"]
         - qwen3.5-4b-cpp: ["deepseek-chat"]
 
     litellm_settings:
