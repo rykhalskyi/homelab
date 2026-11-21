@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-11-21] update | add gemma4-12b-cpp to the llama.cpp router (experiment)
+
+Added the `gemma4-12b-cpp` preset to
+[[llama.cpp router on Talos (LAN-only, node-three)]]
+(`unsloth/gemma-4-12b-it-GGUF` @ `fc034cf…`, `gemma-4-12b-it-Q4_K_M.gguf`,
+6.63 GB). The initContainer now downloads six Q4_K_M GGUFs (~16.8 GB total);
+LiteLLM gets a matching alias and context-window fallback. Text-only (no
+`mmproj`), from Gemma 4's unified multimodal model. Raised the llama-server
+memory request to 6 GiB and limit to 12 GiB to fit the 12B weights plus KV
+cache. Bumped `homelab/llamacpp-preset-version` and
+`homelab/litellm-config-version` so Flux rolls both Deployments.
+
 ## [2026-11-18] update | add gemma3-4b-cpp to the llama.cpp router
 
 Added the `gemma3-4b-cpp` preset to
