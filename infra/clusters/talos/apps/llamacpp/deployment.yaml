@@ -33,7 +33,7 @@ spec:
       labels:
         app: llamacpp
       annotations:
-        homelab/llamacpp-preset-version: "3"
+        homelab/llamacpp-preset-version: "4"
     spec:
       # node-three has the most RAM (~24 GiB) and is the only node with KVM, so
       # llama.cpp and the Omarchy VM share it: 1 CPU / 6Gi for llama.cpp plus

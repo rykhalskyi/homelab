@@ -80,6 +80,13 @@ per-model subdirectory. The initial setup is text-only; the text weights and
 chat templates are unaffected. `gemma4-12b` is a unified multimodal model; this
 experiment loads its text weights only (no `mmproj`).
 
+Both Gemma 3 presets set `jinja = false`, so llama.cpp uses its built-in Gemma
+template instead of the model's Jinja template. Gemma 3's template hard-fails on
+two consecutive `user` turns, and Open WebUI produces that payload when a retry
+follows a failed answer (it drops the empty/errored assistant turn). The
+built-in template accepts consecutive user turns. Gemma 3 does not support tool
+calling, so disabling Jinja loses nothing.
+
 ## Manifest map
 
 All paths are under `infra/clusters/talos/apps/llamacpp/`:
@@ -175,6 +182,13 @@ a different model and check that the previous child is stopped.
   load; the node still has ~9 GiB free after the VM and llama.cpp limits.
 - One llama.cpp model is resident at a time. Switching models pays a cold-start
   load; Open WebUI and LiteLLM are unaffected.
+- Retrying a failed answer in the **same** Open WebUI chat used to return
+  `400 ... Conversation roles must alternate user/assistant/...` for
+  `gemma3-1b-cpp` and `gemma3-4b-cpp` only. Open WebUI drops the empty/errored
+  assistant turn when rebuilding the payload, so the retry is `[user, user]`,
+  which the Gemma 3 Jinja template rejects. The preset now disables Jinja for
+  those two models; llama.cpp's built-in Gemma template tolerates it. Starting a
+  new chat also works, but the fix lets the poisoned chat recover.
 - A heavy generation saturates the 6-core node; concurrent generations share
   the CPU limit and both slow down.
 - `--models-memory-margin` only helps device memory; host (CPU) memory is

@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-11-21] fix | gemma3 presets accept consecutive user turns
+
+[[llama.cpp router on Talos (LAN-only, node-three)]]: retrying a failed answer
+in the same Open WebUI chat returned `400 Unable to generate parser for this
+template ... Conversation roles must alternate user/assistant/...` for
+`gemma3-1b-cpp` and `gemma3-4b-cpp` only. Open WebUI rebuilds the payload
+without the empty/errored assistant turn, so the retry is `[user, user]`, and
+Gemma 3's Jinja template calls `raise_exception` on that sequence. Set
+`jinja = false` on both Gemma 3 presets so llama.cpp uses its built-in Gemma
+template (which tolerates consecutive user turns); Gemma 3 has no tool calling,
+so nothing is lost. Bumped `homelab/llamacpp-preset-version` to roll the router.
+
 ## [2026-11-21] update | add gemma4-12b-cpp to the llama.cpp router (experiment)
 
 Added the `gemma4-12b-cpp` preset to

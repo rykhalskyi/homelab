@@ -12,6 +12,14 @@
 # `t = 6` uses the i5-9500's 6 cores, `np = 1` keeps one request in flight, and
 # `jinja = true` enables tool calling for the models that support it.
 #
+# Gemma 3 overrides `jinja = false`: its embedded template calls
+# `raise_exception("Conversation roles must alternate ...")` on two user turns
+# in a row. Open WebUI creates exactly that payload when you retry a failed
+# answer: it drops the empty/errored assistant turn (middleware.py), leaving
+# `[user, user]` -> HTTP 400 "Unable to generate parser for this template".
+# Gemma 3 does not support tool calling, so llama.cpp's built-in Gemma template
+# (no Jinja) is used instead; it accepts consecutive user turns.
+#
 # The files are downloaded by the Deployment's initContainer to /models. To
 # load one model at startup instead of lazily on first request, add
 # `load-on-startup = true` to that model's section. With `--models-max 1` it is
@@ -40,9 +48,11 @@ data:
 
     [gemma3-1b-cpp]
     model = /models/gemma-3-1b-it-Q4_K_M.gguf
+    jinja = false
 
     [gemma3-4b-cpp]
     model = /models/gemma-3-4b-it-Q4_K_M.gguf
+    jinja = false
 
     [gemma4-12b-cpp]
     model = /models/gemma-4-12b-it-Q4_K_M.gguf
