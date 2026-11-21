@@ -54,8 +54,5 @@ data:
     model = /models/gemma-3-4b-it-Q4_K_M.gguf
     jinja = false
 
-    [gemma4-12b-cpp]
-    model = /models/gemma-4-12b-it-Q4_K_M.gguf
-
     [qwen3.5-4b-cpp]
     model = /models/Qwen3.5-4B-Q4_K_M.gguf

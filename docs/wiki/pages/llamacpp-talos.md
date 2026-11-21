@@ -6,11 +6,11 @@ source_count: 0
 
 # llama.cpp router on Talos (LAN-only, node-three)
 
-**Status: live and verified 2026-11-03; `gemma3-4b-cpp` added 2026-11-18;
-`gemma4-12b-cpp` added 2026-11-21 (experiment).
+**Status: live and verified 2026-11-03; `gemma3-4b-cpp` added 2026-11-18. The
+2026-11-21 `gemma4-12b-cpp` experiment was dropped: ~1–2 tok/s on CPU.
 Ollama was removed on 2026-11-03, so llama.cpp is now the only CPU inference
 runtime.** It uses llama.cpp's native
-**router mode** so one Deployment serves all six models through LiteLLM.
+**router mode** so one Deployment serves all five models through LiteLLM.
 Open WebUI and a VS Code OpenAI-compatible add-in talk to it through
 `llm.lan.otakeessen.com/v1`. In a local A/B test it was about 10% faster than
 the Ollama setup it replaced; there is no benchmark automation.
@@ -26,12 +26,12 @@ one when a different model is requested. The llama.cpp preset pins a
 | llama.cpp API (in cluster) | `http://llamacpp.llamacpp.svc.cluster.local:8080/v1` (OpenAI-compatible) |
 | llama.cpp LAN entry | through LiteLLM only: `https://llm.lan.otakeessen.com/v1` |
 | LiteLLM key | `sk-litellm` (LAN-only dummy, not a security boundary) |
-| Model IDs | `llama3.2-3b-cpp`, `qwen2.5-coder-3b-cpp`, `gemma3-1b-cpp`, `gemma3-4b-cpp`, `gemma4-12b-cpp`, `qwen3.5-4b-cpp` |
+| Model IDs | `llama3.2-3b-cpp`, `qwen2.5-coder-3b-cpp`, `gemma3-1b-cpp`, `gemma3-4b-cpp`, `qwen3.5-4b-cpp` |
 | Node | `node-three` (`192.168.2.235`), i5-9500 (6 cores / 6 threads), ~24 GB RAM, no GPU |
 | Image | `ghcr.io/ggml-org/llama.cpp:server@sha256:10a38e6c…` (build `b12063`) |
-| Models | six Q4_K_M GGUFs, ~16.8 GB total, on a 20Gi `local-path` PVC |
-| Resources | requests `1 CPU / 6Gi`; limits `4800m` / `12Gi` |
-| Runtime flags | `c = 4096`, `t = 6`, `np = 1`, `flash-attn = auto`, `jinja = true` |
+| Models | five Q4_K_M GGUFs, ~10.2 GB total, on a 20Gi `local-path` PVC |
+| Resources | requests `1 CPU / 4Gi`; limits `4800m` / `9Gi` |
+| Runtime flags | `c = 4096`, `t = 6`, `np = 1`, `flash-attn = auto`, `jinja = true` (Gemma 3: `false`) |
 | Residency | `--models-max 1`: one llama.cpp model loaded at a time |
 | Auth | none on llama.cpp; keep the Service ClusterIP-only |
 
@@ -69,16 +69,19 @@ would become `3b-CPP`), which would break the LiteLLM mapping.
 | `qwen2.5-coder-3b-cpp` | `Qwen/Qwen2.5-Coder-3B-Instruct-GGUF` @ `f74adce…` | `qwen2.5-coder-3b-instruct-q4_k_m.gguf` | 2.10 GB |
 | `gemma3-1b-cpp` | `unsloth/gemma-3-1b-it-GGUF` @ `f0b45be…` | `gemma-3-1b-it-Q4_K_M.gguf` | 0.81 GB |
 | `gemma3-4b-cpp` | `unsloth/gemma-3-4b-it-GGUF` @ `5a3566e…` | `gemma-3-4b-it-Q4_K_M.gguf` | 2.49 GB |
-| `gemma4-12b-cpp` | `unsloth/gemma-4-12b-it-GGUF` @ `fc034cf…` | `gemma-4-12b-it-Q4_K_M.gguf` | 6.63 GB |
 | `qwen3.5-4b-cpp` | `unsloth/Qwen3.5-4B-GGUF` @ `e87f176…` | `Qwen3.5-4B-Q4_K_M.gguf` | 2.74 GB |
 
-Full pinned URLs are in `llamacpp/deployment.yaml`. All six are Q4_K_M GGUF
+Full pinned URLs are in `llamacpp/deployment.yaml`. All five are Q4_K_M GGUF
 builds; the exact quant and file are pinned per model.
 
 `qwen3.5` and `gemma3` can take images, but vision needs an `mmproj` file in a
 per-model subdirectory. The initial setup is text-only; the text weights and
-chat templates are unaffected. `gemma4-12b` is a unified multimodal model; this
-experiment loads its text weights only (no `mmproj`).
+chat templates are unaffected.
+
+`gemma4-12b-cpp` was evaluated on 2026-11-21 and removed the same day: a 12B Q4
+model on the 6-core i5 managed ~1.8 tok/s generation, too slow for chat. The
+preset, downloader and LiteLLM alias were dropped, and the llama-server limits
+went back to `4Gi` / `9Gi`.
 
 Both Gemma 3 presets set `jinja = false`, so llama.cpp uses its built-in Gemma
 template instead of the model's Jinja template. Gemma 3's template hard-fails on
@@ -101,7 +104,7 @@ All paths are under `infra/clusters/talos/apps/llamacpp/`:
 | `kustomization.yaml` | resources |
 
 `apps/kustomization.yaml` lists `llamacpp` so Flux reconciles it after
-`infrastructure`. LiteLLM gets six `-cpp` aliases from
+`infrastructure`. LiteLLM gets five `-cpp` aliases from
 `litellm/configmap.yaml`; bump `homelab/litellm-config-version` on the LiteLLM
 Deployment when that ConfigMap changes. Likewise, bump
 `homelab/llamacpp-preset-version` when `models.ini` changes: the router reads
@@ -122,7 +125,7 @@ Any extension that speaks the OpenAI API (Continue, Cline, Roo Code, …):
 ```text
 Base URL: https://llm.lan.otakeessen.com/v1
 API key:  sk-litellm
-Model:    llama3.2-3b-cpp   (or qwen2.5-coder-3b-cpp / gemma3-1b-cpp / gemma3-4b-cpp / gemma4-12b-cpp / qwen3.5-4b-cpp)
+Model:    llama3.2-3b-cpp   (or qwen2.5-coder-3b-cpp / gemma3-1b-cpp / gemma3-4b-cpp / qwen3.5-4b-cpp)
 ```
 
 The machine must resolve
@@ -136,8 +139,7 @@ Notes for coding add-ins:
   llama.cpp's Jinja template; `gemma3-1b-cpp` and `gemma3-4b-cpp` do not.
 - The llama.cpp context is 4096. Large editor context can still be truncated;
   keep the add-in's context small on CPU.
-- `gemma4-12b-cpp` is the largest model (~6.6 GB of weights) and the slowest on
-  CPU; `qwen3.5-4b-cpp` is the strongest of the small models.
+- `qwen3.5-4b-cpp` is the strongest of the small models.
 
 ### OpenAI-compatible API
 
@@ -159,10 +161,10 @@ kubectl -n llamacpp get pod -o wide
 kubectl -n llamacpp logs deploy/llamacpp -c download-models
 kubectl -n llamacpp logs deploy/llamacpp -c llama-server
 
-# The router lists all six preset IDs.
+# The router lists all five preset IDs.
 kubectl -n llamacpp run --rm curl -- -s http://llamacpp:8080/v1/models
 
-# LiteLLM lists the six -cpp models.
+# LiteLLM lists the five -cpp models.
 kubectl -n litellm run --rm curl -- -s \
   http://litellm:4000/v1/models -H 'Authorization: Bearer sk-litellm'
 ```
@@ -174,12 +176,10 @@ a different model and check that the previous child is stopped.
 ## Caveats
 
 - It shares `node-three` with the Omarchy VM. The VM has 4 vCPUs but requests
-  2 CPU / 6 GiB with a 4-CPU limit; llama.cpp requests 1 CPU / 6 GiB. That fits
-  within the node's ~5950m CPU / ~24 GiB, leaving ~455m CPU headroom. CPU is
-  shared when both are busy, but they are rarely used at the same time.
-- `gemma4-12b-cpp` drove the llama-server memory limit from 9 GiB to 12 GiB
-  (weights ~6.6 GB plus KV cache and buffers). Watch for `OOMKilled` on first
-  load; the node still has ~9 GiB free after the VM and llama.cpp limits.
+  2 CPU / 6 GiB with a 4-CPU limit; llama.cpp requests 1 CPU / 4 GiB with a
+  9 GiB limit. That fits within the node's ~5950m CPU / ~24 GiB, leaving ~455m
+  CPU headroom. CPU is shared when both are busy, but they are rarely used at
+  the same time.
 - One llama.cpp model is resident at a time. Switching models pays a cold-start
   load; Open WebUI and LiteLLM are unaffected.
 - Retrying a failed answer in the **same** Open WebUI chat used to return

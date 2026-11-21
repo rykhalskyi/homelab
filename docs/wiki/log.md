@@ -1,5 +1,17 @@
 # DevOps Wiki — Log
 
+## [2026-11-21] revert | drop the gemma4-12b-cpp experiment
+
+Removed the `gemma4-12b-cpp` preset from
+[[llama.cpp router on Talos (LAN-only, node-three)]]: a 12B Q4 model on the
+6-core i5 in `node-three` measured ~1.8 tok/s generation (~6.4 tok/s prompt),
+too slow for chat even though it loaded and answered. Dropped the preset, the
+6.63 GB Hugging Face download and the LiteLLM alias/context fallback, and
+reverted the llama-server limits from `6Gi`/`12Gi` to `4Gi`/`9Gi`; the router is
+back to five models (~10.2 GB). The already-downloaded
+`gemma-4-12b-it-Q4_K_M.gguf` is deleted from the PVC to reclaim the space. The
+`jinja = false` Gemma 3 fix from the next entry is unchanged.
+
 ## [2026-11-21] fix | gemma3 presets accept consecutive user turns
 
 [[llama.cpp router on Talos (LAN-only, node-three)]]: retrying a failed answer
