@@ -6,9 +6,9 @@
 # node usable. Router-controlled flags (host, port) stay on the router;
 # per-model flags live in the llamacpp-presets ConfigMap.
 #
-# The initContainer downloads the six pinned Q4_K_M GGUFs from Hugging Face
+# The initContainer downloads the five pinned Q4_K_M GGUFs from Hugging Face
 # into /models and skips files that are already present. First boot moves
-# ~16.8 GB, so the rollout deadline is raised. A missing file makes the router
+# ~10.2 GB, so the rollout deadline is raised. A missing file makes the router
 # list the preset but fail to load it; the initContainer prevents that.
 #
 # Bump homelab/llamacpp-preset-version when models.ini changes so Flux rolls the
@@ -33,13 +33,12 @@ spec:
       labels:
         app: llamacpp
       annotations:
-        homelab/llamacpp-preset-version: "3"
+        homelab/llamacpp-preset-version: "4"
     spec:
       # node-three has the most RAM (~24 GiB) and is the only node with KVM, so
-      # llama.cpp and the Omarchy VM share it: 1 CPU / 6Gi for llama.cpp plus
-      # 4 CPU / 6Gi for the VM fits within 6 vCPU / ~24 GiB. The 12Gi limit
-      # leaves room for the 12B Gemma-4 weights plus its KV cache. The model PVC
-      # is re-provisioned here by local-path and the init container re-downloads
+      # llama.cpp and the Omarchy VM share it: 1 CPU / 4Gi for llama.cpp plus
+      # 4 CPU / 6Gi for the VM fits within 6 vCPU / ~24 GiB. The model PVC is
+      # re-provisioned here by local-path and the init container re-downloads
       # the GGUF files.
       nodeSelector:
         kubernetes.io/hostname: node-three
@@ -81,8 +80,6 @@ spec:
                 https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/f0b45be0aac41bd6a100a4b5734cad5f67255bfb/gemma-3-1b-it-Q4_K_M.gguf
               fetch gemma-3-4b-it-Q4_K_M.gguf \
                 https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/resolve/5a3566e716d80f709ed7b79817eaf7733d2a1fce/gemma-3-4b-it-Q4_K_M.gguf
-              fetch gemma-4-12b-it-Q4_K_M.gguf \
-                https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/fc034cfff751157913579611efad8462ac1be606/gemma-4-12b-it-Q4_K_M.gguf
               fetch Qwen3.5-4B-Q4_K_M.gguf \
                 https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf
           volumeMounts:
@@ -139,10 +136,10 @@ spec:
           resources:
             requests:
               cpu: "1"
-              memory: 6Gi
+              memory: 4Gi
             limits:
               cpu: 4800m
-              memory: 12Gi
+              memory: 9Gi
       volumes:
         - name: models
           persistentVolumeClaim:
